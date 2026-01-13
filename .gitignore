@@ -49,3 +49,8 @@ next-env.d.ts
 
 # OS
 Thumbs.db
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+supabase/.output/
