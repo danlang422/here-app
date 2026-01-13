@@ -7,7 +7,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Currently Building
-- Authentication flows (login, signup, password reset)
 - Student agenda page with real data
 
 ### Up Next
@@ -15,6 +14,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Implement check-out flow
 - Build teacher student list and detail views
 - Seed test data for development
+- Polish authentication page styling
+
+### Authentication System Completed (2026-01-13)
+
+**Server Infrastructure:**
+- Created server actions for auth operations (`lib/auth/actions.ts`):
+  - Login with email/password
+  - Signup with automatic user profile creation
+  - Logout with session cleanup
+  - Password reset email flow
+  - Password update after reset
+- Implemented Next.js middleware for automatic route protection
+- Public routes (login, signup, reset) accessible to unauthenticated users
+- Protected routes automatically redirect to login
+- Authenticated users redirected away from auth pages
+
+**Client Components:**
+- Created login page (`app/login/page.tsx`)
+- Created signup page with password confirmation (`app/signup/page.tsx`)
+- Created password reset request page (`app/reset-password/page.tsx`)
+- Created password update page (`app/auth/update-password/page.tsx`)
+- Added `useUser` hook for client-side auth state (`lib/hooks/useUser.ts`)
+- Fixed redirect error flashes by handling Next.js redirect exceptions
+
+**User Experience:**
+- Seamless authentication flow with no loading states (server-side rendering)
+- Automatic user profile creation on signup (via database trigger)
+- New users default to student role
+- HTTP-only cookies for secure session management
+- Email confirmation disabled for development (can be enabled in production)
+
+**Integration:**
+- Updated home page to display authenticated user info
+- Added logout functionality
+- Configured site URL for password reset emails
 
 ### Supabase Integration Completed (2026-01-13)
 
