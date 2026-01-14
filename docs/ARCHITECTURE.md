@@ -532,3 +532,94 @@ here-app/
 3. Add mentor commenting interface
 4. Add mentor profile page
 5. No database changes needed (mentors already in users table)
+
+---
+
+## Organizations & Multi-Tenancy
+
+**Decision:** Single-tenant with organization awareness (V1)  
+**Reasoning:** 
+- Building for City View initially
+- Multi-tenancy is speculative at this point
+- Easier to add org filtering later than to remove it
+- Single-tenant is simpler for V1 launch
+**Trade-offs:** Each school needs separate deployment if we expand, but Vercel makes this trivial  
+**Date:** January 2026
+
+**Organizations Table Added:**
+- Basic `organizations` table with name and slug
+- Users have `org_id` foreign key
+- Allows dynamic org name in UI (nav, branding)
+- Prepares for potential multi-tenancy without full implementation
+
+**V1 Approach:**
+- One organization per database
+- No `org_id` filtering in queries
+- No org-scoped RLS policies
+- UI references organization name dynamically
+
+**If Expanding to Multi-Tenant:**
+- Add `org_id` to all relevant tables (sections, attendance_events, etc.)
+- Update RLS policies to filter by organization
+- Add org selection/switching in UI
+- Slug-based routing (e.g., `/city-view/admin/...`)
+
+---
+
+## Admin UI Architecture
+
+**Decision:** Separate "account management" from "people viewing"  
+**Reasoning:** 
+- CRUD operations on accounts (Users page) are different from viewing schedules/profiles
+- Using organization name ("City View") for people directory creates clear conceptual distinction
+- Single profile component adapts based on user role (student/teacher/admin)
+**Trade-offs:** Two navigation items instead of one, but clearer purpose  
+**Date:** January 2026
+
+**Navigation Structure:**
+- **Users** - Account management (create, edit roles, passwords, deactivate)
+- **City View** - People directory (view schedules, profiles, check-ins)
+  - Name pulled from organizations table
+  - Role-based tabs (All, Students, Teachers, Mentors)
+
+**Profile Page Design:**
+- Single component: `/admin/city-view/[userId]`
+- Dynamically shows tabs based on user role:
+  - Students: Schedule, Check-ins, Info
+  - Teachers: Schedule, Students, Info
+  - Admin/Mentor: Info only (for now)
+- Schedule builder lives within profile's Schedule tab
+- Reusable across roles (no separate student/teacher pages)
+
+**Schedule Builder Approach (V1):**
+- List-based interface (not visual calendar - that's V2)
+- Time filter for finding sections in specific windows
+- Handles "no fixed blocks" problem by letting admin define search range
+- Can search existing sections OR create new section from profile
+- Time conflict detection with override option
+
+---
+
+## Section Creation Flow
+
+**Decision:** Smart form with "Save & Add Another" for bulk entry  
+**Reasoning:** 
+- ~20 in-person sections need to be created at once
+- CSV import is overkill for this volume
+- Duplicate function doesn't help (sections rarely identical)
+- Form that stays open and clears after each save is fastest
+**Trade-offs:** Not as powerful as CSV import, but much simpler to build and use  
+**Date:** January 2026
+
+**Smart Form Features:**
+- Primary action: "Save & Add Another" (keeps form open)
+- Shows "Sections Created This Session" list for confirmation
+- Form clears after each save
+- Can create 10-20 sections in one flow
+- Teacher dropdown with search/autocomplete
+- Time pickers for start/end
+- Schedule pattern radio buttons (every_day, specific_days, a_days, b_days)
+
+**Future Enhancement:**
+- CSV import for larger volumes (V2+)
+- Visual schedule grid for conflict detection (V2+)

@@ -7,18 +7,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Currently Building
+- Admin UI for section management (see `docs/wip/ADMIN_UI.md`)
+- Organizations table for dynamic org name in UI
+
+### Up Next
 - Connect student agenda page to real Supabase data
 - Implement check-in flow with geolocation for internships
 - Implement check-out flow with progress prompts
 
-### Up Next
-- Build teacher student list and detail views
-- Build admin section management UI
-- Build admin schedule building UI
-- Implement calendar day management
-- Seed test data for development
-- Polish authentication page styling
-- Deploy to production (Vercel + Supabase)
+### Admin UI Planning Session (2026-01-14)
+
+**Architectural Decisions:**
+- Organizations table approach for single-tenant with multi-tenant preparation
+- "Users" vs "City View" navigation distinction (account management vs people viewing)
+- Single profile component with role-based tabs
+- Smart form for section creation ("Save & Add Another" workflow)
+
+**UI/UX Specifications:**
+- Detailed admin interface design documented in `docs/wip/ADMIN_UI.md`
+- Section creation optimized for bulk entry (~20 sections)
+- Schedule builder uses time-filter approach (no fixed blocks)
+- Profile pages adapt based on user role (student/teacher/admin)
+
+**Build Priority:**
+1. Phase 1: Sections Management (CRUD + smart form + enrollment)
+2. Phase 2: City View (people directory + profile pages + schedule builder)
+3. Phase 3: Users Management (account CRUD)
+4. Phase 4: Calendar Management (A/B days)
+
+**Next Action:** Begin Phase 1 - Admin layout and sections management
 
 ### Authentication System Completed (2026-01-13)
 
