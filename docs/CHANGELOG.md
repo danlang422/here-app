@@ -7,17 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Currently Building
-- Complete database schema design
-- Documentation of architectural decisions
-
-### Up Next
-- Initialize Supabase project
-- Create database tables with RLS policies
 - Set up authentication flows (login, signup, password reset)
-- Build student agenda page with real data
+- Build student agenda page with real data (replace demo UI)
 - Implement check-in flow with geolocation
 - Implement check-out flow
+
+### Up Next
 - Build teacher student list and detail views
+- Build admin section management UI
+- Build admin schedule building UI
+- Implement calendar day management
+- Deploy to production (Vercel + Supabase)
 
 ### Schema Design Completed (2026-01-13)
 
@@ -109,8 +109,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Technical Debt
 - None yet (greenfield project)
 
+### Infrastructure Completed (2026-01-14)
+
+**Supabase Setup:**
+- Supabase project initialized and connected
+- Database migrations created and applied
+  - `001_initial_schema.sql`: Complete database schema with all tables, indexes, RLS policies
+  - `002_auto_create_user_profile.sql`: Automatic user profile creation trigger
+- TypeScript database types generated
+- Supabase client utilities configured (client-side and server-side)
+
+**Next.js Project Setup:**
+- Next.js 16 with App Router configured
+- Tailwind CSS 4 integrated
+- TypeScript configured
+- Project structure established (app/, lib/, docs/)
+- Demo student agenda page created (visual prototype)
+
 ### Known Issues
-- None yet (no implementation started)
+- None yet
 
 ---
 
