@@ -7,16 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Currently Building
-- Student agenda page with real data
-
-### Up Next
-- Implement check-in flow with geolocation
-- Implement check-out flow
+- Connect student agenda page to real Supabase data
+- Implement check-in flow with geolocation for internships
+- Implement check-out flow with progress prompts
 
 ### Up Next
 - Build teacher student list and detail views
+- Build admin section management UI
+- Build admin schedule building UI
+- Implement calendar day management
 - Seed test data for development
 - Polish authentication page styling
+- Deploy to production (Vercel + Supabase)
 
 ### Authentication System Completed (2026-01-13)
 
