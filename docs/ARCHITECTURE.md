@@ -18,236 +18,91 @@ Here App is a student check-in/check-out system for remote work and internships.
 
 ---
 
-## Key Technical Decisions
+## Technology Stack
 
-### Next.js App Router
-**Decision:** Use Next.js 14+ with App Router  
-**Reasoning:** 
-- Server components reduce client-side JavaScript
-- Built-in routing simplifies navigation
-- Excellent Vercel deployment integration
-- Successful experience from InternTracker
-**Trade-offs:** Steeper learning curve than Pages Router, but better performance and cleaner architecture  
-**Date:** January 2026
+### Frontend & Framework
+- **Next.js 16** with App Router for server-side rendering and routing
+- **React 19** for UI components
+- **Tailwind CSS 4** for utility-first styling
+- Server components by default, client components only when interactivity is needed
 
----
+See `DECISIONS.md` for reasoning behind these choices and alternatives considered.
 
-### Supabase for Backend
-**Decision:** Use Supabase for database, authentication, and real-time features  
-**Reasoning:**
-- Eliminates need for custom backend API
-- Built-in Row Level Security (RLS) for data access control
-- Real-time subscriptions could enable live check-in status
-- Successful experience from InternTracker
-**Trade-offs:** Vendor lock-in, but the productivity gains and "magical" developer experience are worth it  
-**Date:** January 2026
+### Backend & Database
+- **Supabase** for PostgreSQL database, authentication, and real-time features
+- **Row Level Security (RLS)** for database-level authorization
+- Server actions for mutations, direct database queries for reads
+- TypeScript types auto-generated from database schema
 
----
+### Maps & Location
+- **Leaflet** with OpenStreetMap for geolocation features
+- 100-meter geofence verification for internship check-ins
+- "Soft verification" (flag but don't block) approach
 
-### Tailwind CSS
-**Decision:** Use Tailwind for styling  
-**Reasoning:**
-- Utility-first approach keeps styles co-located with components
-- Consistency through design system (spacing, colors)
-- No CSS naming overhead
-- Responsive design is intuitive
-- Smaller production CSS bundle
-**Trade-offs:** Can look cluttered inline, but helps with visibility of dynamic UI states  
-**Date:** January 2026
+### Deployment
+- **Vercel** for frontend hosting and CI/CD
+- **Supabase** for hosted PostgreSQL and auth
+- Environment-based configuration (dev, staging, production)
 
 ---
 
-### Section-Based Schedule Model
-**Decision:** Use "sections" as building blocks for student schedules  
-**Reasoning:**
-- Flexible enough to handle various class types (in-person, internship, remote work)
-- Simpler than InternTracker's full block schedule system
-- Sections map directly to SIS attendance blocks via simple numeric field
-- Can accommodate A/B day schedules at other schools
-**Trade-offs:** Less automated than complex schedule correlation, but significantly simpler to implement and maintain  
-**Date:** January 2026
+## Data Model Overview
 
-**Section Types:**
-- `in_person`: Traditional classroom, display-only (no check-in required)
-- `remote`: Remote work sessions, requires check-in/out with prompts
-- `internship`: Off-site work, requires check-in/out with prompts + geolocation
+### Core Entities
 
-**Schedule Patterns:**
-- `every_day`: Section occurs every school day
-- `specific_days`: Section occurs on specific weekdays (M/W/F, T/Th, etc.)
-- `a_days`: Section occurs only on A days (for students at other schools)
-- `b_days`: Section occurs only on B days (for students at other schools)
+**Users & Roles:**
+- Users can have multiple roles simultaneously (student, teacher, admin, mentor)
+- `user_roles` many-to-many table enables role overlap common in small schools
+- See `DATABASE.md` for complete schema and `DECISIONS.md` for multi-role reasoning
 
----
+**Schedule Components:**
+- **Sections**: Building blocks of schedules (in-person, remote, internship types)
+- **Schedule Patterns**: every_day, specific_days, a_days, b_days
+- **Calendar Days**: School calendar with A/B day designation support
+- Sections map to SIS attendance blocks via simple numeric field
 
-### Multi-Role Authentication
-**Decision:** Users can have multiple roles simultaneously (student, teacher, admin, mentor)  
-**Reasoning:**
-- Small school environment means role overlap is common (teacher who also mentors, admin who also teaches)
-- Avoids need for "fake accounts" to access different features
-- More accurate representation of actual user permissions
-- Built with many-to-many `user_roles` table  
-**Trade-offs:** More complex permission checks and RLS policies, but necessary for real-world use cases  
-**Date:** January 2026
+**Internships:**
+- **Opportunities**: Catalog of available internships (organization, mentor, location)
+- **Sections**: Actual schedule entries linking students to opportunities
+- Separation allows opportunity browsing and reusability
 
-**Roles:**
-- **Student**: Access to own schedule, check-in/out capability, view own history
-- **Teacher**: View assigned students, comment on responses, mark attendance
-- **Admin**: Full system access, schedule management, user management
-- **Mentor**: Verify internship check-ins, provide feedback to mentees (email-based engagement in V1)
+**Check-Ins & Interactions:**
+- **Attendance Events**: Check-in/out records with timestamps and location data
+- **Interactions**: Unified table for prompt responses, comments, and future messages
+- Threading via `parent_id` creates conversational structure
+
+See `DATABASE.md` for complete table definitions and relationships.
 
 ---
 
-### Internship Opportunities as Separate Entity
-**Decision:** Internship opportunities exist separately from schedule sections  
-**Reasoning:**
-- Opportunities are catalog items (browseable, searchable)
-- Sections are schedule entries (specific student, specific times)
-- Same opportunity can spawn multiple sections over time
-- Enables future features like application workflows
-- Cleaner separation of concerns  
-**Trade-offs:** More tables and relationships, but better data model  
-**Date:** January 2026
+## Key Architectural Patterns
 
-**Flow:**
-1. Admin creates internship opportunity (organization, mentor, location)
-2. Student is placed in internship
-3. Admin creates section for that student, links to opportunity
-4. Section inherits location/geofence from opportunity
+### Server-First Architecture
+- Server components fetch data and render initial UI
+- Client components only for forms, location capture, and interactive features
+- Reduces JavaScript bundle size and improves performance
 
----
+### Database-Level Authorization
+All data access enforced via Supabase Row Level Security policies:
+- Students: own schedule and check-ins only
+- Teachers: students in their sections only
+- Mentors: students at their internship locations only
+- Admins: full access
 
-### Unified Interactions Model
-**Decision:** Use single `interactions` table for all conversational content (prompt responses, comments, messages)  
-**Reasoning:**
-- Reduces table proliferation (no separate tables for responses, comments, DMs)
-- Natural threading via `parent_id` foreign key
-- Enables future messaging features without schema changes
-- Simpler activity feed queries
-- Matches modern chat/collaboration app patterns  
-**Trade-offs:** More abstract than separate tables, requires `type` enum to distinguish content  
-**Date:** January 2026
-
-**Interaction Types:**
-- `prompt_response`: Student answering check-in/out prompts
-- `comment`: Teacher/mentor feedback on responses
-- `message`: Direct messages (future feature)
-
-**Key Relationships:**
-- `attendance_event_id`: Links response to specific check-in/out
-- `prompt_id`: Links response to which prompt was answered
-- `parent_id`: Links comments to responses (threading)
-- `section_id`: General section context
-
----
-
-### A/B Day Calendar Support
-**Decision:** Built into database from V1 via `calendar_days` table  
-**Reasoning:**
-- City View students attend classes at other schools with A/B day schedules
-- Calendar marks which dates are A days vs B days
-- Sections can specify they occur on "A days only" or "B days only"
-- Most sections ignore A/B designation (every_day pattern)  
-**Trade-offs:** Additional complexity in schedule logic, but essential for multi-school students  
-**Date:** January 2026
-
-**Implementation:**
-- `calendar_days.is_school_day`: Whether school is in session
-- `calendar_days.ab_designation`: null (regular), 'a_day', or 'b_day'
-- UI shows A/B designation only to students with A/B sections (contextual display)
-
----
-
-### Geolocation for Internships
-**Decision:** Use Leaflet + OpenStreetMap for geolocation features  
-**Reasoning:**
-- Free and open-source (no ongoing costs)
-- Sufficient accuracy for 100m geofence verification
-- Privacy-friendly (no Google tracking)  
-**Trade-offs:** Less robust geocoding than Google Maps, but acceptable for V1  
-**Date:** January 2026
-
-**Geolocation Features:**
-- Capture location at internship check-in and check-out
-- 100-meter geofence radius for verification (configurable per opportunity)
-- "Soft verification": Flag if outside geofence, but don't block check-in
-- Mentor can manually verify despite flag (override)
-
-**Location Data Storage:**
-```json
-{
-  "address": "123 Main St NE, Cedar Rapids, IA 52402",
-  "lat": 41.9779,
-  "lng": -91.6656
-}
-```
-
----
-
-### Email-Based Mentor Engagement (V1)
-**Decision:** Mentors verify check-ins via email links, with option for in-app access later  
-**Reasoning:**
-- Low friction for mentors (no required login)
-- Validates whether mentors actually engage before building full UI
-- Magic link authentication allows future login without separate credentials
-- Can upgrade to in-app role in V2 if engagement is high  
-**Trade-offs:** Less rich interaction than in-app, but appropriate for V1 validation  
-**Date:** January 2026
-
-**Flow:**
-1. Student checks in at internship
-2. Email sent to mentor with check-in details
-3. Mentor clicks "Verify" link (magic link authentication)
-4. Sets `verified_by` and `verified_at` in database
-5. Optional: Mentor leaves comment via web form
-
----
-
-### Admin-Only Schedule Building (V1)
-**Decision:** Only admins can create sections and enroll students  
-**Reasoning:**
-- Simplifies permissions for initial launch
-- Matches current City View workflow (Dennis/Amanda build schedules)
-- Can expand to teacher permissions later if needed  
-**Trade-offs:** Less distributed control, but appropriate for small school  
-**Date:** January 2026
-
-**Schedule Building UI (planned):**
-1. Admin creates sections (name, type, times, days)
-2. Admin enrolls students in sections (many-to-many)
-3. Visual schedule grid shows student schedules
-4. CSV import deferred to V2 (manual entry for V1)
-
----
-
-## Major Design Patterns
-
-### Server Components by Default
-Use client components only when interactivity is needed:
-- Forms (check-in, comments)
-- Location capture
-- Interactive schedule views
-- Real-time updates (future)
-
-### Row Level Security (RLS) for Authorization
-Database-level security ensures users can only access appropriate data:
-- Students see own schedule and check-ins
-- Teachers see students in their sections
-- Mentors see mentees at their internship locations
-- Admins see everything
-
-### Custom Hooks for Data Fetching
-Consistent patterns for loading data:
-- `useStudentSchedule(date)` - Get student's schedule for specific date
-- `useCheckInHistory(studentId)` - Get check-in history with responses
-- `useInteractions(attendanceEventId)` - Get threaded comments
+No client-side permission checks (they can be bypassed).
 
 ### Conversational UI Pattern
-All student responses and teacher feedback presented as conversation:
-- Check-in/out prompts feel like questions from teacher
-- Responses appear as student messages
-- Comments appear as teacher replies
-- Threading creates natural conversation flow
+Check-in/out prompts and responses presented as conversation:
+- Prompts feel like questions from teacher
+- Student responses appear as messages
+- Teacher comments appear as threaded replies
+- Natural threading via `parent_id` relationships
+
+### Email-First Mentor Engagement (V1)
+Mentors verify check-ins via email magic links rather than requiring app login:
+- Low friction, validates engagement
+- Can upgrade to in-app role in V2 based on actual usage
+- See `DECISIONS.md` for reasoning
 
 ---
 
@@ -256,7 +111,7 @@ All student responses and teacher feedback presented as conversation:
 ```
 here-app/
 ├── app/                    # Next.js App Router pages
-│   ├── (auth)/            # Auth-related pages (login, signup)
+│   ├── (auth)/            # Auth pages (login, signup, password reset)
 │   ├── (student)/         # Student-facing pages
 │   │   ├── agenda/        # Daily schedule view
 │   │   ├── history/       # Check-in history
@@ -265,30 +120,37 @@ here-app/
 │   │   ├── students/      # Student list and detail views
 │   │   └── sections/      # Section management
 │   ├── (admin)/           # Admin-facing pages
-│   │   ├── sections/      # Section creation/management
-│   │   ├── schedules/     # Schedule building UI
-│   │   ├── calendar/      # A/B day calendar setup
-│   │   └── opportunities/ # Internship opportunity management
+│   │   ├── sections/      # Section CRUD + smart form
+│   │   ├── city-view/     # People directory + profiles
+│   │   ├── calendar/      # A/B day calendar management
+│   │   └── users/         # Account management
 │   └── api/               # API routes if needed
+│
 ├── components/            # React components
-│   ├── ui/               # Reusable UI components (buttons, cards, etc.)
+│   ├── ui/               # Reusable UI (buttons, cards, forms)
 │   ├── student/          # Student-specific components
 │   ├── teacher/          # Teacher-specific components
 │   ├── admin/            # Admin-specific components
-│   └── shared/           # Shared across roles
-├── lib/                   # Utility functions
-│   ├── supabase/         # Supabase client and helpers
+│   └── shared/           # Cross-role shared components
+│
+├── lib/                   # Utility functions and helpers
+│   ├── supabase/         # Supabase client utilities
 │   │   ├── client.ts     # Browser client
 │   │   ├── server.ts     # Server client
 │   │   └── rls.ts        # RLS policy helpers
-│   ├── utils/            # General utilities
+│   ├── auth/             # Auth actions (login, signup, logout)
 │   ├── hooks/            # Custom React hooks
-│   └── types/            # TypeScript types
+│   ├── utils/            # General utilities
+│   └── types/            # TypeScript types (including database.ts)
+│
 ├── docs/                  # Documentation
 │   ├── ARCHITECTURE.md   # This file
-│   ├── DATABASE.md       # Database schema
+│   ├── DATABASE.md       # Database schema details
+│   ├── DECISIONS.md      # Why we chose specific approaches
 │   ├── CHANGELOG.md      # Version history
-│   └── DEVELOPMENT.md    # Development workflow
+│   ├── DEVELOPMENT.md    # Development workflow
+│   └── wip/              # Temporary planning docs
+│
 └── public/               # Static assets
 ```
 
@@ -296,54 +158,215 @@ here-app/
 
 ## Data Flow Examples
 
-### Check-In Flow
+### Student Check-In Flow
 1. Student navigates to agenda page
-2. Server component fetches today's schedule from Supabase
-3. Client component shows "Check In" button for remote/internship sections
+2. **Server component** fetches today's schedule from Supabase
+3. **Client component** shows "Check In" button for remote/internship sections
 4. Student clicks "Check In"
-5. **If internship:** Capture geolocation, verify against geofence
+5. **If internship:** Capture geolocation via browser API, verify against opportunity's geofence
 6. Show prompt: "What are your plans for this session?"
-7. Student types response
-8. Create `attendance_event` record (timestamp, location if applicable)
-9. Create `interaction` record (type: prompt_response, content: plans)
-10. **If internship with mentor:** Send email to mentor with verification link
-11. Update UI to show "Checked In" state
+7. Student types response, submits form
+8. **Server action** creates:
+   - `attendance_event` record (type: check_in, timestamp, location)
+   - `interaction` record (type: prompt_response, content: plans)
+9. **If internship:** Send email to mentor with verification magic link
+10. Update UI to "Checked In" state
 
-### Teacher Viewing Check-Ins
+### Teacher Viewing & Commenting
 1. Teacher navigates to students page
-2. Server component queries sections where teacher is assigned
-3. Fetch students in those sections
-4. Fetch today's attendance events for those students
-5. Display list: student name, section, check-in time, plans response
-6. Teacher clicks to expand: see full response + any existing comments
-7. Teacher types comment
-8. Create `interaction` record (type: comment, parent_id: response interaction, content: feedback)
-9. Student sees comment in their history view
+2. **Server component** queries:
+   - Sections where teacher is assigned
+   - Students enrolled in those sections
+   - Today's attendance events for those students
+   - Prompt responses (interactions) for those events
+3. Display list: student name, section, check-in time, plans
+4. Teacher clicks to expand student response
+5. Teacher types comment in form
+6. **Server action** creates `interaction` record (type: comment, parent_id: response)
+7. Comment appears threaded under student's response
+8. Student sees comment when viewing their check-in history
 
-### Mentor Verification Email
-1. Student checks in at internship (attendance event created)
-2. Server function triggers email to mentor
-3. Email contains:
-   - Student name
-   - Check-in time
+### Mentor Email Verification
+1. Student checks in at internship → `attendance_event` created
+2. **Server function** triggers email to mentor containing:
+   - Student name and check-in time
    - Location (if captured)
    - Plans response
-   - "Verify" button (magic link)
-4. Mentor clicks verify link
-5. Magic link authenticates mentor (sets session)
-6. Simple web page: "Confirm check-in for [Student]?"
-7. Mentor clicks confirm
-8. Update `attendance_events.verified_by` and `verified_at`
-9. Optional: Show form to leave comment
-10. Create `interaction` record if comment provided
+   - Magic link "Verify" button
+3. Mentor clicks verify link
+4. Magic link authenticates mentor (creates temporary session)
+5. Simple verification page: "Confirm check-in for [Student]?"
+6. Mentor clicks confirm
+7. **Server action** updates `attendance_events.verified_by` and `verified_at`
+8. Optional: Mentor can leave comment via form on same page
 
 ---
 
-## Future Considerations
+## Admin UI Structure
 
-### Features Built Into Schema But Deferred
-- **Custom prompts**: `prompts` table exists, UI to create them is V2+
-- **Direct messaging**: `interactions.type = 'message'` supported, UI is V2+
+### Navigation
+- **Dashboard** - Overview/stats (future)
+- **Sections** - Section management (CRUD + smart create form)
+- **[Organization Name]** - People directory (e.g., "City View", pulled from database)
+- **Calendar** - School calendar and A/B day management
+- **Users** - Account management (create, edit, roles, passwords)
+
+### Key Design Decisions
+
+**Sections vs People:**
+- "Sections" = Manage class/internship sections (CRUD operations)
+- "[Org Name]" = Browse people, view profiles and schedules
+- Separation clarifies purpose: section management vs people lookup
+
+**Profile Pages:**
+- Single component at `/admin/city-view/[userId]`
+- Dynamically shows role-appropriate tabs:
+  - Students: Schedule, Check-ins, Info
+  - Teachers: Schedule, Students, Info
+  - Admins/Mentors: Info only (for now)
+- Schedule builder embedded in Student profile's Schedule tab
+
+**Smart Section Form:**
+- "Save & Add Another" primary action (keeps form open)
+- Shows "Sections Created This Session" list for confirmation
+- Optimized for bulk entry of ~20 in-person sections
+- See `DECISIONS.md` and `wip/ADMIN_UI.md` for full reasoning
+
+**Schedule Builder (V1):**
+- List-based interface with time filter
+- Admin searches for sections in relevant time windows
+- Can enroll in existing section OR create new section from profile
+- Visual calendar grid deferred to V2
+
+See `wip/ADMIN_UI.md` for detailed UI specifications and build phases.
+
+---
+
+## Custom Hooks & Utilities
+
+### Data Fetching Patterns
+Consistent hooks for loading common data:
+- `useStudentSchedule(date)` - Get student's schedule for specific date
+- `useCheckInHistory(studentId)` - Get check-in history with responses
+- `useInteractions(attendanceEventId)` - Get threaded comments
+- `useUser()` - Get current authenticated user
+
+### Common Utilities
+- Date helpers (format times, calculate A/B days, check school days)
+- Permission checks (verify user has required role)
+- Location helpers (calculate distance, verify geofence)
+- Form validation (time ranges, schedule conflicts)
+
+---
+
+## Security & Privacy
+
+### Authentication
+- Supabase handles password hashing and session management
+- Magic links for mentor verification (time-limited, single-use)
+- No passwords stored in public.users (stored in auth.users only)
+- HTTP-only cookies for secure sessions
+
+### Authorization
+- All data access controlled at database level via RLS policies
+- No client-side permission checks (can be bypassed)
+- Multi-role users verified against `user_roles` table
+- Admin operations require explicit admin role check
+
+### Data Privacy
+- Students see only their own schedule and check-ins
+- Teachers limited to students in their sections
+- Mentors limited to students at their internship locations
+- Geolocation only captured for internships (opt-in by enrollment)
+- Location data visible only to student, assigned teachers, and mentor
+
+### Input Validation
+- Max length limits on text inputs
+- XSS sanitization on user content
+- Geolocation coordinate validation
+- Time input validation against section times
+- Conflict detection for schedule overlaps
+
+---
+
+## Performance Optimization
+
+### Database
+- Indexes on foreign keys and common query fields
+- Composite indexes for multi-column queries (student+date, section+active)
+- Denormalized `author_role` in interactions for faster filtering
+- See `DATABASE.md` for complete index definitions
+
+### Frontend
+- Server components for initial page loads (no client-side data fetching)
+- Client components only for interactive features
+- Optimistic UI updates (update UI before database confirmation)
+- Lazy loading for check-in history (pagination or infinite scroll)
+
+### Caching Strategy
+- Student schedules cached per day (invalidate at midnight)
+- Section data cached (invalidate on admin changes)
+- Geolocation results cached per address (reduce API calls)
+- Static organization name cached (rarely changes)
+
+---
+
+## Deployment & Environments
+
+### Production Architecture
+- **Frontend**: Vercel (Next.js deployment, auto-deploy from main branch)
+- **Database**: Supabase (hosted PostgreSQL)
+- **Auth**: Supabase Auth (magic links, session management)
+- **Email**: Supabase (mentor verification emails)
+- **Maps**: Leaflet + OpenStreetMap tiles (public CDN)
+
+### Environments
+- **Development**: Local Next.js + Supabase local development
+- **Staging**: Vercel preview deployments (automatic per PR)
+- **Production**: Vercel production + Supabase production database
+
+### CI/CD Pipeline
+1. Push to `main` branch or create PR
+2. Vercel automatically builds and deploys
+3. Preview URL generated for PRs (staging)
+4. Database migrations run manually via Supabase CLI
+5. Environment variables managed in Vercel dashboard
+
+---
+
+## Testing Strategy (Future)
+
+### Unit Tests
+- Utility functions (date helpers, permission checks, location calculations)
+- Custom hooks (schedule logic, interaction threading)
+- Form validation logic
+
+### Integration Tests
+- RLS policies (ensure proper data access control)
+- Check-in flow (geolocation, prompt response, database writes)
+- Schedule query logic (A/B days, specific days, conflicts)
+- Email delivery (mentor verification)
+
+### E2E Tests (Playwright)
+- Student check-in/out flow
+- Teacher viewing and commenting on responses
+- Admin creating sections and enrolling students
+- Multi-role user experience
+
+### Manual Testing Focus
+- Geolocation accuracy across different devices
+- Email delivery and magic link authentication
+- Schedule display for various A/B day scenarios
+- Multi-role switching in UI
+
+---
+
+## Future Enhancements
+
+### Features Built Into Schema (UI Deferred)
+The database schema already supports these features, but UI is planned for V2+:
+- **Custom prompts**: `prompts` table exists, admin UI to create them is V2+
+- **Direct messaging**: `interactions.type='message'` ready, UI is V2+
 - **Opportunity gallery**: Data model ready, browsing/application UI is V2+
 - **CSV import**: Schema supports bulk import, UI is V2+
 - **Real-time updates**: Supabase subscriptions available, implementation is V2+
@@ -352,274 +375,36 @@ here-app/
 - Student self-scheduling for remote work blocks
 - Photo upload with check-ins (proof of presence)
 - Weekly/monthly attendance reports
-- Integration with SIS APIs (automated attendance posting)
+- SIS API integration (automated attendance posting)
 - Mobile app (PWA or native)
 - Push notifications for check-in reminders
-- Mentor dashboard (in-app, not just email)
+- In-app mentor dashboard (upgrade from email-only)
+- Visual schedule calendar for admin
 
 ### Scalability Considerations
 - Current design supports 100-500 students easily
 - A/B day calendar scales to any number of patterns
 - Interactions table will grow large over time (consider archiving after semester)
-- Geolocation lookups are infrequent (only at check-in), minimal API costs
-- RLS policies are performant with proper indexes
+- Geolocation lookups infrequent (only at check-in), minimal API costs
+- RLS policies performant with proper indexes
+
+### Multi-Tenancy Path
+Currently single-tenant with organization awareness. To expand to multi-tenant:
+1. Add `org_id` to relevant tables (sections, attendance_events, etc.)
+2. Update RLS policies to filter by organization
+3. Add org selection/switching in UI
+4. Implement slug-based routing (`/city-view/admin/...`)
+
+See `DECISIONS.md` for reasoning behind single-tenant V1 approach.
 
 ---
 
-## Dependencies & Rationale
+## Related Documentation
 
-### Core Dependencies
-- **next** (^16.1.1): React framework with server-side rendering and routing
-- **react** (^19.2.3) / **react-dom** (^19.2.3): UI library
-- **@supabase/supabase-js**: Supabase client library for database and auth
-- **@supabase/auth-helpers-nextjs**: Next.js-specific Supabase auth utilities
-- **tailwindcss** (^4): Utility-first CSS framework
-- **leaflet**: Open-source maps library
-- **react-leaflet**: React bindings for Leaflet
+- **DATABASE.md** - Complete database schema, tables, indexes, RLS policies
+- **DECISIONS.md** - Why we made specific technical and product choices
+- **DEVELOPMENT.md** - Setup instructions, common tasks, development workflow
+- **CHANGELOG.md** - Version history and feature releases
+- **wip/ADMIN_UI.md** - Detailed admin UI specifications (temporary, delete when complete)
 
-### Dev Dependencies
-- **typescript** (^5): Type safety and better developer experience
-- **eslint** (^9): Code quality and consistency
-- **prettier**: Code formatting (to be added)
-- **@types/leaflet**: TypeScript definitions for Leaflet
-
-### Why Not X?
-- **Prisma**: Supabase's direct PostgreSQL access is simpler for this use case
-- **Google Maps**: Leaflet is free and sufficient for geofencing needs
-- **Redux**: React Server Components + Supabase subscriptions handle state well
-- **tRPC**: Direct Supabase queries from server components are simpler
-
----
-
-## Testing Strategy (Future)
-
-### Unit Tests
-- Utility functions (date helpers, permission checks)
-- Custom hooks (schedule logic, interaction threading)
-
-### Integration Tests
-- RLS policies (ensure proper data access control)
-- Check-in flow (geolocation, prompt response, database writes)
-- Schedule query logic (A/B days, specific days, conflicts)
-
-### E2E Tests (Playwright)
-- Student check-in/out flow
-- Teacher viewing and commenting on responses
-- Admin creating sections and enrolling students
-
-### Manual Testing Focus Areas
-- Geolocation accuracy across devices
-- Email delivery and magic link authentication
-- Schedule display for various A/B day scenarios
-- Multi-role user experience (role switching)
-
----
-
-## Security Considerations
-
-### Authentication
-- Supabase handles password hashing and secure session management
-- Magic links for mentor verification (time-limited, single-use)
-- No password in public.users table (stored in auth.users only)
-
-### Authorization
-- All data access enforced at database level via RLS
-- No client-side permission checks (they can be bypassed)
-- Admin operations require explicit admin role check
-- Multi-role users checked against user_roles table, not just primary_role
-
-### Data Privacy
-- Students can only see their own data (schedule, check-ins, responses)
-- Teachers limited to students in their sections
-- Mentors limited to students at their internship locations
-- Geolocation data only captured for internships (opt-in by enrollment)
-- Location data not shared publicly (only visible to student, assigned teachers, mentor)
-
-### Input Validation
-- Prompt responses: Max length limits, XSS sanitization
-- Location data: Validate lat/lng ranges
-- Time inputs: Validate against section times
-- Section creation: Prevent overlapping times for same student
-
----
-
-## Performance Optimization
-
-### Database
-- Indexes on foreign keys and common query fields (see DATABASE.md)
-- Denormalized `author_role` in interactions for faster filtering
-- Composite indexes for multi-column queries (student+date, section+active)
-
-### Frontend
-- Server components for initial page loads (no client-side data fetching)
-- Client components only for interactive features
-- Optimistic updates for check-ins (update UI before database confirmation)
-- Lazy loading for check-in history (infinite scroll or pagination)
-
-### Caching
-- Student schedules cached per day (invalidate at midnight)
-- Section data cached (invalidate on admin changes)
-- Geolocation results cached per address (reduce API calls)
-
----
-
-## Deployment Architecture
-
-### Production Environment
-- **Frontend**: Vercel (Next.js deployment)
-- **Database**: Supabase (PostgreSQL)
-- **Auth**: Supabase Auth
-- **Email**: Supabase (for mentor verification emails)
-- **Maps**: Leaflet + OpenStreetMap tiles (public CDN)
-
-### CI/CD Pipeline
-1. Push to `main` branch
-2. Vercel auto-deploys to production
-3. Database migrations run via Supabase CLI (manual for now)
-4. Environment variables managed in Vercel dashboard
-
-### Environments
-- **Development**: Local Next.js + Supabase local development
-- **Staging**: Vercel preview deployments (per PR)
-- **Production**: Vercel production + Supabase production database
-
----
-
-## Monitoring & Observability (Future)
-
-### Metrics to Track
-- Check-in completion rate (% of expected check-ins that occur)
-- Average response time to prompts
-- Location verification failure rate
-- Mentor verification rate
-- Active user counts by role
-
-### Error Tracking
-- Sentry or similar for frontend errors
-- Supabase logs for database errors
-- Email delivery failures (Supabase email logs)
-
-### Alerts
-- Failed check-ins exceeding threshold
-- Database connection issues
-- Email delivery failures
-
----
-
-## Migration Path from V1 to V2
-
-### Adding Custom Prompts
-1. Build admin UI to create prompts
-2. Build UI to assign prompts to sections or students
-3. Modify check-in flow to show custom prompts
-4. No database changes needed (schema already supports it)
-
-### Adding Direct Messaging
-1. Build message composer UI
-2. Add recipient selection (student ↔ teacher)
-3. Display messages in conversational thread view
-4. No database changes needed (`interactions.type = 'message'` already exists)
-
-### Adding Opportunity Gallery
-1. Build browsing UI (filter by location, type, availability)
-2. Add "apply" or "express interest" button
-3. Admin workflow to review and place students
-4. No database changes needed (opportunities table ready)
-
-### Moving to In-App Mentor Role
-1. Build mentor dashboard (view mentees, check-ins)
-2. Add in-app verification button (replace email-only flow)
-3. Add mentor commenting interface
-4. Add mentor profile page
-5. No database changes needed (mentors already in users table)
-
----
-
-## Organizations & Multi-Tenancy
-
-**Decision:** Single-tenant with organization awareness (V1)  
-**Reasoning:** 
-- Building for City View initially
-- Multi-tenancy is speculative at this point
-- Easier to add org filtering later than to remove it
-- Single-tenant is simpler for V1 launch
-**Trade-offs:** Each school needs separate deployment if we expand, but Vercel makes this trivial  
-**Date:** January 2026
-
-**Organizations Table Added:**
-- Basic `organizations` table with name and slug
-- Users have `org_id` foreign key
-- Allows dynamic org name in UI (nav, branding)
-- Prepares for potential multi-tenancy without full implementation
-
-**V1 Approach:**
-- One organization per database
-- No `org_id` filtering in queries
-- No org-scoped RLS policies
-- UI references organization name dynamically
-
-**If Expanding to Multi-Tenant:**
-- Add `org_id` to all relevant tables (sections, attendance_events, etc.)
-- Update RLS policies to filter by organization
-- Add org selection/switching in UI
-- Slug-based routing (e.g., `/city-view/admin/...`)
-
----
-
-## Admin UI Architecture
-
-**Decision:** Separate "account management" from "people viewing"  
-**Reasoning:** 
-- CRUD operations on accounts (Users page) are different from viewing schedules/profiles
-- Using organization name ("City View") for people directory creates clear conceptual distinction
-- Single profile component adapts based on user role (student/teacher/admin)
-**Trade-offs:** Two navigation items instead of one, but clearer purpose  
-**Date:** January 2026
-
-**Navigation Structure:**
-- **Users** - Account management (create, edit roles, passwords, deactivate)
-- **City View** - People directory (view schedules, profiles, check-ins)
-  - Name pulled from organizations table
-  - Role-based tabs (All, Students, Teachers, Mentors)
-
-**Profile Page Design:**
-- Single component: `/admin/city-view/[userId]`
-- Dynamically shows tabs based on user role:
-  - Students: Schedule, Check-ins, Info
-  - Teachers: Schedule, Students, Info
-  - Admin/Mentor: Info only (for now)
-- Schedule builder lives within profile's Schedule tab
-- Reusable across roles (no separate student/teacher pages)
-
-**Schedule Builder Approach (V1):**
-- List-based interface (not visual calendar - that's V2)
-- Time filter for finding sections in specific windows
-- Handles "no fixed blocks" problem by letting admin define search range
-- Can search existing sections OR create new section from profile
-- Time conflict detection with override option
-
----
-
-## Section Creation Flow
-
-**Decision:** Smart form with "Save & Add Another" for bulk entry  
-**Reasoning:** 
-- ~20 in-person sections need to be created at once
-- CSV import is overkill for this volume
-- Duplicate function doesn't help (sections rarely identical)
-- Form that stays open and clears after each save is fastest
-**Trade-offs:** Not as powerful as CSV import, but much simpler to build and use  
-**Date:** January 2026
-
-**Smart Form Features:**
-- Primary action: "Save & Add Another" (keeps form open)
-- Shows "Sections Created This Session" list for confirmation
-- Form clears after each save
-- Can create 10-20 sections in one flow
-- Teacher dropdown with search/autocomplete
-- Time pickers for start/end
-- Schedule pattern radio buttons (every_day, specific_days, a_days, b_days)
-
-**Future Enhancement:**
-- CSV import for larger volumes (V2+)
-- Visual schedule grid for conflict detection (V2+)
+For questions about "why we did it this way," check `DECISIONS.md` first.
