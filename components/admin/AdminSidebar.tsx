@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import RoleSwitcher from './RoleSwitcher'
 
 interface NavItem {
   name: string
@@ -13,9 +14,10 @@ interface NavItem {
 interface AdminSidebarProps {
   userEmail: string
   userRole: string
+  availableRoles?: string[]
 }
 
-export default function AdminSidebar({ userEmail, userRole }: AdminSidebarProps) {
+export default function AdminSidebar({ userEmail, userRole, availableRoles = [] }: AdminSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const pathname = usePathname()
 
@@ -75,6 +77,17 @@ export default function AdminSidebar({ userEmail, userRole }: AdminSidebarProps)
           </div>
         )}
       </div>
+
+      {/* Role Switcher - only shows if user has multiple roles */}
+      {availableRoles.length > 1 && (
+        <div className="px-4 pt-4 pb-2">
+          <RoleSwitcher 
+            currentRole={userRole}
+            availableRoles={availableRoles}
+            isCollapsed={isCollapsed}
+          />
+        </div>
+      )}
 
       {/* Navigation Items */}
       <nav className="p-4 space-y-2">

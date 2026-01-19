@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 
 export default async function AdminLayout({
@@ -23,11 +24,28 @@ export default async function AdminLayout({
     .eq('id', user.id)
     .single()
 
+  // Get all roles for this user
+  const { data: userRoles } = await supabase
+    .from('user_roles')
+    .select('roles(name)')
+    .eq('user_id', user.id)
+
+  // Build list of all available roles
+  const availableRoles = [
+    profile?.primary_role,
+    ...(userRoles?.map((ur: any) => ur.roles?.name) || [])
+  ].filter((role, index, self) => role && self.indexOf(role) === index) // Remove duplicates and nulls
+
+  // Get current role from cookie (set by proxy)
+  const cookieStore = await cookies()
+  const currentRole = cookieStore.get('current_role')?.value || profile?.primary_role || 'admin'
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar 
         userEmail={user.email || ''} 
-        userRole={profile?.primary_role || 'user'}
+        userRole={currentRole}
+        availableRoles={availableRoles as string[]}
       />
       
       {/* Main content area - offset by sidebar width using CSS variable */}
