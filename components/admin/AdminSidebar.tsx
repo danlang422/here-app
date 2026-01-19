@@ -13,10 +13,9 @@ interface NavItem {
 interface AdminSidebarProps {
   userEmail: string
   userRole: string
-  organizationName?: string
 }
 
-export default function AdminSidebar({ userEmail, userRole, organizationName = 'People' }: AdminSidebarProps) {
+export default function AdminSidebar({ userEmail, userRole }: AdminSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const pathname = usePathname()
 
@@ -31,9 +30,9 @@ export default function AdminSidebar({ userEmail, userRole, organizationName = '
   const navItems: NavItem[] = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
     { name: 'Sections', href: '/admin/sections', icon: '📚' },
-    { name: organizationName, href: '/admin/people', icon: '👥' },
-    { name: 'Calendar', href: '/admin/calendar', icon: '📅' },
-    { name: 'Users', href: '/admin/users', icon: '⚙️' },
+    { name: 'Internships', href: '/admin/internships', icon: '💼' },
+    { name: 'Users', href: '/admin/users', icon: '👥' },
+    { name: 'Settings', href: '/admin/settings', icon: '⚙️' },
   ]
 
   const isActive = (href: string) => {

@@ -23,16 +23,11 @@ export default async function AdminLayout({
     .eq('id', user.id)
     .single()
 
-  // TODO: Fetch organization name from organizations table
-  // For now, hardcoded as "People"
-  const organizationName = 'People'
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar 
         userEmail={user.email || ''} 
         userRole={profile?.primary_role || 'user'}
-        organizationName={organizationName}
       />
       
       {/* Main content area - offset by sidebar width using CSS variable */}
