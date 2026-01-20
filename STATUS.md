@@ -1,35 +1,35 @@
 # Here App - Status
 
-**Last Updated:** 2026-01-16
+**Last Updated:** 2026-01-20
 
 ---
 
 ## 🔨 In Progress
 
-- [ ] **Admin UI - Phase 1: Sections Management** (see `/docs/wip/ADMIN_UI.md`)
-  - Building admin layout and navigation
-  - Creating sections list page
-  - Building smart create section form with "Save & Add Another" workflow
-  - Section detail page with enrollment management
-  - Edit section form
+- [ ] **Admin UI - Users Management**
+  - Users list page with search and filters
+  - Create user form with "Save & Add Another"
+  - Edit user / manage roles
+  - Password reset functionality
 
 ---
 
 ## 📋 Next Up
 
-- [ ] **Admin UI - Phase 2: City View (People & Schedules)**
-  - People directory with role tabs
-  - Profile pages (role-aware with dynamic tabs)
-  - Schedule builder (list view with time filter)
+- [ ] **Admin UI - Student Enrollment**
+  - Multi-select modal for enrolling students in sections
+  - View enrolled students on section detail page
+  - Remove students from sections
 
-- [ ] **Admin UI - Phase 3: Users Management**
-  - Users list page
-  - Create/edit user forms
-  - Role management
-
-- [ ] **Admin UI - Phase 4: Calendar Management**
+- [ ] **Admin UI - Calendar Management**
   - Calendar grid view
   - A/B day setup
+  - Mark school days
+
+- [ ] **Teacher UI - Schedule & Students**
+  - Teacher schedule view (sections they teach)
+  - Student roster for each section
+  - Profile pages (role-aware with dynamic tabs)
 
 - [ ] **Student Agenda - Real Data Integration**
   - Connect agenda page to Supabase
@@ -55,6 +55,15 @@
 ---
 
 ## ✅ Completed Recently
+
+- [x] **Admin UI - Sections Management** (2026-01-20)
+  - Sections list page with search and type filters
+  - Smart create section form with "Save & Add Another" workflow
+  - Section detail page showing schedule, teacher, location info
+  - Edit section via modal (reusable SectionFormModal component)
+  - Server actions for CRUD operations on sections
+  - View/Edit buttons wired up with proper navigation
+  - "Sections Created This Session" list displayed in modal sidebar
 
 - [x] **Authentication System** (2026-01-13)
   - Server actions for login, signup, logout, password reset
@@ -99,14 +108,17 @@
 - Custom prompts UI (schema ready, UI deferred)
 - Direct messaging (schema ready, UI deferred)
 - Opportunity gallery/browsing (schema ready, UI deferred)
+- CSV import for bulk user creation (deferred to V2)
 
 ---
 
 ## 📝 Notes
 
 - Admin UI is first major feature to implement
-- Building in phases: Sections → City View → Users → Calendar
-- Schedule builder using list view with time filter (not visual calendar) for V1
-- Smart section form optimized for bulk entry (~20 sections)
+- Building in phases: Sections (done) → Users → Enrollment → Calendar
+- Teacher profile pages and schedule views deferred until after admin basics complete
+- Smart form pattern with "Save & Add Another" established for bulk data entry
 - Multi-role users supported from V1
 - Email-based mentor engagement for V1 (in-app upgrade possible in V2)
+- Modal overlay reduced to 20% opacity for better visibility
+- All section CRUD operations use reusable SectionFormModal component

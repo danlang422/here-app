@@ -1,7 +1,8 @@
 # Admin UI Planning
 
-**Status:** In Progress  
+**Status:** Partially Complete - Sections done, Users next  
 **Created:** 2026-01-14  
+**Last Updated:** 2026-01-20  
 **Delete when:** Admin UI is complete and documented in CHANGELOG
 
 ---
@@ -10,228 +11,143 @@
 
 ### Admin Nav Items
 - **Dashboard** - Overview/stats (future)
-- **Sections** - Section management (CRUD + smart form)
-- **City View** - People directory/lookup (uses org name dynamically)
-- **Calendar** - Calendar day management (A/B days, school days)
-- **Users** - Account management (create/edit/roles/passwords)
+- **Sections** - Section management (CRUD + smart form) ✅ COMPLETE
+- **Users** - Account management (create/edit/roles/passwords) 🔨 IN PROGRESS
+- **Calendar** - Calendar day management (A/B days, school days) 📋 PLANNED
 
-### Key Distinction
-- **Users** = Account management (CRUD operations, roles, passwords)
-- **City View** = People lookup/profiles (view schedules, info, check-ins)
-
-### Organization Name in Nav
-- Nav item uses dynamic organization name (not hardcoded "City View")
-- Fetched from `organizations` table
-- Falls back to "School" if no org found
+### Notes on Deferred Features
+- **City View / People Directory** - Deferred to Teacher UI phase
+- **Profile Pages** - Deferred to Teacher UI phase (role-aware tabs)
+- **Schedule Builder** - Will be built with enrollment management
 
 ---
 
-## Sections Management
+## ✅ Sections Management (COMPLETE)
 
-### Build Priority: Phase 1
+### 1. Sections List Page (`/admin/sections`) ✅
+**Status:** Complete
 
-#### 1. Sections List Page (`/admin/sections`)
-**Purpose:** View all sections, navigate to detail/edit/create
+**Implemented Features:**
+- Table view of all sections with sortable columns
+- Columns: Name, Type, Time, Schedule Pattern, Teacher, Enrolled Count
+- Filter by type (in_person, remote, internship)
+- Search by name and teacher
+- "Create Section" button opens modal
+- View/Edit buttons for each section
+- "Sections Created This Session" list shown on page after bulk creation
+
+**Technical Implementation:**
+- Client component using getSections() server action
+- Real-time filtering and search
+- Navigation via Next.js router
+
+### 2. Section Form Modal (Reusable Component) ✅
+**Component:** `/components/admin/SectionFormModal.tsx`  
+**Status:** Complete
 
 **Features:**
-- Table/list of all sections
-- Columns: Name, Type, Time, Days, Teacher(s), Enrolled Count
-- Filter by type (in_person, remote, internship)
-- Search by name
-- "Create Section" button (prominent)
-
-#### 2. Create Section Form (`/admin/sections/create`)
-**Purpose:** Smart form for rapid section creation
-
-**Form Fields:**
-- Section Name (required)
-- Type: dropdown (in_person, remote, internship)
-- Start Time: time picker (required)
-- End Time: time picker (required)
-- Schedule Pattern: radio buttons
-  - Every Day
-  - Specific Days (shows day checkboxes: M T W Th F)
-  - A Days
-  - B Days
-- Teacher: searchable dropdown (users with teacher role)
-- Location: text input (optional)
-- SIS Block: number input (optional)
+- Works in both create and edit modes
+- Form fields: name, type, times, schedule pattern, days, teacher, location, SIS block
+- "Save & Add Another" for bulk entry (create mode only)
+- "Save & Done" to close modal
+- "Sections Created This Session" displayed in right sidebar during bulk creation
+- Pre-populates data in edit mode
+- Light overlay (20% opacity) for better visibility
 
 **Smart Form Behavior:**
-- Primary button: "Save & Add Another" (keeps form open)
-- Secondary button: "Save & Done" (returns to list)
-- After first save, shows "Sections Created This Session" list below form
-- List shows: Name, Time, Days, Teacher
-- Form clears after each save (ready for next entry)
-- Can add 10-20 sections in one flow without navigating away
+- Form clears after "Save & Add Another" but retains defaults (type, times, pattern)
+- Shows created sections in modal sidebar with formatted details
+- Teacher dropdown populated from database
+- Days selector appears only for "specific_days" pattern
 
-**Why This Design:**
-- Optimized for bulk entry (~20 in-person classes)
-- Faster than creating sections one-by-one with redirects
-- No CSV parsing complexity
-- Visual confirmation of what's been created
+### 3. Section Detail Page (`/admin/sections/[id]`) ✅
+**Status:** Complete (enrollment management pending)
 
-#### 3. Section Detail Page (`/admin/sections/[id]`)
-**Purpose:** View section details and manage enrollment
+**Implemented Features:**
+- Section header with name, type badge, enrollment count
+- Three info cards: Schedule, Teacher, Location
+- Back navigation to sections list
+- Edit and Delete buttons in header
+- Enrolled Students section (placeholder for enrollment feature)
 
-**Displays:**
-- Section info (name, type, times, teacher, location)
-- Schedule pattern and days
-- List of enrolled students (with remove option)
+**Pending:**
+- Student enrollment modal/functionality
+- Display list of enrolled students
+- Remove student from section
 
-**Actions:**
-- Edit section button
-- Delete section button (blocked if students enrolled, or shows warning)
-- "Enroll Students" button → Opens multi-select modal
-  - Search/filter students
-  - Checkboxes to select multiple
-  - "Enroll Selected" button
+### 4. Edit Section ✅
+**Status:** Complete
 
-#### 4. Edit Section Form (`/admin/sections/[id]/edit`)
-**Purpose:** Modify existing section
+**Implementation:**
+- Reuses SectionFormModal in edit mode
+- Accessible from both list page and detail page
+- Pre-populates all section data
+- Updates section and teacher assignment
+- Reloads data after successful save
 
-**Features:**
-- Same form as create
-- Pre-populated with current values
-- "Save Changes" button
-- "Cancel" returns to detail page
-- Warning if changing times affects enrolled students
+### 5. Server Actions ✅
+**File:** `/app/admin/sections/actions.ts`  
+**Status:** Complete
 
----
-
-## City View (People Directory)
-
-### Build Priority: Phase 2
-
-#### URL Structure
-- `/admin/city-view` - All people
-- `/admin/city-view?role=student` - Students only
-- `/admin/city-view?role=teacher` - Teachers only
-- `/admin/city-view?role=mentor` - Mentors only
-
-#### City View List Page (`/admin/city-view`)
-**Purpose:** Browse and search people in the organization
-
-**Layout:**
-- Tabs at top: [All] [Students] [Teachers] [Mentors]
-- Search bar: "Search by name or email"
-- Results: Cards or table with:
-  - Name
-  - Email
-  - Primary Role
-  - Quick link to profile
-
-**Interaction:**
-- Click person → Navigate to profile page
-- Tabs filter by role (same component, different query)
-
-#### Profile Page (`/admin/city-view/[userId]`)
-**Purpose:** View person's information and manage their schedule
-
-**Dynamic Tabs Based on Role:**
-
-**Student Profile:**
-- **Schedule tab** (default)
-  - Timeline view of enrolled sections
-  - Sorted by time
-  - Shows gaps visually
-  - "Add Section" button (see Schedule Builder below)
-- **Check-ins tab**
-  - History of check-in/out events
-  - Responses to prompts
-  - Teacher comments
-- **Info tab**
-  - Contact info
-  - Roles
-  - Account details
-
-**Teacher Profile:**
-- **Schedule tab** (default)
-  - Sections they're teaching
-  - Sorted by time
-  - Shows gaps in their schedule
-- **Students tab**
-  - All students in their sections
-  - Quick links to student profiles
-- **Info tab**
-  - Contact info
-  - Roles
-
-**Admin/Mentor Profile:**
-- **Info tab** only (for now)
-
-#### Schedule Builder (within Profile Schedule Tab)
-**Purpose:** Add sections to a student's schedule
-
-**Interface: List View with Time Filter (V1)**
-
-**Current Schedule:**
-- List of enrolled sections, sorted by time
-- Each section shows: Name, Time, Type
-- "Remove" button on each (with confirmation)
-
-**Add Section:**
-- "Add Section" button at bottom
-- Opens form/modal with:
-  - **Time Filter** (optional but helpful):
-    - From: [time picker]
-    - To: [time picker]
-    - Days: [M] [T] [W] [Th] [F] checkboxes
-    - "Search Sections" button
-  - **Search Results:**
-    - Shows existing sections matching time criteria
-    - Shows section name, teacher, type
-    - "Enroll" button on each
-  - **Create New Section:**
-    - "Can't find what you need? Create new section" link
-    - Opens create section form
-    - Pre-fills student enrollment
-    - Pre-fills time range if filter was used
-
-**Time Conflict Detection:**
-- When adding section, check for overlaps
-- Show warning if conflict exists
-- Allow override (sometimes intentional)
+**Implemented Actions:**
+- `createSection()` - Creates section and assigns teacher
+- `updateSection()` - Updates section and reassigns teacher
+- `getSection()` - Fetches single section with teacher info
+- `getSections()` - Fetches all sections with teachers and enrollment counts
+- `deleteSection()` - Deletes section (blocks if students enrolled)
+- `getTeachers()` - Fetches all users with teacher role
 
 ---
 
-## Users Management
+## 🔨 Users Management (IN PROGRESS)
 
-### Build Priority: Phase 3
+### Build Priority: Next Phase
 
 #### Users List Page (`/admin/users`)
 **Purpose:** Account management (CRUD)
 
-**Features:**
+**Features to Build:**
 - List all user accounts
-- Columns: Name, Email, Roles, Status, Last Login
+- Columns: Name, Email, Primary Role, Additional Roles, Status, Last Login
 - Filter by role
 - Search by name/email
+- "Create User" button (opens modal)
+- Edit/Delete actions per user
 
-**Actions per user:**
-- Edit (change name, email)
-- Manage Roles (add/remove role assignments)
-- Reset Password (send reset email)
-- Deactivate Account
+#### Create/Edit User Form (Modal)
+**Purpose:** Smart form for rapid user creation
 
-#### Create User Form (`/admin/users/create`)
 **Form Fields:**
 - Email (required)
 - First Name
 - Last Name
 - Phone (optional)
-- Primary Role (dropdown)
-- Additional Roles (checkboxes)
+- Primary Role (dropdown: student, teacher, admin, mentor)
 - Send welcome email? (checkbox)
 
+**Smart Form Behavior:**
+- "Save & Add Another" (keeps modal open)
+- "Save & Done" (closes modal)
+- Shows "Users Created This Session" list in sidebar
+- Form clears after each save
+
 **Password Handling:**
-- Either auto-generate and email
-- Or send signup link
-- No password input on create (security best practice)
+- New users created in Supabase auth.users
+- Auto-generates password and sends welcome email
+- Or sends signup link
+- No password input on create form (security best practice)
+
+#### Server Actions Needed:
+- `createUser()` - Creates auth user and profile
+- `updateUser()` - Updates user profile
+- `getUsers()` - Lists all users with roles
+- `getUser()` - Fetches single user
+- `deleteUser()` - Deactivates or deletes user
+- `updateUserRoles()` - Manages role assignments
 
 ---
 
-## Calendar Management
+## 📋 Calendar Management (PLANNED)
 
 ### Build Priority: Phase 4
 
@@ -240,113 +156,102 @@
 
 **Features:**
 - Calendar grid view (month view)
-- Color coding:
-  - Green: School day (regular)
-  - Blue: A day
-  - Purple: B day
-  - Gray: Not a school day
-- Click date to edit:
-  - Toggle school day on/off
-  - Set A/B designation
-  - Add notes (e.g., "Spring Break")
+- Color coding for day types
+- Click date to edit properties
+- Bulk operations for ranges
 
-**Bulk Operations:**
-- "Mark range as school days"
-- "Set A/B pattern" (ABABAB...)
-- "Import from CSV" (date, is_school_day, ab_designation, notes)
+**Deferred for now** - Focus on Users and Enrollment first
 
 ---
 
-## Build Order Summary
+## 📋 Student Enrollment (PLANNED)
 
-### Phase 1: Sections (Current Focus)
-1. Admin layout and nav
-2. Sections list page
-3. Smart create section form
-4. Section detail page
-5. Edit section form
-6. Enroll students (multi-select)
+### Build Priority: After Users
 
-### Phase 2: City View (People & Schedules)
-7. City View list page (with role tabs)
-8. Profile page component (role-aware)
-9. Schedule builder (student profile)
-10. Teacher schedule view
+Will be built as part of section detail page functionality.
 
-### Phase 3: Users
-11. Users list page
-12. Create user form
-13. Edit user / manage roles
+**Features Needed:**
+- Multi-select modal to choose students
+- Search/filter students by name
+- Checkboxes to select multiple
+- "Enroll Selected" button
+- Display enrolled students list on detail page
+- Remove individual students
 
-### Phase 4: Calendar
-14. Calendar grid view
-15. Edit calendar days
-16. A/B day management
+**Server Actions Needed:**
+- `enrollStudents()` - Bulk enroll students in section
+- `unenrollStudent()` - Remove student from section
+- `getEnrolledStudents()` - Fetch students for a section
+- `getAvailableStudents()` - Fetch students not in section
 
 ---
 
-## Design Notes
+## Design Patterns Established
 
-### Time Input
-- Use time pickers (dropdowns or native input type="time")
-- 12-hour format with AM/PM (matches user preference)
-- Store as TIME in database (24-hour)
+### Modal Pattern
+- Reusable modal component for create/edit forms
+- Light overlay (20% opacity) instead of dark
+- Split layout: form on left, "created this session" on right
+- Handles both modes via props (mode, sectionId)
+
+### "Save & Add Another" Pattern
+- Primary button for bulk entry workflows
+- Form clears but retains sensible defaults
+- Shows created items in sidebar for visual confirmation
+- Works for creating 10-20+ items in one session
+
+### Server Actions Pattern
+- Separate actions.ts file per feature
+- Type-safe with TypeScript
+- Returns { success, data?, error? }
+- Uses revalidatePath for cache invalidation
+- Combines related operations (e.g., create section + assign teacher)
+
+### Component Organization
+- Server components for initial page loads
+- Client components for interactive forms
+- Reusable components in `/components/admin/`
+- Page-specific logic in route pages
+
+---
+
+## Technical Notes
+
+### Time Formatting
+- Store as TIME (24-hour) in database
+- Display as 12-hour with AM/PM
+- Use native HTML time input
 
 ### Form Validation
 - Client-side validation for immediate feedback
 - Server-side validation in actions
-- Clear error messages
+- Clear error messages in red alert boxes
 
-### Confirmation Modals
-- Deleting section (especially if students enrolled)
-- Removing student from section
-- Deactivating user account
+### Data Loading
+- Initial load via server components (when possible)
+- Client components call server actions
+- Loading states displayed during operations
 
-### Success Feedback
-- Toast notifications for successful actions
-- "Sections created" list for smart form
-- Visual confirmation after enrollments
+### Navigation
+- Use Next.js router for page navigation
+- Modals for create/edit to avoid full page transitions
+- Back buttons use router.push() for clean navigation
 
 ---
 
 ## Open Questions
 
 1. **Dashboard content** - What stats/overview should show?
-   - Total sections, students, teachers?
-   - Recent check-ins?
-   - Upcoming events?
-   - Defer to later?
+   - Defer to later - not critical for V1
 
-2. **Teacher self-service** - Should teachers be able to:
-   - View their own schedule? (Yes, probably)
-   - Edit their sections? (No for V1, admin only)
-   - View their students? (Yes, read-only)
+2. **Teacher self-service** - Build teacher views?
+   - Defer to after admin basics complete
+   - Will include: view own schedule, view student rosters
 
-3. **Notification preferences** - When/how do we notify:
-   - Teachers about new students?
-   - Students about schedule changes?
-   - Defer to V2?
+3. **Bulk import** - CSV upload for users?
+   - Defer to V2
+   - "Save & Add Another" sufficient for initial setup
 
 ---
 
-## Technical Notes
-
-### Component Reusability
-- Section form: Used for both create and edit
-- Profile page: Single component, role-aware rendering
-- Time filter: Reusable component for schedule builder
-
-### Data Loading Patterns
-- Server components for initial page loads
-- Client components for interactive forms
-- Optimistic updates for better UX
-
-### RLS Policies
-- Admins can do everything
-- Teachers can view their sections and students
-- Students can view their own schedule
-- Already implemented in database
-
----
-
-**Next Steps:** Start with Phase 1 - Admin layout and sections list page
+**Current Status:** Sections complete, moving to Users management next. City View/Profile pages deferred to Teacher UI phase. Enrollment management will follow Users.
