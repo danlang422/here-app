@@ -6,11 +6,7 @@
 
 ## 🔨 In Progress
 
-- [ ] **Admin UI - Users Management**
-  - Users list page with search and filters
-  - Create user form with "Save & Add Another"
-  - Edit user / manage roles
-  - Password reset functionality
+*Nothing currently in progress*
 
 ---
 
@@ -55,6 +51,19 @@
 ---
 
 ## ✅ Completed Recently
+
+- [x] **Admin UI - Users Management** (2026-01-20)
+  - Users list page with search and role filters
+  - Create user form with "Save & Add Another" workflow
+  - Edit user and manage multiple roles
+  - Password reset functionality (email setup pending)
+  - Delete user functionality with confirmation
+  - Server actions for all CRUD operations
+  - Admin client with service role key for privileged operations
+  - "Users Created This Session" list in modal sidebar
+  - Multi-role support with auto-checking of primary role
+  - Works with database trigger that auto-creates user profiles
+  - Cleaned up table layout (removed redundant "All Roles" column)
 
 - [x] **Admin UI - Sections Management** (2026-01-20)
   - Sections list page with search and type filters
@@ -115,10 +124,12 @@
 ## 📝 Notes
 
 - Admin UI is first major feature to implement
-- Building in phases: Sections (done) → Users → Enrollment → Calendar
+- Building in phases: Sections ✅ → Users ✅ → Enrollment → Calendar
 - Teacher profile pages and schedule views deferred until after admin basics complete
 - Smart form pattern with "Save & Add Another" established for bulk data entry
 - Multi-role users supported from V1
 - Email-based mentor engagement for V1 (in-app upgrade possible in V2)
 - Modal overlay reduced to 20% opacity for better visibility
-- All section CRUD operations use reusable SectionFormModal component
+- Reusable modal components for sections (SectionFormModal) and users (UserFormModal)
+- Admin operations require SUPABASE_SERVICE_ROLE_KEY for auth.admin methods
+- Database trigger auto-creates basic user profiles on auth user creation
