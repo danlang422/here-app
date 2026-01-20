@@ -1,13 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import SectionFormModal from '@/components/admin/SectionFormModal'
 import { getSections, type SectionWithTeachers } from './actions'
 
 export default function SectionsPage() {
+  const router = useRouter()
   const [sections, setSections] = useState<SectionWithTeachers[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingSectionId, setEditingSectionId] = useState<string | undefined>(undefined)
   const [createdThisSession, setCreatedThisSession] = useState<SectionWithTeachers[]>([])
   const [filterType, setFilterType] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -42,11 +45,17 @@ export default function SectionsPage() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
+    setEditingSectionId(undefined)
     // Clear "created this session" when modal is closed via "Save & Done"
     if (createdThisSession.length > 0) {
       // Don't clear immediately - let them see the list
       // setCreatedThisSession([])
     }
+  }
+
+  const handleEditSection = (sectionId: string) => {
+    setEditingSectionId(sectionId)
+    setIsModalOpen(true)
   }
 
   // Format time for display (convert 24h to 12h)
@@ -275,10 +284,16 @@ export default function SectionsPage() {
                       {section._count?.section_students || 0}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-blue-600 hover:text-blue-900 mr-3">
+                      <button 
+                        onClick={() => router.push(`/admin/sections/${section.id}`)}
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                      >
                         View
                       </button>
-                      <button className="text-gray-600 hover:text-gray-900">
+                      <button 
+                        onClick={() => handleEditSection(section.id)}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
                         Edit
                       </button>
                     </td>
@@ -295,7 +310,8 @@ export default function SectionsPage() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={handleSectionCreated}
-        mode="create"
+        mode={editingSectionId ? 'edit' : 'create'}
+        sectionId={editingSectionId}
         createdSections={createdThisSession}
       />
     </div>
