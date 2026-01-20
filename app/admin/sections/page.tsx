@@ -11,7 +11,7 @@ export default function SectionsPage() {
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingSectionId, setEditingSectionId] = useState<string | undefined>(undefined)
-  const [createdThisSession, setCreatedThisSession] = useState<SectionWithTeachers[]>([])
+  const [createdThisSession, setCreatedThisSession] = useState<Array<SectionWithTeachers & { enrolledCount?: number }>>([])
   const [filterType, setFilterType] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -29,7 +29,7 @@ export default function SectionsPage() {
     setLoading(false)
   }
 
-  const handleSectionCreated = async (sectionId: string) => {
+  const handleSectionCreated = async (sectionId: string, enrolledCount?: number) => {
     // Reload sections to get the newly created one
     await loadSections()
     
@@ -38,7 +38,7 @@ export default function SectionsPage() {
     if (result.success && result.data) {
       const newSection = result.data.find(s => s.id === sectionId)
       if (newSection) {
-        setCreatedThisSession(prev => [newSection, ...prev])
+        setCreatedThisSession(prev => [{ ...newSection, enrolledCount }, ...prev])
       }
     }
   }
@@ -155,40 +155,6 @@ export default function SectionsPage() {
           </div>
         </div>
       </div>
-
-      {/* "Created This Session" List */}
-      {createdThisSession.length > 0 && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-green-900">Sections Created This Session</h3>
-            <button
-              onClick={() => setCreatedThisSession([])}
-              className="text-sm text-green-700 hover:text-green-900"
-            >
-              Clear
-            </button>
-          </div>
-          <div className="space-y-2">
-            {createdThisSession.map(section => (
-              <div key={section.id} className="flex items-center text-sm text-green-800">
-                <span className="font-medium">{section.name}</span>
-                <span className="mx-2">•</span>
-                <span>{formatTime(section.start_time)} - {formatTime(section.end_time)}</span>
-                <span className="mx-2">•</span>
-                <span>{formatSchedule(section.schedule_pattern, section.days_of_week)}</span>
-                {section.section_teachers?.[0] && (
-                  <>
-                    <span className="mx-2">•</span>
-                    <span>
-                      {section.section_teachers[0].users.first_name} {section.section_teachers[0].users.last_name}
-                    </span>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Sections Table */}
       {loading ? (
@@ -310,6 +276,7 @@ export default function SectionsPage() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={handleSectionCreated}
+        onClearCreatedList={() => setCreatedThisSession([])}
         mode={editingSectionId ? 'edit' : 'create'}
         sectionId={editingSectionId}
         createdSections={createdThisSession}

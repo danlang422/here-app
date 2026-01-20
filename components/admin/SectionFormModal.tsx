@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createSection, updateSection, getSection, getTeachers, type SectionFormData, type SectionWithTeachers } from '@/app/admin/sections/actions'
+import { createSection, updateSection, getSection, getTeachers, getStudents, getEnrolledStudents, type SectionFormData, type SectionWithTeachers } from '@/app/admin/sections/actions'
 import type { Database } from '@/lib/types/database'
 
 type SectionType = Database['public']['Enums']['section_type']
@@ -14,13 +14,21 @@ type Teacher = {
   email: string
 }
 
+type Student = {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  email: string
+}
+
 type SectionFormModalProps = {
   isOpen: boolean
   onClose: () => void
-  onSuccess: (sectionId: string) => void
+  onSuccess: (sectionId: string, enrolledCount?: number) => void
+  onClearCreatedList?: () => void
   sectionId?: string // For edit mode
   mode?: 'create' | 'edit'
-  createdSections?: SectionWithTeachers[] // Sections created this session
+  createdSections?: Array<SectionWithTeachers & { enrolledCount?: number }> // Sections created this session
 }
 
 const SECTION_TYPES: { value: SectionType; label: string }[] = [
@@ -80,6 +88,7 @@ export default function SectionFormModal({
   isOpen,
   onClose,
   onSuccess,
+  onClearCreatedList,
   sectionId,
   mode = 'create',
   createdSections = [],
@@ -94,22 +103,35 @@ export default function SectionFormModal({
     teacher_id: '',
     location: '',
     sis_block: undefined,
+    student_ids: [],
   })
 
   const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [students, setStudents] = useState<Student[]>([])
+  const [enrolledStudentIds, setEnrolledStudentIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadingSection, setLoadingSection] = useState(false)
+  const [enrollmentExpanded, setEnrollmentExpanded] = useState(false)
+  const [studentSearchQuery, setStudentSearchQuery] = useState('')
 
-  // Load teachers on mount
+  // Load teachers and students on mount
   useEffect(() => {
-    async function loadTeachers() {
-      const result = await getTeachers()
-      if (result.success && result.data) {
-        setTeachers(result.data)
+    async function loadData() {
+      const [teachersResult, studentsResult] = await Promise.all([
+        getTeachers(),
+        getStudents(),
+      ])
+      
+      if (teachersResult.success && teachersResult.data) {
+        setTeachers(teachersResult.data)
+      }
+      
+      if (studentsResult.success && studentsResult.data) {
+        setStudents(studentsResult.data)
       }
     }
-    loadTeachers()
+    loadData()
   }, [])
 
   // Load section data if in edit mode
@@ -117,9 +139,14 @@ export default function SectionFormModal({
     async function loadSection() {
       if (mode === 'edit' && sectionId) {
         setLoadingSection(true)
-        const result = await getSection(sectionId)
-        if (result.success && result.data) {
-          const section = result.data
+        
+        const [sectionResult, enrolledResult] = await Promise.all([
+          getSection(sectionId),
+          getEnrolledStudents(sectionId),
+        ])
+        
+        if (sectionResult.success && sectionResult.data) {
+          const section = sectionResult.data
           
           // Parse days_of_week from JSON
           let daysOfWeek: number[] = []
@@ -155,8 +182,21 @@ export default function SectionFormModal({
             teacher_id: primaryTeacher?.teacher_id || '',
             location: location,
             sis_block: section.sis_block || undefined,
+            student_ids: [],
           })
         }
+        
+        // Load currently enrolled students
+        if (enrolledResult.success && enrolledResult.data) {
+          const ids = enrolledResult.data
+            .map((e: any) => e.users?.id)
+            .filter(Boolean)
+          setEnrolledStudentIds(ids)
+          setFormData(prev => ({ ...prev, student_ids: ids }))
+        }
+        
+        // Expand enrollment section by default in edit mode
+        setEnrollmentExpanded(true)
         setLoadingSection(false)
       }
     }
@@ -176,8 +216,12 @@ export default function SectionFormModal({
         teacher_id: '',
         location: '',
         sis_block: undefined,
+        student_ids: [],
       })
       setError(null)
+      setEnrollmentExpanded(false)
+      setStudentSearchQuery('')
+      setEnrolledStudentIds([])
     }
   }, [isOpen, mode])
 
@@ -192,7 +236,8 @@ export default function SectionFormModal({
         : await createSection(formData)
 
       if (result.success && result.data) {
-        onSuccess(result.data.id)
+        const enrolledCount = 'enrolled' in result ? result.enrolled : 0
+        onSuccess(result.data.id, enrolledCount)
         
         if (saveAndAddAnother) {
           // Reset form for next entry, keep some defaults
@@ -206,7 +251,10 @@ export default function SectionFormModal({
             teacher_id: '',
             location: prev.location,
             sis_block: undefined,
+            student_ids: [],
           }))
+          setStudentSearchQuery('')
+          setEnrollmentExpanded(false)
         } else {
           onClose()
         }
@@ -229,6 +277,24 @@ export default function SectionFormModal({
         : [...(prev.days_of_week || []), day],
     }))
   }
+
+  const handleStudentToggle = (studentId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      student_ids: prev.student_ids?.includes(studentId)
+        ? prev.student_ids.filter(id => id !== studentId)
+        : [...(prev.student_ids || []), studentId],
+    }))
+  }
+
+  // Filter students based on search
+  const filteredStudents = students.filter(student => {
+    if (!studentSearchQuery) return true
+    const query = studentSearchQuery.toLowerCase()
+    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase()
+    const email = student.email.toLowerCase()
+    return fullName.includes(query) || email.includes(query)
+  })
 
   if (!isOpen) return null
 
@@ -437,6 +503,84 @@ export default function SectionFormModal({
                   />
                 </div>
 
+                {/* Student Enrollment Section */}
+                <div className="border-t border-gray-200 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => setEnrollmentExpanded(!enrollmentExpanded)}
+                    className="flex items-center justify-between w-full text-left"
+                  >
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700">
+                        Enroll Students {mode === 'create' && <span className="text-gray-500 font-normal">(Optional - can do later)</span>}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formData.student_ids?.length || 0} student{formData.student_ids?.length !== 1 ? 's' : ''} selected
+                      </p>
+                    </div>
+                    <svg 
+                      className={`w-5 h-5 text-gray-400 transition-transform ${enrollmentExpanded ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {enrollmentExpanded && (
+                    <div className="mt-4 space-y-3">
+                      {/* Search Students */}
+                      <input
+                        type="text"
+                        placeholder="Search students by name..."
+                        value={studentSearchQuery}
+                        onChange={(e) => setStudentSearchQuery(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+
+                      {/* Student List */}
+                      <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md">
+                        {filteredStudents.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            {studentSearchQuery ? 'No students found' : 'No students available'}
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-gray-200">
+                            {filteredStudents.map(student => {
+                              const isEnrolled = formData.student_ids?.includes(student.id)
+                              const wasEnrolled = enrolledStudentIds.includes(student.id)
+                              
+                              return (
+                                <label
+                                  key={student.id}
+                                  className="flex items-center p-3 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isEnrolled}
+                                    onChange={() => handleStudentToggle(student.id)}
+                                    className="mr-3 rounded border-gray-300"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-gray-900 truncate">
+                                      {student.last_name}, {student.first_name}
+                                      {mode === 'edit' && wasEnrolled && (
+                                        <span className="ml-2 text-xs text-gray-500">(currently enrolled)</span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-gray-500 truncate">{student.email}</div>
+                                  </div>
+                                </label>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
                   {mode === 'create' && (
@@ -472,7 +616,18 @@ export default function SectionFormModal({
           {/* Created This Session - Right Side */}
           {mode === 'create' && createdSections.length > 0 && (
             <div className="w-80 bg-green-50 border-l border-green-200 p-6">
-              <h3 className="font-semibold text-green-900 mb-4">Created This Session ({createdSections.length})</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-green-900">Created This Session ({createdSections.length})</h3>
+                {onClearCreatedList && (
+                  <button
+                    type="button"
+                    onClick={onClearCreatedList}
+                    className="text-xs text-green-700 hover:text-green-900 font-medium"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
               <div className="space-y-3 max-h-[calc(90vh-120px)] overflow-y-auto">
                 {createdSections.map(section => {
                   const primaryTeacher = section.section_teachers?.find(st => st.is_primary)
@@ -485,6 +640,11 @@ export default function SectionFormModal({
                         {primaryTeacher && (
                           <div className="text-gray-500">
                             {primaryTeacher.users.first_name} {primaryTeacher.users.last_name}
+                          </div>
+                        )}
+                        {section.enrolledCount !== undefined && section.enrolledCount > 0 && (
+                          <div className="text-green-700 font-medium">
+                            {section.enrolledCount} student{section.enrolledCount !== 1 ? 's' : ''} enrolled
                           </div>
                         )}
                       </div>

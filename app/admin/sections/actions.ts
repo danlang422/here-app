@@ -17,6 +17,7 @@ export type SectionFormData = {
   teacher_id?: string
   location?: string
   sis_block?: number
+  student_ids?: string[] // Array of student IDs to enroll
 }
 
 export type SectionWithTeachers = Database['public']['Tables']['sections']['Row'] & {
@@ -93,8 +94,17 @@ export async function createSection(data: SectionFormData) {
       }
     }
 
+    // If student_ids are provided, enroll them
+    let enrolledCount = 0
+    if (data.student_ids && data.student_ids.length > 0 && section) {
+      const enrollResult = await enrollStudents(section.id, data.student_ids)
+      if (enrollResult.success && 'enrolled' in enrollResult) {
+        enrolledCount = enrollResult.enrolled || 0
+      }
+    }
+
     revalidatePath('/admin/sections')
-    return { success: true, data: section }
+    return { success: true, data: section, enrolled: enrolledCount }
   } catch (error) {
     console.error('Unexpected error creating section:', error)
     return { success: false, error: 'Failed to create section' }
@@ -163,9 +173,18 @@ export async function updateSection(sectionId: string, data: SectionFormData) {
       }
     }
 
+    // Update student enrollment if provided
+    let enrolledCount = 0
+    if (data.student_ids && data.student_ids.length > 0) {
+      const enrollResult = await enrollStudents(sectionId, data.student_ids)
+      if (enrollResult.success && 'enrolled' in enrollResult) {
+        enrolledCount = enrollResult.enrolled || 0
+      }
+    }
+
     revalidatePath('/admin/sections')
     revalidatePath(`/admin/sections/${sectionId}`)
-    return { success: true, data: section }
+    return { success: true, data: section, enrolled: enrolledCount }
   } catch (error) {
     console.error('Unexpected error updating section:', error)
     return { success: false, error: 'Failed to update section' }
@@ -336,5 +355,168 @@ export async function getTeachers() {
   } catch (error) {
     console.error('Unexpected error fetching teachers:', error)
     return { success: false, error: 'Failed to fetch teachers' }
+  }
+}
+
+/**
+ * Get all students (users with student role)
+ */
+export async function getStudents() {
+  const supabase = await createClient()
+  
+  try {
+    const { data: students, error } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email')
+      .eq('primary_role', 'student')
+      .order('last_name', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching students:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data: students }
+  } catch (error) {
+    console.error('Unexpected error fetching students:', error)
+    return { success: false, error: 'Failed to fetch students' }
+  }
+}
+
+/**
+ * Get students enrolled in a specific section
+ */
+export async function getEnrolledStudents(sectionId: string) {
+  const supabase = await createClient()
+  
+  try {
+    const { data: enrollments, error } = await supabase
+      .from('section_students')
+      .select(`
+        id,
+        enrolled_at,
+        active,
+        users:student_id (
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      `)
+      .eq('section_id', sectionId)
+      .eq('active', true)
+      .order('enrolled_at', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching enrolled students:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data: enrollments }
+  } catch (error) {
+    console.error('Unexpected error fetching enrolled students:', error)
+    return { success: false, error: 'Failed to fetch enrolled students' }
+  }
+}
+
+/**
+ * Enroll multiple students in a section
+ */
+export async function enrollStudents(sectionId: string, studentIds: string[]) {
+  const supabase = await createClient()
+  
+  try {
+    // Check which students are already enrolled (active or inactive)
+    const { data: existingEnrollments } = await supabase
+      .from('section_students')
+      .select('student_id, active')
+      .eq('section_id', sectionId)
+      .in('student_id', studentIds)
+
+    const existingMap = new Map(
+      (existingEnrollments || []).map(e => [e.student_id, e.active])
+    )
+
+    // Separate students into new enrollments and reactivations
+    const newEnrollments: Array<{ section_id: string; student_id: string }> = []
+    const reactivations: string[] = []
+
+    studentIds.forEach(studentId => {
+      if (!existingMap.has(studentId)) {
+        // New enrollment
+        newEnrollments.push({
+          section_id: sectionId,
+          student_id: studentId,
+        })
+      } else if (existingMap.get(studentId) === false) {
+        // Inactive enrollment - reactivate it
+        reactivations.push(studentId)
+      }
+      // If already active, skip (idempotent)
+    })
+
+    // Insert new enrollments
+    if (newEnrollments.length > 0) {
+      const { error: insertError } = await supabase
+        .from('section_students')
+        .insert(newEnrollments)
+
+      if (insertError) {
+        console.error('Error enrolling students:', insertError)
+        return { success: false, error: insertError.message }
+      }
+    }
+
+    // Reactivate inactive enrollments
+    if (reactivations.length > 0) {
+      const { error: updateError } = await supabase
+        .from('section_students')
+        .update({ active: true, enrolled_at: new Date().toISOString() })
+        .eq('section_id', sectionId)
+        .in('student_id', reactivations)
+
+      if (updateError) {
+        console.error('Error reactivating students:', updateError)
+        return { success: false, error: updateError.message }
+      }
+    }
+
+    revalidatePath('/admin/sections')
+    revalidatePath(`/admin/sections/${sectionId}`)
+    return { 
+      success: true, 
+      enrolled: newEnrollments.length + reactivations.length,
+      skipped: studentIds.length - newEnrollments.length - reactivations.length 
+    }
+  } catch (error) {
+    console.error('Unexpected error enrolling students:', error)
+    return { success: false, error: 'Failed to enroll students' }
+  }
+}
+
+/**
+ * Unenroll a student from a section (soft delete - sets active to false)
+ */
+export async function unenrollStudent(sectionId: string, studentId: string) {
+  const supabase = await createClient()
+  
+  try {
+    const { error } = await supabase
+      .from('section_students')
+      .update({ active: false })
+      .eq('section_id', sectionId)
+      .eq('student_id', studentId)
+
+    if (error) {
+      console.error('Error unenrolling student:', error)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/admin/sections')
+    revalidatePath(`/admin/sections/${sectionId}`)
+    return { success: true }
+  } catch (error) {
+    console.error('Unexpected error unenrolling student:', error)
+    return { success: false, error: 'Failed to unenroll student' }
   }
 }

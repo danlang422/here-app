@@ -27,7 +27,7 @@ export default function SectionDetailPage() {
     setLoading(false)
   }
 
-  const handleEditSuccess = async () => {
+  const handleEditSuccess = async (sectionId: string, enrolledCount?: number) => {
     setIsEditModalOpen(false)
     await loadSection() // Reload to show updated data
   }

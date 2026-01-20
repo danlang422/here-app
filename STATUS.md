@@ -12,10 +12,10 @@
 
 ## 📋 Next Up
 
-- [ ] **Admin UI - Student Enrollment**
-  - Multi-select modal for enrolling students in sections
-  - View enrolled students on section detail page
-  - Remove students from sections
+- [ ] **Section Detail Page - Enrollment Display**
+  - Display list of enrolled students on section detail page
+  - Unenroll functionality for individual students
+  - Standalone enrollment modal for quick adjustments
 
 - [ ] **Admin UI - Calendar Management**
   - Calendar grid view
@@ -51,6 +51,16 @@
 ---
 
 ## ✅ Completed Recently
+
+- [x] **Admin UI - Student Enrollment** (2026-01-20)
+  - Student enrollment integrated into section form modal
+  - Collapsible enrollment section (collapsed by default in create, expanded in edit)
+  - Multi-select student list with search/filter
+  - "Save & Add Another" works with enrollment
+  - Shows enrollment count in modal sidebar
+  - Server actions for enrolling/unenrolling students
+  - Handles reactivation of previously unenrolled students
+  - Clear button for "Created This Session" list
 
 - [x] **Admin UI - Users Management** (2026-01-20)
   - Users list page with search and role filters
@@ -124,7 +134,7 @@
 ## 📝 Notes
 
 - Admin UI is first major feature to implement
-- Building in phases: Sections ✅ → Users ✅ → Enrollment → Calendar
+- Building in phases: Sections ✅ → Users ✅ → Enrollment ✅ → Calendar
 - Teacher profile pages and schedule views deferred until after admin basics complete
 - Smart form pattern with "Save & Add Another" established for bulk data entry
 - Multi-role users supported from V1
