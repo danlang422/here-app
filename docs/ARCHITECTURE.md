@@ -112,19 +112,20 @@ Mentors verify check-ins via email magic links rather than requiring app login:
 here-app/
 ├── app/                    # Next.js App Router pages
 │   ├── (auth)/            # Auth pages (login, signup, password reset)
-│   ├── (student)/         # Student-facing pages
+│   ├── student/         # Student-facing pages
 │   │   ├── agenda/        # Daily schedule view
 │   │   ├── history/       # Check-in history
 │   │   └── profile/       # Student settings
-│   ├── (teacher)/         # Teacher-facing pages
+│   ├── teacher/         # Teacher-facing pages
 │   │   ├── students/      # Student list and detail views
 │   │   └── sections/      # Section management
-│   ├── (admin)/           # Admin-facing pages
+│   ├── admin/           # Admin-facing pages
+│   │   ├── dashboard/     # Overview/stats - future
 │   │   ├── sections/      # Section CRUD + smart form
-│   │   ├── city-view/     # People directory + profiles
-│   │   ├── calendar/      # A/B day calendar management
+│   │   ├── internships/   # Internship CRUD
 │   │   └── users/         # Account management
-│   └── api/               # API routes if needed
+│   │   └── settings/      # School calendar, A/B Days
+│   └── api/             # API routes if needed
 │
 ├── components/            # React components
 │   ├── ui/               # Reusable UI (buttons, cards, forms)
@@ -153,6 +154,8 @@ here-app/
 │
 └── public/               # Static assets
 ```
+
+---
 
 ---
 
@@ -202,43 +205,62 @@ here-app/
 
 ---
 
-## Admin UI Structure
+## UI Structure & Workflows
 
-### Navigation
+Each role has distinct interfaces optimized for their primary tasks. See `DECISIONS.md` for reasoning behind specific design patterns.
+
+### Student UI
+
+**Navigation:**
+- **Agenda** - Daily schedule view with check-in/check-out buttons
+- **History** - Past check-ins with prompt responses
+- **Profile** - Student settings and preferences
+
+**Key Features:**
+- View full daily schedule (all section types visible)
+- Check in/out only for remote and internship sections
+- In-person sections shown but no interaction needed
+- Check-in flow captures location (internships) and plans
+- Check-out flow captures progress updates
+
+### Teacher UI
+
+**Navigation:**
+- **Students** - Search and view student profiles
+- **Sections** - View sections they teach
+- **Schedule** - Their own teaching schedule
+
+**Key Features:**
+- **Student Search**: Primary method to access student profiles (no directory listing)
+- **Profile Pages** (`/teacher/students/[userId]`):
+  - Dynamic tabs based on viewed user's role
+  - Student profiles: Schedule, Check-ins, Info tabs
+  - Teacher profiles: Schedule, Students, Info tabs
+  - Schedule builder embedded in student Schedule tab
+- **Section Rosters**: View enrolled students per section
+- **Check-in Review**: View and comment on student responses
+
+### Admin UI
+
+**Navigation:**
 - **Dashboard** - Overview/stats (future)
-- **Sections** - Section management (CRUD + smart create form)
-- **[Organization Name]** - People directory (e.g., "City View", pulled from database)
-- **Calendar** - School calendar and A/B day management
-- **Users** - Account management (create, edit, roles, passwords)
+- **Sections** - Section management (CRUD)
+- **Internships** - Internship management (CRUD)
+- **Users** - Account management (CRUD, roles, passwords)
+- **Settings** - School calendar, A/B days
 
-### Key Design Decisions
+**Key Features:**
+- **Smart Section Form**: "Save & Add Another" workflow for bulk entry (~20 sections)
+- **User Management**: Create accounts, assign roles, manage passwords
+- **Calendar Management**: Mark school days, set A/B day designation
+- **Student Enrollment**: Attach students to sections via enrollment interface
 
-**Sections vs People:**
-- "Sections" = Manage class/internship sections (CRUD operations)
-- "[Org Name]" = Browse people, view profiles and schedules
-- Separation clarifies purpose: section management vs people lookup
+**Admin Access to Teacher Features:**
+- Admins with teacher role can access teacher UI (student search, profiles)
+- Admins without teacher role focus on system-wide management
+- Role overlap is common in small schools, making this practical
 
-**Profile Pages:**
-- Single component at `/admin/city-view/[userId]`
-- Dynamically shows role-appropriate tabs:
-  - Students: Schedule, Check-ins, Info
-  - Teachers: Schedule, Students, Info
-  - Admins/Mentors: Info only (for now)
-- Schedule builder embedded in Student profile's Schedule tab
-
-**Smart Section Form:**
-- "Save & Add Another" primary action (keeps form open)
-- Shows "Sections Created This Session" list for confirmation
-- Optimized for bulk entry of ~20 in-person sections
-- See `DECISIONS.md` and `wip/ADMIN_UI.md` for full reasoning
-
-**Schedule Builder (V1):**
-- List-based interface with time filter
-- Admin searches for sections in relevant time windows
-- Can enroll in existing section OR create new section from profile
-- Visual calendar grid deferred to V2
-
-See `wip/ADMIN_UI.md` for detailed UI specifications and build phases.
+See `wip/ADMIN_UI.md` for detailed specifications and build phases (temporary doc).
 
 ---
 

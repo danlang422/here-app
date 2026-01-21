@@ -221,38 +221,53 @@ This document captures important technical and product decisions made during dev
 
 ## Admin UI
 
-### Organizations Table for Dynamic Branding (2026-01-14)
+### Organization Awareness for Future Multi-Tenancy (2026-01-14, Updated 2026-01-21)
 
-**Decision:** Add `organizations` table with basic name/slug, use for dynamic nav naming
+**Decision:** Schema prepared for `organizations` table, but implementation deferred
 
 **Reasoning:**
-- Allows nav item to say "City View" instead of hardcoded "School"
-- Prepares for potential multi-tenancy without full implementation
-- Single-tenant is simpler for V1 but org awareness is minimal overhead
+- Prepares data model for potential multi-tenancy without full implementation
+- Single-tenant is simpler for V1, but organization awareness has minimal overhead
+- No immediate UI need (originally planned for dynamic nav labels in people directory, which was deferred)
+- Can add table and org_id foreign keys when/if multi-tenancy becomes necessary
 
 **Alternatives Considered:**
-- Hardcode "City View" everywhere (brittle, not reusable)
 - Full multi-tenancy from day one (overkill for launch)
-- No organization concept (harder to add later)
+- No organization concept (harder to retrofit later)
+- Implement table now (no immediate benefit)
 
-**Trade-offs:** Slight added complexity, but keeps options open
+**Trade-offs:** Adds minor schema complexity when implemented, but keeps future options open
+
+**Update (2026-01-21):** Table creation deferred since people directory feature was moved to teacher UI and no longer needs dynamic organization naming
 
 ---
 
-### "Users" vs "City View" Navigation Split (2026-01-14)
+### Profile Pages as Teacher Feature (2026-01-21)
 
-**Decision:** Separate "account management" from "people viewing"
+**Decision:** User profile pages located in teacher UI (`/teacher/students/[userId]`), accessed via search rather than directory listing
 
 **Reasoning:**
-- CRUD operations on accounts (Users page) are different from viewing schedules/profiles
-- Using organization name ("City View") for people directory creates clear conceptual distinction
-- Single profile component adapts based on user role (student/teacher/admin)
+- Teachers are primary users who need to look up individual students and view/manage their schedules
+- Schedule visualization and builder are teacher tools (help teachers understand student availability)
+- Admin users who need this functionality likely already have teacher role (small school, role overlap is common)
+- Search function is more efficient than browsing a directory for finding specific students
+- Avoids building a "people directory" that doesn't provide much value
+
+**Profile Page Design:**
+- Single dynamic component shows role-appropriate tabs:
+  - Students: Schedule, Check-ins, Info
+  - Teachers: Schedule, Students (sections they teach), Info
+  - Admins/Mentors: Info only (no schedule/student tabs)
+- Schedule builder embedded in student profile's Schedule tab
+- Teachers can view which sections student is enrolled in and make adjustments
 
 **Alternatives Considered:**
-- Single "People" page (conflates different purposes)
-- "Accounts" and "Profiles" (less intuitive naming)
+- Admin-only profiles (limits access unnecessarily)
+- Directory listing page (search is more efficient)
+- Separate profile components per role (duplicates code)
+- No profile pages (loses valuable schedule visualization)
 
-**Trade-offs:** Two navigation items instead of one, but clearer purpose
+**Trade-offs:** Admin users without teacher role can't access profiles, but this is acceptable given role overlap at small schools
 
 ---
 
