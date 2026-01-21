@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { getSection, type SectionWithTeachers } from '../actions'
+import { getSection, getEnrolledStudents, unenrollStudent, type SectionWithTeachers } from '../actions'
 import SectionFormModal from '@/components/admin/SectionFormModal'
+import EnrollmentModal from '@/components/admin/EnrollmentModal'
 
 export default function SectionDetailPage() {
   const params = useParams()
@@ -11,11 +12,15 @@ export default function SectionDetailPage() {
   const sectionId = params.id as string
 
   const [section, setSection] = useState<SectionWithTeachers | null>(null)
+  const [enrolledStudents, setEnrolledStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false)
+  const [isUnenrolling, setIsUnenrolling] = useState<string | null>(null)
 
   useEffect(() => {
     loadSection()
+    loadEnrolledStudents()
   }, [sectionId])
 
   async function loadSection() {
@@ -27,9 +32,40 @@ export default function SectionDetailPage() {
     setLoading(false)
   }
 
+  async function loadEnrolledStudents() {
+    const result = await getEnrolledStudents(sectionId)
+    if (result.success && result.data) {
+      setEnrolledStudents(result.data)
+    }
+  }
+
   const handleEditSuccess = async (sectionId: string, enrolledCount?: number) => {
     setIsEditModalOpen(false)
     await loadSection() // Reload to show updated data
+    await loadEnrolledStudents() // Reload enrolled students
+  }
+
+  const handleEnrollmentSuccess = async (enrolledCount: number) => {
+    setIsEnrollmentModalOpen(false)
+    await loadSection() // Refresh enrollment count
+    await loadEnrolledStudents() // Refresh student list
+  }
+
+  const handleUnenroll = async (studentId: string) => {
+    if (!confirm('Are you sure you want to unenroll this student?')) {
+      return
+    }
+
+    setIsUnenrolling(studentId)
+    const result = await unenrollStudent(sectionId, studentId)
+    
+    if (result.success) {
+      await loadSection() // Refresh enrollment count
+      await loadEnrolledStudents() // Refresh student list
+    } else {
+      alert(result.error || 'Failed to unenroll student')
+    }
+    setIsUnenrolling(null)
   }
 
   // Format time for display
@@ -205,13 +241,14 @@ export default function SectionDetailPage() {
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Enrolled Students</h2>
           <button
+            onClick={() => setIsEnrollmentModalOpen(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm"
           >
             + Enroll Students
           </button>
         </div>
         <div className="p-6">
-          {section._count?.section_students === 0 ? (
+          {enrolledStudents.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">
                 <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,14 +258,60 @@ export default function SectionDetailPage() {
               <h3 className="text-lg font-medium text-gray-900 mb-2">No students enrolled</h3>
               <p className="text-gray-600 mb-6">Get started by enrolling students in this section</p>
               <button
+                onClick={() => setIsEnrollmentModalOpen(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
               >
                 Enroll Students
               </button>
             </div>
           ) : (
-            <div className="text-gray-600">
-              Student enrollment list will go here (coming next)
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Enrolled
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {enrolledStudents.map((enrollment) => (
+                    <tr key={enrollment.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {enrollment.users.first_name} {enrollment.users.last_name}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{enrollment.users.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">
+                          {new Date(enrollment.enrolled_at).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => handleUnenroll(enrollment.users.id)}
+                          disabled={isUnenrolling === enrollment.users.id}
+                          className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isUnenrolling === enrollment.users.id ? 'Removing...' : 'Remove'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -241,6 +324,16 @@ export default function SectionDetailPage() {
         onSuccess={handleEditSuccess}
         mode="edit"
         sectionId={sectionId}
+      />
+
+      {/* Enrollment Modal */}
+      <EnrollmentModal
+        isOpen={isEnrollmentModalOpen}
+        onClose={() => setIsEnrollmentModalOpen(false)}
+        onSuccess={handleEnrollmentSuccess}
+        sectionId={sectionId}
+        sectionName={section?.name || ''}
+        currentlyEnrolledIds={enrolledStudents.map(e => e.users.id)}
       />
     </div>
   )

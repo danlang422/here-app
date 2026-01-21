@@ -1,20 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createSection, updateSection, getSection, getTeachers, getStudents, getEnrolledStudents, type SectionFormData, type SectionWithTeachers } from '@/app/admin/sections/actions'
+import { createSection, updateSection, getSection, getTeachers, getEnrolledStudents, type SectionFormData, type SectionWithTeachers } from '@/app/admin/sections/actions'
 import type { Database } from '@/lib/types/database'
+import StudentSelector from './StudentSelector'
 
 type SectionType = Database['public']['Enums']['section_type']
 type SchedulePattern = Database['public']['Enums']['schedule_pattern']
 
 type Teacher = {
-  id: string
-  first_name: string | null
-  last_name: string | null
-  email: string
-}
-
-type Student = {
   id: string
   first_name: string | null
   last_name: string | null
@@ -107,28 +101,19 @@ export default function SectionFormModal({
   })
 
   const [teachers, setTeachers] = useState<Teacher[]>([])
-  const [students, setStudents] = useState<Student[]>([])
   const [enrolledStudentIds, setEnrolledStudentIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadingSection, setLoadingSection] = useState(false)
   const [enrollmentExpanded, setEnrollmentExpanded] = useState(false)
-  const [studentSearchQuery, setStudentSearchQuery] = useState('')
 
-  // Load teachers and students on mount
+  // Load teachers on mount
   useEffect(() => {
     async function loadData() {
-      const [teachersResult, studentsResult] = await Promise.all([
-        getTeachers(),
-        getStudents(),
-      ])
+      const teachersResult = await getTeachers()
       
       if (teachersResult.success && teachersResult.data) {
         setTeachers(teachersResult.data)
-      }
-      
-      if (studentsResult.success && studentsResult.data) {
-        setStudents(studentsResult.data)
       }
     }
     loadData()
@@ -220,7 +205,6 @@ export default function SectionFormModal({
       })
       setError(null)
       setEnrollmentExpanded(false)
-      setStudentSearchQuery('')
       setEnrolledStudentIds([])
     }
   }, [isOpen, mode])
@@ -253,7 +237,6 @@ export default function SectionFormModal({
             sis_block: undefined,
             student_ids: [],
           }))
-          setStudentSearchQuery('')
           setEnrollmentExpanded(false)
         } else {
           onClose()
@@ -278,23 +261,12 @@ export default function SectionFormModal({
     }))
   }
 
-  const handleStudentToggle = (studentId: string) => {
+  const handleStudentSelectionChange = (studentIds: string[]) => {
     setFormData(prev => ({
       ...prev,
-      student_ids: prev.student_ids?.includes(studentId)
-        ? prev.student_ids.filter(id => id !== studentId)
-        : [...(prev.student_ids || []), studentId],
+      student_ids: studentIds,
     }))
   }
-
-  // Filter students based on search
-  const filteredStudents = students.filter(student => {
-    if (!studentSearchQuery) return true
-    const query = studentSearchQuery.toLowerCase()
-    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase()
-    const email = student.email.toLowerCase()
-    return fullName.includes(query) || email.includes(query)
-  })
 
   if (!isOpen) return null
 
@@ -529,54 +501,14 @@ export default function SectionFormModal({
                   </button>
 
                   {enrollmentExpanded && (
-                    <div className="mt-4 space-y-3">
-                      {/* Search Students */}
-                      <input
-                        type="text"
-                        placeholder="Search students by name..."
-                        value={studentSearchQuery}
-                        onChange={(e) => setStudentSearchQuery(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    <div className="mt-4">
+                      <StudentSelector
+                        selectedStudentIds={formData.student_ids || []}
+                        onSelectionChange={handleStudentSelectionChange}
+                        enrolledStudentIds={enrolledStudentIds}
+                        showEnrolledLabel={mode === 'edit'}
+                        maxHeight="16rem"
                       />
-
-                      {/* Student List */}
-                      <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md">
-                        {filteredStudents.length === 0 ? (
-                          <div className="p-4 text-center text-sm text-gray-500">
-                            {studentSearchQuery ? 'No students found' : 'No students available'}
-                          </div>
-                        ) : (
-                          <div className="divide-y divide-gray-200">
-                            {filteredStudents.map(student => {
-                              const isEnrolled = formData.student_ids?.includes(student.id)
-                              const wasEnrolled = enrolledStudentIds.includes(student.id)
-                              
-                              return (
-                                <label
-                                  key={student.id}
-                                  className="flex items-center p-3 hover:bg-gray-50 cursor-pointer"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isEnrolled}
-                                    onChange={() => handleStudentToggle(student.id)}
-                                    className="mr-3 rounded border-gray-300"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium text-gray-900 truncate">
-                                      {student.last_name}, {student.first_name}
-                                      {mode === 'edit' && wasEnrolled && (
-                                        <span className="ml-2 text-xs text-gray-500">(currently enrolled)</span>
-                                      )}
-                                    </div>
-                                    <div className="text-xs text-gray-500 truncate">{student.email}</div>
-                                  </div>
-                                </label>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>

@@ -12,11 +12,6 @@
 
 ## 📋 Next Up
 
-- [ ] **Section Detail Page - Enrollment Display**
-  - Display list of enrolled students on section detail page
-  - Unenroll functionality for individual students
-  - Standalone enrollment modal for quick adjustments
-
 - [ ] **Admin UI - Calendar Management**
   - Calendar grid view
   - A/B day setup
@@ -51,6 +46,15 @@
 ---
 
 ## ✅ Completed Recently
+
+- [x] **Section Detail Page - Enrollment Display** (2026-01-21)
+  - Display list of enrolled students with name, email, enrollment date
+  - Unenroll functionality with confirmation dialog
+  - Standalone enrollment modal for quick student additions
+  - Reusable StudentSelector component for multi-select UI
+  - EnrollmentModal component for enrollment workflow
+  - SectionFormModal refactored to use StudentSelector
+  - Server actions: getEnrolledStudents, enrollStudents, unenrollStudent
 
 - [x] **Admin UI - Student Enrollment** (2026-01-20)
   - Student enrollment integrated into section form modal
