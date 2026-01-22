@@ -126,6 +126,76 @@ Common patterns:
 - Colors: `bg-blue-500`, `text-gray-700`, `border-red-300`
 - Typography: `text-lg`, `font-semibold`, `text-center`
 
+## Performance Best Practices
+
+### Use Server Components by Default
+
+When creating new pages, follow the server component pattern:
+
+**Pattern:**
+1. Create async server component that fetches data
+2. Pass data to client component as props
+3. Client component handles interactivity only
+
+**Example:**
+```tsx
+// app/admin/mypage/page.tsx (Server Component)
+export default async function MyPage() {
+  const data = await getData()  // Fetch on server
+  return <MyPageClient initialData={data} />
+}
+
+// components/admin/MyPageClient.tsx
+'use client'
+export default function MyPageClient({ initialData }) {
+  const [data, setData] = useState(initialData)
+  // Interactive features here
+}
+```
+
+**Benefits:**
+- Data arrives with HTML (no loading spinner)
+- Smaller JS bundle (less client-side code)
+- Faster perceived load time
+
+### Avoid N+1 Query Patterns
+
+When fetching related data, use single queries with JOINs or views:
+
+**Bad (N+1):**
+```tsx
+const items = await getItems()  // 1 query
+for (const item of items) {
+  item.count = await getCount(item.id)  // N queries
+}
+```
+
+**Good (Single Query):**
+```tsx
+const items = await supabase
+  .from('items_with_counts')  // Database view
+  .select('*')
+```
+
+Or use Supabase's relational queries:
+```tsx
+const items = await supabase
+  .from('items')
+  .select(`
+    *,
+    related_table(count)
+  `)
+```
+
+### Database Views for Computed Data
+
+Create views for frequently accessed computed data:
+- Enrollment counts
+- Aggregated statistics
+- Complex JOINs used in multiple places
+
+See `supabase/migrations/003_add_sections_with_counts_view.sql` for example.
+
 ## Troubleshooting
 
 ### Supabase Connection Issues

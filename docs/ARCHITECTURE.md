@@ -313,23 +313,131 @@ Consistent hooks for loading common data:
 
 ## Performance Optimization
 
-### Database
-- Indexes on foreign keys and common query fields
-- Composite indexes for multi-column queries (student+date, section+active)
-- Denormalized `author_role` in interactions for faster filtering
-- See `DATABASE.md` for complete index definitions
+### Server Component Architecture (Added January 2026)
 
-### Frontend
-- Server components for initial page loads (no client-side data fetching)
-- Client components only for interactive features
-- Optimistic UI updates (update UI before database confirmation)
-- Lazy loading for check-in history (pagination or infinite scroll)
+Here App uses Next.js's server-first rendering pattern for optimal performance:
+
+**Pattern:**
+- **Server components** fetch data directly and render with data included
+- **Client components** receive initial data as props for instant display
+- **Interactive features** isolated in client components
+
+**Benefits:**
+- No loading spinners - data arrives with HTML
+- Smaller JavaScript bundles
+- Faster perceived page load times
+
+**Example Implementation:**
+```typescript
+// Server component (page.tsx)
+export default async function SectionsPage() {
+  const sections = await getSections()  // Runs on server
+  return <SectionsPageClient initialSections={sections} />
+}
+
+// Client component (SectionsPageClient.tsx)
+'use client'
+export default function SectionsPageClient({ initialSections }) {
+  const [sections, setSections] = useState(initialSections)
+  // Interactive features here
+}
+```
+
+**Applied to:**
+- ✅ Sections page - Server component + client wrapper
+- ✅ Users page - Server component + client wrapper
+- 🔄 Future pages - Use this pattern from the start
+
+### Database Query Optimization
+
+**N+1 Query Prevention:**
+
+Created `sections_with_enrollment_counts` database view to eliminate N+1 query patterns:
+
+**Before (N+1 Problem):**
+```typescript
+// 1 query for sections + N queries for counts
+const sections = await getSections()  // 1 query
+for (const section of sections) {
+  const count = await getCount(section.id)  // N queries
+}
+// Total: N + 1 queries (e.g., 10 sections = 11 queries)
+```
+
+**After (Optimized):**
+```typescript
+// Single query using database view
+const sections = await supabase
+  .from('sections_with_enrollment_counts')
+  .select('*')
+// Total: 1 query regardless of section count
+```
+
+**View Definition:**
+```sql
+CREATE VIEW sections_with_enrollment_counts AS
+SELECT
+  s.*,
+  COALESCE(student_counts.active_student_count, 0) as active_student_count
+FROM sections s
+LEFT JOIN (
+  SELECT section_id, COUNT(*) as active_student_count
+  FROM section_students
+  WHERE active = true
+  GROUP BY section_id
+) student_counts ON s.id = student_counts.section_id;
+```
+
+**Performance Impact:**
+- 10 sections: 11 queries → 1 query (90% reduction)
+- 50 sections: 51 queries → 1 query (98% reduction)
+
+### Admin Layout Optimization
+
+Admin layout queries run in parallel for faster navigation between pages:
+
+**Before (Sequential):**
+```typescript
+const user = await getUser()           // Query 1
+const profile = await getProfile()     // Query 2 (waits for 1)
+const roles = await getRoles()         // Query 3 (waits for 2)
+```
+
+**After (Parallel):**
+```typescript
+const [user, profile, roles] = await Promise.all([
+  getUser(),      // All queries
+  getProfile(),   // run at the
+  getRoles()      // same time
+])
+```
+
+### Database Indexes
+
+All foreign keys indexed for query performance:
+- `sections.created_by`
+- `section_teachers.section_id`, `section_teachers.teacher_id`
+- `section_students.section_id`, `section_students.student_id`
+- `attendance_events.section_id`, `attendance_events.student_id`
+- `interactions.attendance_event_id`, `interactions.author_id`
+
+Composite indexes for common query patterns:
+- `(student_id, date)` on attendance_events
+- `(section_id, active)` on section_students
+
+See `DATABASE.md` for complete index definitions.
 
 ### Caching Strategy
-- Student schedules cached per day (invalidate at midnight)
-- Section data cached (invalidate on admin changes)
-- Geolocation results cached per address (reduce API calls)
-- Static organization name cached (rarely changes)
+
+**Request Memoization (Next.js Built-in):**
+- Identical requests within a single render are deduplicated
+- `createClient()` calls cached automatically per request
+- No additional configuration needed
+
+**Future Considerations:**
+- Student schedules: Cache per day (invalidate at midnight)
+- Section data: Cache with revalidation on admin changes
+- Static content: Leverage Next.js static generation where possible
 
 ---
 

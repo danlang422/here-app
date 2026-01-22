@@ -275,6 +275,43 @@ Unified model for all conversational content: responses, comments, messages.
 
 ---
 
+## Views
+
+### sections_with_enrollment_counts
+
+Pre-computes active student enrollment counts for sections to prevent N+1 queries.
+
+**Definition:**
+```sql
+CREATE VIEW sections_with_enrollment_counts AS
+SELECT
+  s.*,
+  COALESCE(student_counts.active_student_count, 0) as active_student_count
+FROM sections s
+LEFT JOIN (
+  SELECT section_id, COUNT(*) as active_student_count
+  FROM section_students
+  WHERE active = true
+  GROUP BY section_id
+) student_counts ON s.id = student_counts.section_id;
+```
+
+**Usage:**
+```typescript
+const { data } = await supabase
+  .from('sections_with_enrollment_counts')
+  .select('*')
+// Returns sections with active_student_count included
+```
+
+**Permissions:**
+- Same as sections table
+- Read-only (inserts/updates go to base tables)
+
+**Migration:** `003_add_sections_with_counts_view.sql`
+
+---
+
 ## Relationships
 
 ### User Relationships
