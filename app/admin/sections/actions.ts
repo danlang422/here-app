@@ -193,13 +193,15 @@ export async function updateSection(sectionId: string, data: SectionFormData) {
 
 /**
  * Get all sections with teacher info and enrollment count
+ * Uses a single query with the sections_with_enrollment_counts view to eliminate N+1 queries
  */
 export async function getSections() {
   const supabase = await createClient()
-  
+
   try {
+    // Query the view which pre-computes active student counts
     const { data: sections, error } = await supabase
-      .from('sections')
+      .from('sections_with_enrollment_counts')
       .select(`
         *,
         section_teachers (
@@ -220,23 +222,16 @@ export async function getSections() {
       return { success: false, error: error.message }
     }
 
-    // Get enrollment counts for each section
-    const sectionsWithCounts = await Promise.all(
-      (sections || []).map(async (section) => {
-        const { count } = await supabase
-          .from('section_students')
-          .select('*', { count: 'exact', head: true })
-          .eq('section_id', section.id)
-          .eq('active', true)
-
-        return {
-          ...section,
-          _count: {
-            section_students: count || 0,
-          },
-        }
-      })
-    )
+    // Transform data to match SectionWithTeachers type
+    const sectionsWithCounts = (sections || []).map((section: any) => {
+      const { active_student_count, ...sectionData } = section
+      return {
+        ...sectionData,
+        _count: {
+          section_students: active_student_count || 0,
+        },
+      }
+    })
 
     return { success: true, data: sectionsWithCounts as SectionWithTeachers[] }
   } catch (error) {
@@ -247,13 +242,14 @@ export async function getSections() {
 
 /**
  * Get a single section by ID with full details
+ * Uses the sections_with_enrollment_counts view for consistency
  */
 export async function getSection(sectionId: string) {
   const supabase = await createClient()
-  
+
   try {
     const { data: section, error } = await supabase
-      .from('sections')
+      .from('sections_with_enrollment_counts')
       .select(`
         *,
         section_teachers (
@@ -275,17 +271,12 @@ export async function getSection(sectionId: string) {
       return { success: false, error: error.message }
     }
 
-    // Get enrollment count
-    const { count } = await supabase
-      .from('section_students')
-      .select('*', { count: 'exact', head: true })
-      .eq('section_id', sectionId)
-      .eq('active', true)
-
+    // Transform data to match SectionWithTeachers type
+    const { active_student_count, ...sectionData } = section as any
     const sectionWithCount = {
-      ...section,
+      ...sectionData,
       _count: {
-        section_students: count || 0,
+        section_students: active_student_count || 0,
       },
     }
 

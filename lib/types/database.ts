@@ -554,9 +554,81 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      sections_with_enrollment_counts: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          days_of_week: Json | null
+          end_time: string
+          expected_location: Json | null
+          geofence_radius: number | null
+          id: string
+          internship_opportunity_id: string | null
+          name: string
+          schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
+          sis_block: number | null
+          start_time: string
+          type: Database["public"]["Enums"]["section_type"]
+          updated_at: string | null
+          active_student_count: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          days_of_week?: Json | null
+          end_time: string
+          expected_location?: Json | null
+          geofence_radius?: number | null
+          id?: string
+          internship_opportunity_id?: string | null
+          name: string
+          schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
+          sis_block?: number | null
+          start_time: string
+          type: Database["public"]["Enums"]["section_type"]
+          updated_at?: string | null
+          active_student_count?: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          days_of_week?: Json | null
+          end_time?: string
+          expected_location?: Json | null
+          geofence_radius?: number | null
+          id?: string
+          internship_opportunity_id?: string | null
+          name?: string
+          schedule_pattern?: Database["public"]["Enums"]["schedule_pattern"]
+          sis_block?: number | null
+          start_time?: string
+          type?: Database["public"]["Enums"]["section_type"]
+          updated_at?: string | null
+          active_student_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sections_internship_opportunity_id_fkey"
+            columns: ["internship_opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "internship_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      get_section_enrollment_count: {
+        Args: { section_id_param: string }
+        Returns: number
+      }
       user_has_role: {
         Args: { check_role: Database["public"]["Enums"]["role_name"] }
         Returns: boolean
