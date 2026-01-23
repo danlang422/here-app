@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createInternship, updateInternship, getInternship, getMentors, type InternshipFormData, type InternshipWithMentor } from '@/app/admin/internships/actions'
+import LocationPicker, { type LocationData } from './LocationPicker'
 
 type InternshipFormModalProps = {
   internshipId?: string
@@ -38,7 +39,6 @@ export default function InternshipFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saveAndAddAnother, setSaveAndAddAnother] = useState(false)
-  const [locationSearch, setLocationSearch] = useState('')
 
   // Load mentors on mount
   useEffect(() => {
@@ -73,7 +73,6 @@ export default function InternshipFormModal({
             ? JSON.parse(internship.location) 
             : internship.location
           location = parsed
-          setLocationSearch(parsed.formatted_address || '')
         } catch (e) {
           console.error('Failed to parse location:', e)
         }
@@ -134,7 +133,6 @@ export default function InternshipFormModal({
             is_active: true,
             requirements: '',
           })
-          setLocationSearch('')
           setError(null)
         } else {
           onClose()
@@ -229,25 +227,15 @@ export default function InternshipFormModal({
               </div>
             </div>
 
-            {/* Location - Placeholder for now */}
+            {/* Location */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Location</h3>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Address
-                  </label>
-                  <input
-                    type="text"
-                    value={locationSearch}
-                    onChange={(e) => setLocationSearch(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Search for location... (Leaflet integration coming soon)"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Location search with map will be added in next iteration
-                  </p>
-                </div>
+                <LocationPicker
+                  value={formData.location}
+                  geofenceRadius={formData.geofence_radius}
+                  onChange={(location) => setFormData({ ...formData, location })}
+                />
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

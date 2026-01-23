@@ -6,11 +6,7 @@
 
 ## 🔨 In Progress
 
-- [ ] **Admin UI - Internships (Leaflet Integration)**
-  - Location search with debounced geocoding
-  - Interactive map display with markers
-  - Visual geofence radius on map
-
+Nothing in progress. ✌️
 ---
 
 ## 📋 Next Up
@@ -48,6 +44,11 @@
 ---
 
 ## ✅ Completed Recently
+
+- [x] **Admin UI - Internships (Leaflet Integration)** (2026-01-23)
+  - Location search with debounced geocoding
+  - Interactive map display with markers
+  - Visual geofence radius on map
 
 - [x] **Admin UI - Internships Management** (2026-01-23)
   - Internships list page with search and status filters
