@@ -1,12 +1,15 @@
 # Here App - Status
 
-**Last Updated:** 2026-01-22
+**Last Updated:** 2026-01-23
 
 ---
 
 ## 🔨 In Progress
 
-*Nothing currently in progress*
+- [ ] **Admin UI - Internships (Leaflet Integration)**
+  - Location search with debounced geocoding
+  - Interactive map display with markers
+  - Visual geofence radius on map
 
 ---
 
@@ -32,6 +35,10 @@
   - Prompt for progress
   - Create attendance event and interaction records
 
+- [ ] **Mentor Access**
+  - Make password optional in user creation form; generate random password for mentor accounts
+  - Set up email access for mentors to approve/deny student check-in/out data and add comments
+
 ---
 
 ## 🚧 Blocked / Questions
@@ -41,6 +48,18 @@
 ---
 
 ## ✅ Completed Recently
+
+- [x] **Admin UI - Internships Management** (2026-01-23)
+  - Internships list page with search and status filters
+  - Create/edit internship form with "Save & Add Another" workflow
+  - Server actions for CRUD operations on internship_opportunities
+  - Mentor assignment dropdown
+  - Contact information and requirements fields
+  - Available slots tracking
+  - Active/inactive status management
+  - "Internships Created This Session" sidebar
+  - Location field placeholder (Leaflet integration in progress)
+  - Delete with validation (prevents deletion if sections exist)
 
 - [x] **Admin UI - Calendar Management**
   - Calendar grid view - displays A/B days in blue/green and days off in red
@@ -140,13 +159,14 @@
 - Direct messaging (schema ready, UI deferred)
 - Opportunity gallery/browsing (schema ready, UI deferred)
 - CSV import for bulk user creation (deferred to V2)
+- Mentor accounts with app access (deferred to V2)
 
 ---
 
 ## 📝 Notes
 
 - Admin UI is first major feature to implement
-- Building in phases: Sections ✅ → Users ✅ → Enrollment ✅ → Calendar
+- Building in phases: Sections ✅ → Users ✅ → Enrollment ✅ → Calendar ✅ → Internships 🔨
 - Teacher profile pages and schedule views deferred until after admin basics complete
 - Smart form pattern with "Save & Add Another" established for bulk data entry
 - Multi-role users supported from V1
