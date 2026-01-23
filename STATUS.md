@@ -16,6 +16,13 @@ Nothing in progress. ✌️
   - Student roster for each section
   - Profile pages (role-aware with dynamic tabs)
 
+- [ ] **Profile Page Detail**
+  - Dynamic tabs based on viewed user's role
+  - Student profiles: Schedule, Check-ins, Info tabs
+  - Teacher profiles: Schedule, Students, Info tabs
+  - Schedule builder embedded in student Schedule tab (also teacher schedule tab, eventually)
+
+
 - [ ] **Student Agenda - Real Data Integration**
   - Connect agenda page to Supabase
   - Display student's actual schedule for today
