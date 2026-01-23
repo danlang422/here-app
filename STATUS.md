@@ -12,11 +12,6 @@
 
 ## 📋 Next Up
 
-- [ ] **Admin UI - Calendar Management**
-  - Calendar grid view
-  - A/B day setup
-  - Mark school days
-
 - [ ] **Teacher UI - Schedule & Students**
   - Teacher schedule view (sections they teach)
   - Student roster for each section
@@ -46,6 +41,12 @@
 ---
 
 ## ✅ Completed Recently
+
+- [x] **Admin UI - Calendar Management**
+  - Calendar grid view - displays A/B days in blue/green and days off in red
+  - Click day to add day off (requires confirmation)
+  - A/B day setup - CSV import with date, day_type
+  - Mark school days (marked A, B, off in CSV)
 
 - [x] **Performance Optimization - Phase 1-4** (2026-01-22)
   - Fixed N+1 query in getSections() using database view
