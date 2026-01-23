@@ -46,9 +46,12 @@ Nothing in progress. ✌️
 
 ## 🚧 Blocked / Questions
 
-*Nothing currently blocked*
+- When adding child sessions, add associated teacher and location, or only on parent session?
 
 ---
+
+## 🐛 Potential Bug Notes
+- Parent sections list does not load newly created sections until refresh
 
 ## ✅ Completed Recently
 
