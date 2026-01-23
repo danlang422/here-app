@@ -52,6 +52,14 @@ Nothing in progress. ✌️
 
 ## ✅ Completed Recently
 
+- [x] **Schema Update - Parent-Child Section Relationship** (2026-01-23)
+  - Added `parent_section_id` foreign key to sections table
+  - Enables grouping student sections under teacher supervision sections
+  - Supports "Hub Monitor" workflow where teacher supervises multiple sections simultaneously
+  - Migration file created: 004_add_parent_section_relationship.sql
+  - TypeScript types updated
+  - Documentation updated (DATABASE.md, DECISIONS.md)
+
 - [x] **Admin UI - Internships (Leaflet Integration)** (2026-01-23)
   - Location search with debounced geocoding
   - Interactive map display with markers

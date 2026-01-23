@@ -17,6 +17,7 @@ export type SectionFormData = {
   teacher_id?: string
   location?: string
   sis_block?: number
+  parent_section_id?: string
   student_ids?: string[] // Array of student IDs to enroll
 }
 
@@ -58,6 +59,7 @@ export async function createSection(data: SectionFormData) {
       schedule_pattern: data.schedule_pattern,
       days_of_week: data.days_of_week ? JSON.stringify(data.days_of_week) : null,
       sis_block: data.sis_block || null,
+      parent_section_id: data.parent_section_id || null,
       created_by: user.id,
     }
 
@@ -127,6 +129,7 @@ export async function updateSection(sectionId: string, data: SectionFormData) {
       schedule_pattern: data.schedule_pattern,
       days_of_week: data.days_of_week ? JSON.stringify(data.days_of_week) : null,
       sis_block: data.sis_block || null,
+      parent_section_id: data.parent_section_id || null,
       updated_at: new Date().toISOString(),
     }
 
@@ -321,6 +324,31 @@ export async function deleteSection(sectionId: string) {
   } catch (error) {
     console.error('Unexpected error deleting section:', error)
     return { success: false, error: 'Failed to delete section' }
+  }
+}
+
+/**
+ * Get potential parent sections
+ * Returns all sections ordered by time to help with grouping
+ */
+export async function getPotentialParentSections() {
+  const supabase = await createClient()
+  
+  try {
+    const { data: sections, error } = await supabase
+      .from('sections')
+      .select('id, name, type, start_time, end_time, schedule_pattern')
+      .order('start_time', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching potential parent sections:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data: sections }
+  } catch (error) {
+    console.error('Unexpected error fetching potential parent sections:', error)
+    return { success: false, error: 'Failed to fetch potential parent sections' }
   }
 }
 

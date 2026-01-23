@@ -149,6 +149,7 @@ Schedule blocks (classes, remote work sessions, internships).
 | schedule_pattern | enum | NOT NULL | every_day, specific_days, a_days, b_days |
 | days_of_week | jsonb | NULLABLE | `[1,2,3,4,5]` for M-F (only if specific_days) |
 | sis_block | int | NULLABLE | SIS/IC attendance block number |
+| parent_section_id | uuid | FOREIGN KEY sections(id) ON DELETE SET NULL, NULLABLE | Optional parent section for supervision groups |
 | internship_opportunity_id | uuid | FOREIGN KEY internship_opportunities(id), NULLABLE | Linked opportunity (if internship type) |
 | expected_location | jsonb | NULLABLE | `{address, lat, lng}` for internships |
 | geofence_radius | int | DEFAULT 100 | Meters for location verification |
@@ -166,6 +167,15 @@ Schedule blocks (classes, remote work sessions, internships).
 - `specific_days`: Appears on weekdays in `days_of_week` array
 - `a_days`: Appears only when calendar has `ab_designation = 'a_day'`
 - `b_days`: Appears only when calendar has `ab_designation = 'b_day'`
+
+**Parent-Child Sections (Supervision Groups):**
+- Parent sections group multiple student sections under one teacher supervision duty
+- Use case: "Hub Monitor" where teacher supervises students in different sections simultaneously
+- Students are enrolled in child sections (Spanish 2, Independent Work Time, etc.)
+- Teacher sees parent section (Hub Monitor) with aggregated student count from all children
+- Parent sections typically have no direct enrollments (students enrolled in children)
+- Deleting parent section sets children's `parent_section_id` to null (children remain intact)
+- Example: Hub Monitor (parent) ← Spanish 2 Edgenuity (child) + Independent Work Time (child) + CR US Humanities (child)
 
 #### section_teachers
 Many-to-many relationship between sections and teachers.

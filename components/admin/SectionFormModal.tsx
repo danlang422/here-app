@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createSection, updateSection, getSection, getTeachers, getEnrolledStudents, type SectionFormData, type SectionWithTeachers } from '@/app/admin/sections/actions'
+import { createSection, updateSection, getSection, getTeachers, getPotentialParentSections, getEnrolledStudents, type SectionFormData, type SectionWithTeachers } from '@/app/admin/sections/actions'
 import type { Database } from '@/lib/types/database'
 import StudentSelector from './StudentSelector'
 
@@ -13,6 +13,15 @@ type Teacher = {
   first_name: string | null
   last_name: string | null
   email: string
+}
+
+type PotentialParentSection = {
+  id: string
+  name: string
+  type: SectionType
+  start_time: string
+  end_time: string
+  schedule_pattern: SchedulePattern
 }
 
 type SectionFormModalProps = {
@@ -97,23 +106,32 @@ export default function SectionFormModal({
     teacher_id: '',
     location: '',
     sis_block: undefined,
+    parent_section_id: undefined,
     student_ids: [],
   })
 
   const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [potentialParents, setPotentialParents] = useState<PotentialParentSection[]>([])
   const [enrolledStudentIds, setEnrolledStudentIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadingSection, setLoadingSection] = useState(false)
   const [enrollmentExpanded, setEnrollmentExpanded] = useState(false)
 
-  // Load teachers on mount
+  // Load teachers and potential parent sections on mount
   useEffect(() => {
     async function loadData() {
-      const teachersResult = await getTeachers()
+      const [teachersResult, parentsResult] = await Promise.all([
+        getTeachers(),
+        getPotentialParentSections(),
+      ])
       
       if (teachersResult.success && teachersResult.data) {
         setTeachers(teachersResult.data)
+      }
+      
+      if (parentsResult.success && parentsResult.data) {
+        setPotentialParents(parentsResult.data)
       }
     }
     loadData()
@@ -167,6 +185,7 @@ export default function SectionFormModal({
             teacher_id: primaryTeacher?.teacher_id || '',
             location: location,
             sis_block: section.sis_block || undefined,
+            parent_section_id: section.parent_section_id || undefined,
             student_ids: [],
           })
         }
@@ -201,6 +220,7 @@ export default function SectionFormModal({
         teacher_id: '',
         location: '',
         sis_block: undefined,
+        parent_section_id: undefined,
         student_ids: [],
       })
       setError(null)
@@ -225,16 +245,18 @@ export default function SectionFormModal({
         
         if (saveAndAddAnother) {
           // Reset form for next entry, keep some defaults
+          // BUT clear days_of_week if schedule_pattern is 'specific_days' to prevent bug
           setFormData(prev => ({
             name: '',
             type: prev.type,
             start_time: prev.start_time,
             end_time: prev.end_time,
             schedule_pattern: prev.schedule_pattern,
-            days_of_week: prev.days_of_week,
+            days_of_week: prev.schedule_pattern === 'specific_days' ? [] : prev.days_of_week,
             teacher_id: '',
             location: prev.location,
             sis_block: undefined,
+            parent_section_id: undefined,
             student_ids: [],
           }))
           setEnrollmentExpanded(false)
@@ -437,6 +459,31 @@ export default function SectionFormModal({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Parent Section (optional - for supervision groups) */}
+                <div>
+                  <label htmlFor="parent_section_id" className="block text-sm font-medium text-gray-700 mb-1">
+                    Parent Section <span className="text-gray-500 text-xs font-normal">(optional - for supervision groups)</span>
+                  </label>
+                  <select
+                    id="parent_section_id"
+                    value={formData.parent_section_id || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, parent_section_id: e.target.value || undefined }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">None (this is a standalone section)</option>
+                    {potentialParents
+                      .filter(p => p.id !== sectionId) // Don't allow self-reference
+                      .map(section => (
+                        <option key={section.id} value={section.id}>
+                          {section.name} ({formatTime(section.start_time)} - {formatTime(section.end_time)})
+                        </option>
+                      ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Use this to group student sections under a teacher supervision section (e.g., Hub Monitor)
+                  </p>
                 </div>
 
                 {/* Location (for in_person and internship) */}

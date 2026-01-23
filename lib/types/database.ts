@@ -425,6 +425,7 @@ export type Database = {
           id: string
           internship_opportunity_id: string | null
           name: string
+          parent_section_id: string | null
           schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
           sis_block: number | null
           start_time: string
@@ -441,6 +442,7 @@ export type Database = {
           id?: string
           internship_opportunity_id?: string | null
           name: string
+          parent_section_id?: string | null
           schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
           sis_block?: number | null
           start_time: string
@@ -457,6 +459,7 @@ export type Database = {
           id?: string
           internship_opportunity_id?: string | null
           name?: string
+          parent_section_id?: string | null
           schedule_pattern?: Database["public"]["Enums"]["schedule_pattern"]
           sis_block?: number | null
           start_time?: string
@@ -476,6 +479,13 @@ export type Database = {
             columns: ["internship_opportunity_id"]
             isOneToOne: false
             referencedRelation: "internship_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sections_parent_section_id_fkey"
+            columns: ["parent_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
             referencedColumns: ["id"]
           },
         ]
@@ -565,6 +575,7 @@ export type Database = {
           id: string
           internship_opportunity_id: string | null
           name: string
+          parent_section_id: string | null
           schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
           sis_block: number | null
           start_time: string
@@ -582,6 +593,7 @@ export type Database = {
           id?: string
           internship_opportunity_id?: string | null
           name: string
+          parent_section_id?: string | null
           schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
           sis_block?: number | null
           start_time: string
@@ -599,6 +611,7 @@ export type Database = {
           id?: string
           internship_opportunity_id?: string | null
           name?: string
+          parent_section_id?: string | null
           schedule_pattern?: Database["public"]["Enums"]["schedule_pattern"]
           sis_block?: number | null
           start_time?: string
@@ -619,6 +632,13 @@ export type Database = {
             columns: ["internship_opportunity_id"]
             isOneToOne: false
             referencedRelation: "internship_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sections_parent_section_id_fkey"
+            columns: ["parent_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
             referencedColumns: ["id"]
           },
         ]

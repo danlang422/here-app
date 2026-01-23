@@ -310,6 +310,34 @@ This document captures important technical and product decisions made during dev
 
 ---
 
+### Parent-Child Section Relationship for Supervision Groups (2026-01-23)
+
+**Decision:** Add `parent_section_id` foreign key to sections table to enable grouping student sections under teacher supervision sections
+
+**Reasoning:**
+- City View has "Hub Monitor" duties where one teacher supervises multiple student sections simultaneously
+- Students are in distinct sections (Spanish 2, Independent Work Time, etc.) with different content/rosters
+- Teacher needs a single "Hub Monitor" entry on their schedule that aggregates all supervised sections
+- Parent-child relationship makes the hierarchy explicit and manageable
+- Admin workflow: create parent section (Hub Monitor) → create student sections → link child to parent
+- Teacher view shows parent section with aggregated student count from all children
+- Student view shows their actual section name (unaffected by parent relationship)
+
+**Alternatives Considered:**
+- `supervision_group` text field for tagging: simpler schema but opaque setup workflow, no single place to manage the grouping, prone to typos
+- Separate `supervision_duties` table: most "proper" relational design but overkill for this use case, adds significant complexity
+- No grouping: forces teachers to see 5 separate entries instead of 1 aggregated view
+
+**Trade-offs:** Adds one nullable foreign key column and slightly more complex queries for teacher schedules, but creates clear hierarchy and natural admin workflow. Parent sections have no direct enrollments but aggregate students from children.
+
+**Implementation Notes:**
+- Parent section dropdown shows sections that overlap in time (helpful suggestion)
+- But allows any section to be selected as parent (covers edge cases like remote students with slightly different timing)
+- Teacher schedule view aggregates: "Hub Monitor → 13 students across 3 sections"
+- Cascade behavior: `ON DELETE SET NULL` (deleting parent doesn't delete children)
+
+---
+
 ## Notes
 
 - This log focuses on **why** decisions were made, not just **what** was decided
