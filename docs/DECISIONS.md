@@ -221,30 +221,42 @@ This document captures important technical and product decisions made during dev
 
 ## Admin UI
 
-### Organization Awareness for Future Multi-Tenancy (2026-01-14, Updated 2026-01-21)
+### Organization Awareness for Future Multi-Tenancy (2026-01-14, Updated 2026-01-23)
 
-**Decision:** Schema prepared for `organizations` table, but implementation deferred
+**Decision:** Organizations table deferred indefinitely
 
 **Reasoning:**
-- Prepares data model for potential multi-tenancy without full implementation
-- Single-tenant is simpler for V1, but organization awareness has minimal overhead
-- No immediate UI need (originally planned for dynamic nav labels in people directory, which was deferred)
-- Can add table and org_id foreign keys when/if multi-tenancy becomes necessary
+- Originally planned to create `organizations` table for dynamic org name in people directory navigation
+- People directory feature was moved to Teacher UI as search-based access (no directory listing)
+- Search-based approach eliminates need for dynamic organization naming in navigation
+- Multi-tenancy not needed for V1 single-school deployment
+- Schema can be added when/if multi-tenancy becomes necessary
+- Minimal overhead to add `org_id` foreign keys at that time
 
 **Alternatives Considered:**
 - Full multi-tenancy from day one (overkill for launch)
 - No organization concept (harder to retrofit later)
 - Implement table now (no immediate benefit)
 
-**Trade-offs:** Adds minor schema complexity when implemented, but keeps future options open
+**Trade-offs:** Will require migration work if multi-tenancy is needed later, but avoids premature complexity
 
-**Update (2026-01-21):** Table creation deferred since people directory feature was moved to teacher UI and no longer needs dynamic organization naming
+**Future Path:**
+If multi-tenancy becomes necessary:
+1. Create `organizations` table
+2. Add `org_id` to relevant tables (sections, attendance_events, etc.)
+3. Update RLS policies to filter by organization
+4. Add org selection/switching in UI
+5. Implement slug-based routing (`/[org-slug]/admin/...`)
+
+**Update (2026-01-23):** Table creation deferred indefinitely since people directory feature was eliminated in favor of search-based access in Teacher UI
 
 ---
 
-### Profile Pages as Teacher Feature (2026-01-21)
+### Profile Pages as Teacher Feature (2026-01-23)
 
 **Decision:** User profile pages located in teacher UI (`/teacher/students/[userId]`), accessed via search rather than directory listing
+
+**Status:** Planned for Teacher UI phase (after Admin UI completion)
 
 **Reasoning:**
 - Teachers are primary users who need to look up individual students and view/manage their schedules

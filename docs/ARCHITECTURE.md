@@ -225,13 +225,15 @@ Each role has distinct interfaces optimized for their primary tasks. See `DECISI
 
 ### Teacher UI
 
-**Navigation:**
+**Status:** Planned for next major phase
+
+**Planned Navigation:**
 - **Students** - Search and view student profiles
 - **Sections** - View sections they teach
 - **Schedule** - Their own teaching schedule
 
-**Key Features:**
-- **Student Search**: Primary method to access student profiles (no directory listing)
+**Planned Features:**
+- **Student Search**: Primary method to access student profiles (replaces directory listing approach)
 - **Profile Pages** (`/teacher/students/[userId]`):
   - Dynamic tabs based on viewed user's role
   - Student profiles: Schedule, Check-ins, Info tabs
@@ -240,27 +242,41 @@ Each role has distinct interfaces optimized for their primary tasks. See `DECISI
 - **Section Rosters**: View enrolled students per section
 - **Check-in Review**: View and comment on student responses
 
+**Design Notes:**
+- Search-based access more efficient than browsing directories
+- Profile pages provide teacher tools (schedule visualization, roster management)
+- Single reusable profile component with role-based tab display
+
 ### Admin UI
+
+**Status:** Complete and production-ready
 
 **Navigation:**
 - **Dashboard** - Overview/stats (future)
-- **Sections** - Section management (CRUD)
-- **Internships** - Internship management (CRUD)
+- **Sections** - Section management (CRUD + enrollment)
+- **Internships** - Internship management (CRUD + geolocation)
 - **Users** - Account management (CRUD, roles, passwords)
-- **Settings** - School calendar, A/B days
+- **Settings** - School calendar management (CSV import, visual editor)
 
-**Key Features:**
-- **Smart Section Form**: "Save & Add Another" workflow for bulk entry (~20 sections)
-- **User Management**: Create accounts, assign roles, manage passwords
-- **Calendar Management**: Mark school days, set A/B day designation
-- **Student Enrollment**: Attach students to sections via enrollment interface
+**Implemented Features:**
+- **Smart Section Form**: "Save & Add Another" workflow for bulk entry with session tracking
+- **Student Enrollment**: Multi-select enrollment integrated into section creation/editing
+- **Parent-Child Sections**: Support for supervision groups (e.g., Hub Monitor duties)
+- **User Management**: Create accounts, assign multiple roles, password resets
+- **Internship Management**: Full CRUD with Leaflet map integration for geofencing
+- **Calendar Management**: CSV import, visual grid editor with A/B day color coding
+- **Performance Optimized**: Server component architecture with database views for instant loads
+
+**Design Patterns:**
+- Reusable modal components with "Save & Add Another" workflow
+- Server-first rendering for optimal performance
+- "Created This Session" sidebars for bulk entry visibility
+- Consistent server action patterns with type safety
 
 **Admin Access to Teacher Features:**
 - Admins with teacher role can access teacher UI (student search, profiles)
 - Admins without teacher role focus on system-wide management
 - Role overlap is common in small schools, making this practical
-
-See `wip/ADMIN_UI.md` for detailed specifications and build phases (temporary doc).
 
 ---
 
@@ -350,7 +366,7 @@ export default function SectionsPageClient({ initialSections }) {
 
 ### Database Query Optimization
 
-**N+1 Query Prevention:**
+**N+1 Query Prevention (Implemented January 2026):**
 
 Created `sections_with_enrollment_counts` database view to eliminate N+1 query patterns:
 
@@ -392,7 +408,7 @@ LEFT JOIN (
 - 10 sections: 11 queries → 1 query (90% reduction)
 - 50 sections: 51 queries → 1 query (98% reduction)
 
-### Admin Layout Optimization
+### Admin Layout Optimization (Implemented January 2026)
 
 Admin layout queries run in parallel for faster navigation between pages:
 
@@ -519,13 +535,14 @@ The database schema already supports these features, but UI is planned for V2+:
 - RLS policies performant with proper indexes
 
 ### Multi-Tenancy Path
-Currently single-tenant with organization awareness. To expand to multi-tenant:
-1. Add `org_id` to relevant tables (sections, attendance_events, etc.)
-2. Update RLS policies to filter by organization
-3. Add org selection/switching in UI
-4. Implement slug-based routing (`/city-view/admin/...`)
+Currently single-tenant without organization table. Organizations table and multi-tenancy deferred indefinitely but can be added if needed:
+1. Create `organizations` table
+2. Add `org_id` to relevant tables (sections, attendance_events, etc.)
+3. Update RLS policies to filter by organization
+4. Add org selection/switching in UI
+5. Implement slug-based routing (`/[org-slug]/admin/...`)
 
-See `DECISIONS.md` for reasoning behind single-tenant V1 approach.
+See `DECISIONS.md` for reasoning behind deferral and full context.
 
 ---
 
@@ -535,6 +552,5 @@ See `DECISIONS.md` for reasoning behind single-tenant V1 approach.
 - **DECISIONS.md** - Why we made specific technical and product choices
 - **DEVELOPMENT.md** - Setup instructions, common tasks, development workflow
 - **CHANGELOG.md** - Version history and feature releases
-- **wip/ADMIN_UI.md** - Detailed admin UI specifications (temporary, delete when complete)
 
 For questions about "why we did it this way," check `DECISIONS.md` first.

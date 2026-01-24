@@ -6,36 +6,115 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Currently Building
-- Admin UI for section management (see `docs/wip/ADMIN_UI.md`)
-- Organizations table for dynamic org name in UI
-
 ### Up Next
+- Teacher UI - Schedule & Students
+  - Teacher schedule view (sections they teach)
+  - Student roster for each section
+  - Profile pages (role-aware with dynamic tabs)
+  - Student search functionality (replaces people directory approach)
 - Connect student agenda page to real Supabase data
 - Implement check-in flow with geolocation for internships
 - Implement check-out flow with progress prompts
 
-### Admin UI Planning Session (2026-01-14)
+### Admin UI Completed (2026-01-23)
 
-**Architectural Decisions:**
-- Organizations table approach for single-tenant with multi-tenant preparation
-- "Users" vs "City View" navigation distinction (account management vs people viewing)
-- Single profile component with role-based tabs
-- Smart form for section creation ("Save & Add Another" workflow)
+All core admin functionality has been implemented and is production-ready:
 
-**UI/UX Specifications:**
-- Detailed admin interface design documented in `docs/wip/ADMIN_UI.md`
-- Section creation optimized for bulk entry (~20 sections)
-- Schedule builder uses time-filter approach (no fixed blocks)
-- Profile pages adapt based on user role (student/teacher/admin)
+**Sections Management:**
+- Sections list page with search and type filters
+- Smart create section form with "Save & Add Another" workflow
+- Section detail page showing schedule, teacher, location info
+- Edit section via reusable modal component
+- Server actions for CRUD operations on sections
+- "Sections Created This Session" list displayed in modal sidebar
+- Student enrollment integrated into section form
+- Parent-child section relationship for supervision groups (e.g., Hub Monitor duties)
 
-**Build Priority:**
-1. Phase 1: Sections Management (CRUD + smart form + enrollment)
-2. Phase 2: City View (people directory + profile pages + schedule builder)
-3. Phase 3: Users Management (account CRUD)
-4. Phase 4: Calendar Management (A/B days)
+**Users Management:**
+- Users list page with search and role filters
+- Create user form with "Save & Add Another" workflow
+- Edit user and manage multiple roles
+- Password reset functionality
+- Delete user functionality with confirmation
+- Server actions for all CRUD operations
+- "Users Created This Session" list in modal sidebar
+- Multi-role support with auto-checking of primary role
 
-**Next Action:** Begin Phase 1 - Admin layout and sections management
+**Internships Management:**
+- Internships list page with search and status filters
+- Create/edit internship form with "Save & Add Another" workflow
+- Mentor assignment dropdown
+- Contact information and requirements fields
+- Available slots tracking
+- Active/inactive status management
+- Leaflet integration for location search and geofence visualization
+- Delete with validation (prevents deletion if sections exist)
+
+**Calendar Management:**
+- Calendar grid view displaying A/B days and days off
+- CSV import for bulk calendar setup
+- Click day to add day off (with confirmation)
+- Visual color coding: A days (blue), B days (green), days off (red)
+- Implemented in Settings page (`/admin/settings`)
+
+**Performance Optimizations:**
+- Server component architecture for instant page loads
+- Database view (`sections_with_enrollment_counts`) eliminates N+1 queries
+- Parallel queries in admin layout
+- Proper indexing on all foreign keys
+
+**Design Patterns Established:**
+- Reusable modal components for create/edit workflows
+- "Save & Add Another" pattern for bulk data entry
+- Server-first rendering with client components for interactivity
+- Consistent server action patterns with type safety
+
+### Profile Pages & Teacher UI Planning (2026-01-23)
+
+**Architectural Decision:**
+Profile pages and schedule builder moved from Admin UI to Teacher UI phase:
+
+**Reasoning:**
+- Teachers are primary users who need to look up students and manage schedules
+- Search-based access more efficient than directory listing
+- Admin users needing this functionality typically already have teacher role (small school context)
+- Schedule visualization and builder are teacher tools
+
+**Planned Implementation:**
+- User profile pages at `/teacher/students/[userId]`
+- Student search replaces people directory concept
+- Dynamic tabs based on viewed user's role:
+  - Students: Schedule, Check-ins, Info
+  - Teachers: Schedule, Students, Info
+  - Admins/Mentors: Info only
+- Schedule builder embedded in student Schedule tab
+- Teacher can view and adjust which sections student is enrolled in
+
+### Multi-Tenancy & Organizations Table (2026-01-23)
+
+**Status:** Deferred indefinitely
+
+**Background:**
+Originally planned to create `organizations` table to support:
+- Dynamic organization name in people directory navigation
+- Future multi-tenancy support
+
+**Decision:**
+Table creation deferred because:
+- People directory feature moved to Teacher UI as search-based access (no need for dynamic org naming)
+- Multi-tenancy not needed for V1 single-school deployment
+- Schema can be added when/if multi-tenancy becomes necessary
+- Minimal overhead to add `org_id` foreign keys at that time
+
+**Future Path:**
+If multi-tenancy is needed later:
+1. Create `organizations` table
+2. Add `org_id` to relevant tables (sections, attendance_events, etc.)
+3. Update RLS policies to filter by organization
+4. Add org selection/switching in UI
+5. Implement slug-based routing (`/[org-slug]/admin/...`)
+
+See `DECISIONS.md` for full reasoning.
 
 ### Authentication System Completed (2026-01-13)
 
@@ -112,6 +191,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Email-based mentor verification with upgrade path to in-app
 - Threaded comments on student responses
 - Future-ready for custom prompts, direct messaging, opportunity gallery
+- Parent-child section relationships for supervision groups
 
 ### Architectural Decisions Made (2026-01-13)
 
@@ -154,13 +234,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - 100m geofence for soft verification
 - Sufficient for V1 needs
 
+**9. Parent-Child Section Relationships (2026-01-23)**
+- Sections can have parent sections via `parent_section_id`
+- Enables supervision group scenarios (e.g., Hub Monitor overseeing multiple student sections)
+- Teacher sees aggregated view, students see their actual section names
+- Cascade behavior: deleting parent doesn't delete children
+
 ### Future Considerations
 
 **Features Built Into Schema But UI Deferred:**
 - Custom prompts (table exists, admin UI is V2+)
 - Direct messaging (interactions.type='message' ready, UI is V2+)
 - Opportunity gallery (data model ready, browsing UI is V2+)
-- CSV import (schema supports it, UI is V2+)
+- CSV import for users (schema supports it, UI is V2+)
 
 **Potential V2+ Features:**
 - Student self-scheduling for remote work blocks
@@ -176,6 +262,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - RLS policies defined for all tables
 - Indexes planned for performance
 - Common queries documented
+- Database view for optimized section queries
 
 ### Technical Debt
 - None yet (greenfield project)
@@ -184,9 +271,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 **Supabase Setup:**
 - Supabase project initialized and connected
-- Database migrations created and applied
+- Database migrations created and applied:
   - `001_initial_schema.sql`: Complete database schema with all tables, indexes, RLS policies
   - `002_auto_create_user_profile.sql`: Automatic user profile creation trigger
+  - `003_sections_with_enrollment_view.sql`: Optimized view for section queries
+  - `004_add_parent_section_relationship.sql`: Parent-child section support
 - TypeScript database types generated
 - Supabase client utilities configured (client-side and server-side)
 
@@ -198,7 +287,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Demo student agenda page created (visual prototype)
 
 ### Known Issues
-- None yet
+- Parent sections list does not load newly created sections until page refresh
 
 ---
 
