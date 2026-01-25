@@ -1,19 +1,25 @@
 # Here App - Status
 
-**Last Updated:** 2026-01-23
+**Last Updated:** 2026-01-25
 
 ---
 
 ## 🔨 In Progress
 
-Nothing in progress. ✌️
+- [ ] **Teacher Workflow Design**
+  - Refining teacher UI navigation structure (Agenda → Sections → Students)
+  - Planning attendance marking workflow
+  - See `/docs/wip/TEACHER_WORKFLOW.md` for detailed design
+
 ---
 
 ## 📋 Next Up
 
-- [ ] **Teacher UI - Schedule & Students**
-  - Teacher schedule view (sections they teach)
-  - Student roster for each section
+- [ ] **Teacher UI - Implementation**
+  - Teacher directory and routing
+  - Agenda page with section cards
+  - Section detail pages with check-in/out data
+  - Attendance marking interface
   - Profile pages (role-aware with dynamic tabs)
 
 - [ ] **Profile Page Detail**
@@ -185,7 +191,7 @@ Nothing in progress. ✌️
 ## 📝 Notes
 
 - Admin UI is first major feature to implement
-- Building in phases: Sections ✅ → Users ✅ → Enrollment ✅ → Calendar ✅ → Internships 🔨
+- Building in phases: Sections ✅ → Users ✅ → Enrollment ✅ → Calendar ✅ → Internships ✅ → Teacher UI 🔨
 - Teacher profile pages and schedule views deferred until after admin basics complete
 - Smart form pattern with "Save & Add Another" established for bulk data entry
 - Multi-role users supported from V1

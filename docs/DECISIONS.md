@@ -350,6 +350,106 @@ If multi-tenancy becomes necessary:
 
 ---
 
+### Keeping Parent-Child Sections vs Attendance Blocks Model (2026-01-25)
+
+**Decision:** Continue using parent-child section relationship rather than refactoring to separate attendance blocks table
+
+**Context:**
+- Considered creating dedicated `attendance_blocks` table to mirror SIS periods ("Period 1", "Period 2")
+- This would separate time slots (WHEN) from student placements (WHAT) from teacher assignments (WHO)
+- More "correct" relational model but significant refactoring
+
+**Reasoning:**
+- Current parent-child model can handle the workflow, even if a bit awkward in some flows
+- School hasn't requested attendance features yet - solving a problem we don't have
+- Can build UI helpers to smooth over awkwardness (e.g., "Add section for Tyler" auto-suggests parents)
+- Attendance blocks model only worth complexity if building full SIS integration
+- Better to wait for real requirements before major refactoring
+
+**When to Revisit:**
+1. School explicitly requests attendance features (creates real requirements)
+2. Parent-child pattern becomes genuinely painful in daily use
+3. Full SIS integration becomes necessary
+
+**Possible Compromise:**
+- Could add `attendance_block` string field to sections without schema overhaul
+- Gives grouping capability for attendance
+- Can migrate to full attendance_blocks table later if justified
+
+**Trade-offs:** Some UI flows (like creating individual sections) require finding/selecting parent section, but this is manageable with good UI design
+
+---
+
+### Simplified Attendance Model vs InternTracker (2026-01-25)
+
+**Decision:** Section-level attendance marked by teachers, block-level reporting is read-only rollup
+
+**Context:**
+- InternTracker had complex attendance with auto-suggestions, rollup logic, override capabilities
+- Teachers still using spreadsheets despite having SIS access
+- Need to bring check-ins, attendance marking, and reporting into one place
+
+**Reasoning:**
+- Teachers mark attendance at section level (the actual classes/sessions)
+- Attendance reporter views rollup by reporting block (for SIS transfer)
+- Reporter doesn't edit in Here app - just views and manually transfers to SIS
+- No automation of attendance code suggestions
+- No complex override system
+- Manual `reporting_block` field on sections - admin chooses which block it counts for
+
+**Lessons from InternTracker:**
+- Tried to automate too much (attendance code suggestions, overlap calculations)
+- Complex rollup logic was hard to maintain and understand
+- Simpler "human makes the judgment call" approach is more maintainable
+
+**Data Model:**
+```sql
+-- Section-level attendance (what teachers mark)
+section_attendance (
+  section_id,
+  student_id, 
+  attendance_date,
+  status, -- present/absent/tardy/excused
+  marked_by -- teacher_id
+)
+
+-- Block rollup is just a query, not a table:
+SELECT reporting_block, student_id, status
+FROM section_attendance
+JOIN sections USING (section_id)
+WHERE reporting_block = X AND date = today
+```
+
+**Trade-offs:** Less automated than InternTracker, but much simpler to implement and maintain. Appropriate for small school scale.
+
+---
+
+### Attendance as Optional Section Property (2026-01-25)
+
+**Decision:** Attendance tracking is toggleable per section via `attendance_enabled` boolean
+
+**Reasoning:**
+- No one has explicitly requested attendance features yet
+- School may prefer existing spreadsheet workflow for some section types
+- Allows gradual adoption - can enable for internships/remote first, add in-person later
+- Some section types genuinely don't need formal attendance (parent supervision sections)
+- Reduces pressure to "get attendance right" in V1
+
+**Implementation:**
+- Add `attendance_enabled` boolean to sections (defaults to false)
+- Admin UI: checkbox in section form - "Enable attendance tracking"
+- Teacher UI: "Mark Attendance" button only appears for enabled sections
+- Reporter UI: only shows sections with attendance enabled in rollup
+
+**Alternatives Considered:**
+- Attendance always on (forces adoption before validation)
+- Attendance always off until V2 (misses opportunity to test with willing adopters)
+- Per-user preference (too granular, confusing)
+
+**Trade-offs:** Additional field and conditional logic, but provides flexibility for gradual rollout and validates feature value before full commitment
+
+---
+
 ## Notes
 
 - This log focuses on **why** decisions were made, not just **what** was decided
