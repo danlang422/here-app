@@ -2,18 +2,21 @@
 
 ## System Overview
 
-Here App is a student check-in/check-out system for remote work and internships. Students see their full schedule but can only check in/out of remote and internship sections. The check-in flow captures location (for internships), plans via prompts, and timestamps. The check-out flow captures progress and timestamps.
+Here App is a student check-in/check-out and attendance system for remote work, internships, and in-person sections. Students can optionally "wave" (👋 "I'm here!") at in-person sections for lightweight engagement, must check in/out for remote and internship sections, and see their full schedule. Teachers mark attendance directly in the app, view student check-in/out data with prompt responses, and have tools to manage schedules.
 
 **Core User Flow:**
 1. Student views their schedule (all sections visible)
-2. Remote/internship sections show check-in/check-out options
-3. Check-in: Capture geolocation (internships only) → Prompt for plans → Submit with timestamp
-4. Check-out: Prompt for progress → Submit with timestamp
+2. In-person sections show optional presence "wave" button (if enabled)
+3. Remote/internship sections require check-in/check-out
+4. Check-in: Capture geolocation (internships only) → Prompt for plans → Submit with timestamp
+5. Check-out: Prompt for progress → Submit with timestamp
 
 **Teacher/Admin/Mentor Flow:**
-- View student check-in/check-out data with responses to prompts
+- Mark attendance for students (present/absent/excused) in sections with attendance enabled
+- View student check-in/out data with prompt responses
+- See presence waves and mood emojis for engagement tracking
 - Comment on student responses (conversational feedback)
-- Use data to manually mark attendance in SIS (Student Information System)
+- Use data to inform decisions and manually transfer to SIS if needed
 - Mentors verify internship check-ins via email links
 
 ---
@@ -67,9 +70,11 @@ See `DECISIONS.md` for reasoning behind these choices and alternatives considere
 - Separation allows opportunity browsing and reusability
 
 **Check-Ins & Interactions:**
-- **Attendance Events**: Check-in/out records with timestamps and location data
-- **Interactions**: Unified table for prompt responses, comments, and future messages
+- **Attendance Events**: Student-initiated check-in/out records with timestamps and location data
+- **Attendance Records**: Teacher-marked attendance (present/absent/excused/tardy) separate from check-ins
+- **Interactions**: Unified table for prompt responses, comments, presence waves, and future messages
 - Threading via `parent_id` creates conversational structure
+- Presence waves (👋) stored as interaction type with optional mood emoji
 
 See `DATABASE.md` for complete table definitions and relationships.
 
@@ -227,25 +232,86 @@ Each role has distinct interfaces optimized for their primary tasks. See `DECISI
 
 **Status:** Planned for next major phase
 
-**Planned Navigation:**
-- **Students** - Search and view student profiles
-- **Sections** - View sections they teach
-- **Schedule** - Their own teaching schedule
+**Navigation:**
+- **Agenda** (default) - Today's sections with date navigation and attendance marking
+- **Settings** - User settings (password reset, preferences)
+- **Global search** - Find students/sections → links to profile pages
 
-**Planned Features:**
-- **Student Search**: Primary method to access student profiles (replaces directory listing approach)
-- **Profile Pages** (`/teacher/students/[userId]`):
-  - Dynamic tabs based on viewed user's role
-  - Student profiles: Schedule, Check-ins, Info tabs
-  - Teacher profiles: Schedule, Students, Info tabs
-  - Schedule builder embedded in student Schedule tab
-- **Section Rosters**: View enrolled students per section
-- **Check-in Review**: View and comment on student responses
+**Agenda Page (Primary Workflow):**
+- Shows all sections for selected date (default: today)
+- Date navigation: ← Previous Day | Today | Next Day →
+- Section cards display:
+  - Section name, time, type
+  - Quick indicators: 👋 presence count, ✓ check-in count, 📝 prompt responses
+  - Attendance completion status: ✓ Complete (12/12), ⚠ In Progress (8/15), Not Started (0/23)
+- Click section card to expand attendance marking interface
 
-**Design Notes:**
-- Search-based access more efficient than browsing directories
-- Profile pages provide teacher tools (schedule visualization, roster management)
-- Single reusable profile component with role-based tab display
+**Attendance Marking Interface:**
+- Expandable student rows (progressive disclosure pattern)
+- Default view: Student name + visual indicators + attendance checkbox
+  - 👋 = Presence wave (optional "I'm here!")
+  - ✓ = Geolocation check-in (required for internships/remote)
+  - 📝 = Prompt responses submitted
+  - 😊 = Mood emoji (if presence_mood_enabled)
+- Click student row to expand details:
+  - Check-in/out timestamps with location verification status
+  - Full prompt responses ("What are your plans?" etc.)
+  - Teacher comment box for feedback
+  - View full history link
+- Quick attendance workflow: Mark all students without expanding
+- Detailed review: Expand individual students to verify remote work
+
+**Parent Section Handling:**
+- Parent sections (e.g., "Hub Monitor") show aggregated stats
+- Clicking parent section shows grouped view:
+  - Students organized by child section (Spanish 2, Independent Work, etc.)
+  - Per-section completion tracking visible
+  - Attendance saved to child sections (where enrollments exist)
+  - Optional toggle for unified alphabetical view (all students in one list)
+
+**Features NOT Built (V1):**
+- `/teacher/sections` list page - unclear value beyond Agenda
+- `/teacher/students` list page - search + profiles more efficient
+
+**Design Philosophy:**
+- Attendance marking at top level (Agenda) minimizes clicks
+- Expandable rows provide context when needed without overwhelming
+- Visual indicators help teachers quickly identify which students need attention
+- Parent sections roll up multiple child sections for unified workflow
+
+### Profile Pages (Role-Agnostic)
+
+**Status:** Planned for V1
+
+**Route:** `/profile/[id]` (not nested under any role-specific directory)
+
+**Access:**
+- Global search component in app header/nav (accessible to teachers and admins)
+- Search indexes users and sections
+- Results link to `/profile/[id]` or `/section/[id]`
+- Direct navigation for viewing own profile
+
+**Dynamic Content Based on Viewed User's Role:**
+- **Student profiles**: Schedule (with builder), Check-ins, Info tabs
+- **Teacher profiles**: Schedule, Students (sections they teach), Info tabs  
+- **Admin/Mentor profiles**: Info tab only
+
+**Primary Feature: Schedule Builder**
+- Embedded in student/teacher Schedule tab
+- List view with time filtering for finding relevant sections
+- Add/remove sections from student schedule
+- Accessible to teachers and admins for schedule management
+
+**Viewer Permissions:**
+- Teachers: Can view/edit students in their sections, view other teachers
+- Admins: Can view/edit all users (most admins also have teacher role)
+- Students: Can view own profile, possibly peers (TBD)
+
+**Design Philosophy:**
+- Role-agnostic route provides flexibility for multi-role access
+- Content adapts based on who's being viewed, not who's viewing
+- Search-first approach more efficient than directory browsing
+- Schedule builder is primary reason these pages exist
 
 ### Admin UI
 

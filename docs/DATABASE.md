@@ -153,6 +153,9 @@ Schedule blocks (classes, remote work sessions, internships).
 | internship_opportunity_id | uuid | FOREIGN KEY internship_opportunities(id), NULLABLE | Linked opportunity (if internship type) |
 | expected_location | jsonb | NULLABLE | `{address, lat, lng}` for internships |
 | geofence_radius | int | DEFAULT 100 | Meters for location verification |
+| attendance_enabled | boolean | DEFAULT false | Whether attendance tracking is enabled for this section |
+| presence_enabled | boolean | DEFAULT false | Whether optional presence "waves" are enabled |
+| presence_mood_enabled | boolean | DEFAULT false | Whether mood emoji picker is shown after presence wave |
 | created_by | uuid | FOREIGN KEY users(id) | Who created this section |
 | created_at | timestamptz | | |
 | updated_at | timestamptz | | |
@@ -234,6 +237,44 @@ Records of student check-ins and check-outs with timestamps and location data.
 - `location_verified = false`: Student was outside geofence (flagged)
 - `verified_by` set: Mentor manually verified despite flag (override)
 
+#### attendance_records
+Records of teacher-marked attendance (separate from student-initiated check-in events).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | uuid | PRIMARY KEY | |
+| student_id | uuid | FOREIGN KEY users(id), NOT NULL | |
+| section_id | uuid | FOREIGN KEY sections(id), NOT NULL | |
+| date | date | NOT NULL | Date attendance was marked for |
+| status | text | NOT NULL | 'present', 'absent', 'excused', 'tardy' |
+| marked_by | uuid | FOREIGN KEY users(id), NOT NULL | Teacher who marked attendance |
+| notes | text | NULLABLE | Optional teacher notes |
+| created_at | timestamptz | | When record was created |
+| updated_at | timestamptz | | Last modification |
+
+**Constraints:** UNIQUE(student_id, section_id, date)
+
+**Attendance vs Check-In Events:**
+- `attendance_events`: Student-initiated check-ins/outs with geolocation (for remote/internship sections)
+- `attendance_records`: Teacher-marked attendance (for any section with `attendance_enabled = true`)
+- These are complementary - check-in data informs attendance marking but doesn't replace it
+- Only created for sections where `attendance_enabled = true`
+
+**Status Values:**
+- `present`: Student was present for the section
+- `absent`: Student was absent (no excuse provided)
+- `excused`: Student was absent but excused
+- `tardy`: Student arrived late (optional, may be added later)
+- `null`: Not yet marked (default state)
+
+**Parent-Child Section Pattern:**
+For parent sections (e.g., "Hub Monitor" supervising multiple child sections):
+- Attendance records are stored on **child sections** (where student enrollments exist)
+- Teacher UI aggregates and displays under parent section
+- Query pattern: `WHERE child.parent_section_id = 'parent-id'`
+- Student view: Shows attendance under their enrolled child section
+- See DECISIONS.md "Parent-Child Section Attendance Pattern" for full details
+
 ---
 
 ### Prompts & Interactions
@@ -279,8 +320,9 @@ Unified model for all conversational content: responses, comments, messages.
 - `prompt_response`: Student answering a prompt at check-in/out
 - `comment`: Teacher/mentor commenting on a response
 - `message`: Direct messages (future feature)
+- `presence`: Student optional "wave" check-in (👋 "I'm here!")
 
-**Denormalization Note:**
+**Denormalization Note:****
 `author_role` stores the user's primary role at creation time for query performance. This is intentionally denormalized - if a user's role changes, historical interactions preserve the role they had when creating the content.
 
 ---
@@ -603,6 +645,110 @@ HAVING
 ORDER BY io.organization_name;
 ```
 
+### Get Teacher's Agenda for a Specific Date with Attendance Status
+```sql
+SELECT 
+  s.id,
+  s.name,
+  s.type,
+  s.start_time,
+  s.end_time,
+  s.attendance_enabled,
+  s.presence_enabled,
+  COUNT(DISTINCT ss.student_id) as total_students,
+  COUNT(DISTINCT ar.student_id) as marked_students,
+  COUNT(DISTINCT CASE WHEN i.type = 'presence' THEN i.author_id END) as presence_count,
+  COUNT(DISTINCT CASE WHEN ae.event_type = 'check_in' THEN ae.student_id END) as checked_in_count
+FROM sections s
+JOIN section_teachers st ON s.id = st.section_id
+JOIN section_students ss ON s.id = ss.section_id AND ss.active = true
+LEFT JOIN attendance_records ar ON 
+  ar.section_id = s.id 
+  AND ar.date = $2
+LEFT JOIN interactions i ON 
+  i.section_id = s.id 
+  AND i.type = 'presence'
+  AND i.created_at::date = $2
+LEFT JOIN attendance_events ae ON
+  ae.section_id = s.id
+  AND ae.timestamp::date = $2
+WHERE st.teacher_id = $1
+AND (
+  s.schedule_pattern = 'every_day'
+  OR (s.schedule_pattern = 'specific_days' AND s.days_of_week ? EXTRACT(DOW FROM $2)::text)
+  OR (s.schedule_pattern = 'a_days' AND EXISTS (
+    SELECT 1 FROM calendar_days cd WHERE cd.date = $2 AND cd.ab_designation = 'a_day'
+  ))
+  OR (s.schedule_pattern = 'b_days' AND EXISTS (
+    SELECT 1 FROM calendar_days cd WHERE cd.date = $2 AND cd.ab_designation = 'b_day'
+  ))
+)
+GROUP BY s.id
+ORDER BY s.start_time;
+```
+
+### Get Roster for Parent Section with Attendance (Grouped by Child)
+```sql
+SELECT 
+  child.id as section_id,
+  child.name as section_name,
+  u.id as student_id,
+  u.first_name,
+  u.last_name,
+  ar.status as attendance_status,
+  ar.notes as attendance_notes,
+  ae_in.timestamp as check_in_time,
+  ae_in.location_verified as check_in_verified,
+  ae_out.timestamp as check_out_time,
+  i_presence.content as presence_mood,
+  i_prompt.content as prompt_response
+FROM sections parent
+JOIN sections child ON child.parent_section_id = parent.id
+JOIN section_students ss ON ss.section_id = child.id AND ss.active = true
+JOIN users u ON ss.student_id = u.id
+LEFT JOIN attendance_records ar ON 
+  ar.section_id = child.id 
+  AND ar.student_id = u.id 
+  AND ar.date = $2
+LEFT JOIN attendance_events ae_in ON 
+  ae_in.section_id = child.id 
+  AND ae_in.student_id = u.id 
+  AND ae_in.event_type = 'check_in'
+  AND ae_in.timestamp::date = $2
+LEFT JOIN attendance_events ae_out ON 
+  ae_out.section_id = child.id 
+  AND ae_out.student_id = u.id 
+  AND ae_out.event_type = 'check_out'
+  AND ae_out.timestamp::date = $2
+LEFT JOIN interactions i_presence ON
+  i_presence.section_id = child.id
+  AND i_presence.author_id = u.id
+  AND i_presence.type = 'presence'
+  AND i_presence.created_at::date = $2
+LEFT JOIN interactions i_prompt ON
+  i_prompt.attendance_event_id = ae_in.id
+  AND i_prompt.type = 'prompt_response'
+WHERE parent.id = $1
+ORDER BY child.name, u.last_name;
+```
+
+### Get Presence Waves for Section
+```sql
+SELECT 
+  i.id,
+  i.content as mood_emoji,
+  i.created_at,
+  u.id as student_id,
+  u.first_name,
+  u.last_name
+FROM interactions i
+JOIN users u ON i.author_id = u.id
+WHERE i.section_id = $1
+AND i.type = 'presence'
+AND i.created_at::date = $2
+ORDER BY i.created_at DESC;
+```
+
 ---
 
 ## Indexes
@@ -652,6 +798,14 @@ CREATE INDEX idx_attendance_type ON attendance_events(event_type);
 CREATE INDEX idx_attendance_needs_verification 
   ON attendance_events(verified_by) 
   WHERE verified_by IS NULL AND location_verified = false;
+
+-- Attendance Records
+CREATE INDEX idx_attendance_records_student ON attendance_records(student_id);
+CREATE INDEX idx_attendance_records_section ON attendance_records(section_id);
+CREATE INDEX idx_attendance_records_date ON attendance_records(date);
+CREATE INDEX idx_attendance_records_status ON attendance_records(status);
+CREATE INDEX idx_attendance_records_marked_by ON attendance_records(marked_by);
+CREATE INDEX idx_attendance_records_section_date ON attendance_records(section_id, date);
 
 -- Interactions
 CREATE INDEX idx_interactions_author ON interactions(author_id);

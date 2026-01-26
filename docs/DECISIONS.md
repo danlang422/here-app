@@ -252,34 +252,41 @@ If multi-tenancy becomes necessary:
 
 ---
 
-### Profile Pages as Teacher Feature (2026-01-23)
+### Profile Pages as Role-Agnostic Routes (2026-01-25)
 
-**Decision:** User profile pages located in teacher UI (`/teacher/students/[userId]`), accessed via search rather than directory listing
+**Decision:** User profile pages at `/profile/[id]` route, accessible to teachers and admins via global search
 
-**Status:** Planned for Teacher UI phase (after Admin UI completion)
+**Status:** Planned for V1 (alongside Teacher UI)
 
 **Reasoning:**
-- Teachers are primary users who need to look up individual students and view/manage their schedules
-- Schedule visualization and builder are teacher tools (help teachers understand student availability)
-- Admin users who need this functionality likely already have teacher role (small school, role overlap is common)
-- Search function is more efficient than browsing a directory for finding specific students
-- Avoids building a "people directory" that doesn't provide much value
+- Profile pages need to be accessible from multiple contexts (teacher workflow, admin management)
+- Search is more efficient than browsing directories for looking up specific users
+- Role-agnostic route allows content to adapt based on viewer's role and viewed user's role
+- Avoids locking profiles into one role's UI hierarchy
+- Schedule builder is primary feature - needs to be accessible to anyone managing schedules
 
 **Profile Page Design:**
-- Single dynamic component shows role-appropriate tabs:
-  - Students: Schedule, Check-ins, Info
-  - Teachers: Schedule, Students (sections they teach), Info
-  - Admins/Mentors: Info only (no schedule/student tabs)
-- Schedule builder embedded in student profile's Schedule tab
-- Teachers can view which sections student is enrolled in and make adjustments
+- Route: `/profile/[id]` (not nested under `/teacher` or `/admin`)
+- Content adapts based on viewed user's role:
+  - Students: Schedule (with builder), Check-ins, Info tabs
+  - Teachers: Schedule, Students (sections they teach), Info tabs
+  - Admins/Mentors: Info tab only
+- Global search component in app header/nav (accessible from anywhere)
+- Search indexes users and sections
+- Results link to `/profile/[id]` or `/section/[id]` as appropriate
+
+**Access Patterns:**
+- Teachers: Search → profile → view/build student schedules
+- Admins: Search → profile → same as teachers (admins likely have teacher role too)
+- Students: Direct link to own profile, may search for peers
 
 **Alternatives Considered:**
-- Admin-only profiles (limits access unnecessarily)
-- Directory listing page (search is more efficient)
-- Separate profile components per role (duplicates code)
-- No profile pages (loses valuable schedule visualization)
+- Profiles in teacher UI (`/teacher/students/[id]`) - couples feature to one role unnecessarily
+- Profiles in admin UI - limits access when teachers need schedule management
+- Directory listing pages - search is faster and more focused
+- Separate routes per role - duplicates code and creates confusion
 
-**Trade-offs:** Admin users without teacher role can't access profiles, but this is acceptable given role overlap at small schools
+**Trade-offs:** Requires building global search component, but provides better UX and flexibility for multi-role access patterns
 
 ---
 
@@ -426,7 +433,7 @@ WHERE reporting_block = X AND date = today
 
 ### Attendance as Optional Section Property (2026-01-25)
 
-**Decision:** Attendance tracking is toggleable per section via `attendance_enabled` boolean
+**Decision:** Attendance tracking is toggleable per section via `attendance_enabled` boolean, with bulk edit capability
 
 **Reasoning:**
 - No one has explicitly requested attendance features yet
@@ -434,19 +441,352 @@ WHERE reporting_block = X AND date = today
 - Allows gradual adoption - can enable for internships/remote first, add in-person later
 - Some section types genuinely don't need formal attendance (parent supervision sections)
 - Reduces pressure to "get attendance right" in V1
+- Bulk edit makes it easy to demonstrate by enabling feature across many sections at once
 
 **Implementation:**
 - Add `attendance_enabled` boolean to sections (defaults to false)
-- Admin UI: checkbox in section form - "Enable attendance tracking"
-- Teacher UI: "Mark Attendance" button only appears for enabled sections
-- Reporter UI: only shows sections with attendance enabled in rollup
+- Admin UI section form: checkbox "Enable attendance tracking"
+- Admin UI sections list: bulk edit controls to enable/disable attendance for selected sections
+- Teacher UI: Attendance marking interface only appears for enabled sections
+- Attendance records stored in `attendance_records` table (separate from check-in `attendance_events`)
+
+**Data Model:**
+```sql
+attendance_records (
+  student_id,
+  section_id,
+  date,
+  status,  -- 'present', 'absent', 'excused', 'tardy'
+  marked_by,  -- teacher_id
+  notes
+)
+```
 
 **Alternatives Considered:**
 - Attendance always on (forces adoption before validation)
 - Attendance always off until V2 (misses opportunity to test with willing adopters)
 - Per-user preference (too granular, confusing)
+- Global organization-wide toggle (not flexible enough for mixed use cases)
 
 **Trade-offs:** Additional field and conditional logic, but provides flexibility for gradual rollout and validates feature value before full commitment
+
+---
+
+### Presence as Interaction Type (2026-01-25)
+
+**Decision:** Use existing `interactions` table for presence events (👋 "I'm here!" waves) rather than creating separate table
+
+**Reasoning:**
+- Interactions table was designed to be flexible for various interaction types
+- Presence fits naturally: student waves at a section, optionally includes mood emoji
+- Can be threaded with comments later (parent_id for replies)
+- Works with future feed concept - "You were Here 👋 in Biology" with timestamp
+- RLS policies already cover it (teachers can see interactions in their sections)
+- Reduces table proliferation
+
+**Implementation:**
+- Add `'presence'` to `interaction_type` enum
+- Presence wave stored as interaction with:
+  - `type = 'presence'`
+  - `author_id` = student who waved
+  - `section_id` = section they waved at
+  - `content` = mood emoji ('😊', '😐', '😓') or just '👋'
+  - `timestamp` = when they waved
+- Also toggleable per section via `presence_enabled` boolean (like attendance)
+- Optional `presence_mood_enabled` for emoji picker after wave
+
+**Data Model:**
+```sql
+-- Add to enum
+ALTER TYPE interaction_type ADD VALUE 'presence';
+
+-- Add to sections
+ALTER TABLE sections 
+ADD COLUMN presence_enabled BOOLEAN DEFAULT false,
+ADD COLUMN presence_mood_enabled BOOLEAN DEFAULT false;
+
+-- Presence interactions look like:
+INSERT INTO interactions (
+  type,        -- 'presence'
+  author_id,   -- student_id
+  section_id,  -- which section
+  content,     -- '😊' or '👋'
+  created_at
+);
+```
+
+**Display:**
+- Student UI: "👋 Say you're here!" button (optional, friendly)
+- Teacher agenda cards: "👋 (4)" showing count of waves
+- Teacher roster: 👋 indicator next to student names who waved
+- If mood enabled: Show emoji next to name ("Samantha 👋😊")
+
+**Alternatives Considered:**
+- Separate `presence_events` table (more tables to maintain, doesn't support threading)
+- Store in `attendance_events` (conflates optional engagement with required check-ins)
+- Don't build presence feature (loses opportunity for lightweight engagement)
+
+**Trade-offs:** Interactions table becomes more polymorphic, but maintains flexibility and supports future features like activity feeds
+
+---
+
+### Teacher UI Pattern - Agenda-First with Expandable Details (2026-01-25)
+
+**Decision:** Build teacher UI with Agenda as primary page, using expandable rows for student details rather than separate list pages
+
+**Reasoning:**
+- Teachers' primary job: mark attendance for today's sections
+- Putting attendance at top level (Agenda) minimizes clicks
+- Expandable rows provide progressive disclosure - quick view or detailed context as needed
+- Eliminates need for Sections and Students list pages that don't have clear jobs
+- Search + profile pages handle lookup use cases better than browsing lists
+
+**Teacher Navigation:**
+- **Agenda** (default tab) - Today's sections with date navigation
+- **Settings** - User settings (password reset, preferences)
+- **Global search** - Find specific students or sections → links to profiles
+
+**NOT Building (at least for V1):**
+- `/teacher/sections` list page - unclear value beyond Agenda
+- `/teacher/students` list page - search + profiles are more efficient
+
+**Agenda Page Design:**
+```
+┌─────────────────────────────────────────┐
+│  ← Jan 24    Today: Jan 25    Jan 26 → │ [Date navigation]
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│ Biology - Remote Work    8:30-9:30      │ ✓ Complete (12/12)
+│ 👋 (4)  ✓ (8)  📝 (8)                   │ [Quick indicators]
+│                                         │
+│ ☑ Samantha Lee        👋 ✓ 📝 😊       │ [Mark Present]
+│   └─ Check-in: 8:32 AM ✓                │ [Expanded]
+│      Plans: "Working on React..."       │
+│      [Add comment]                      │
+│                                         │
+│ ☐ Jordan Smith        👋 ✓              │ [Mark Present]
+│ ☐ Alex Chen          👋                 │ [Mark Present]
+│ ...                                     │
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│ Study Hall - Room 204    10:00-11:00    │ ⚠ In Progress (8/15)
+│ 👋 (6)                                  │
+│ ...                                     │
+└─────────────────────────────────────────┘
+```
+
+**Expandable Row Pattern:**
+- Default: Student name + indicators (👋, ✓, 📝) + attendance checkbox
+- Click to expand: Check-in/out details, prompt responses, comment box
+- Teachers mark attendance without expanding (quick workflow)
+- Expand when they need context (remote students, verify prompt responses)
+
+**Visual Indicators:**
+- 👋 = Presence wave (optional "I'm here!")
+- ✓ = Geolocation check-in (required for internships/remote)
+- 📝 = Prompt responses submitted
+- 😊 = Mood emoji (if presence_mood_enabled)
+
+**Alternatives Considered:**
+- Three separate pages (Agenda → Sections → Students) - too many clicks for daily workflow
+- Side panel for details - awkward on mobile, harder to implement
+- Modal-on-modal - confusing navigation
+- No expandable rows - loses context for verifying remote work
+
+**Trade-offs:** Less "traditional" than separate list pages, but optimized for actual teacher workflow (mark attendance quickly with context when needed)
+
+---
+
+### Attendance Workflow - Null Default with Completion Indicators (2026-01-25)
+
+**Decision:** Attendance defaults to null (unmarked), with visual indicators showing completion status per section
+
+**Reasoning:**
+- Teachers may mark some students but leave others unmarked (e.g., remote student whose session runs late)
+- Need to distinguish "not marked yet" from "marked absent"
+- Completion indicators help teachers track which sections need attention
+- Supports partial completion workflow (mark most students, come back to stragglers)
+
+**Attendance States:**
+- **Null** - Not marked yet (default, needs teacher action)
+- **Present** - Teacher marked present
+- **Absent** - Teacher marked absent
+- **Excused** - Teacher marked excused
+- **Tardy** - Teacher marked tardy (optional, may add later)
+
+**Section Completion States:**
+1. **Not Started** - 0 students marked (0/15)
+2. **In Progress** - Some students marked (8/15) - ⚠ amber indicator
+3. **Complete** - All students marked (15/15) - ✓ green indicator
+4. **Not Required** - Attendance disabled (no indicator)
+
+**Display on Agenda Cards:**
+```
+✓ Complete (12/12)     [All students marked]
+⚠ In Progress (8/15)   [Some students unmarked]
+Not Started (0/23)     [No students marked]
+```
+
+**Query Pattern:**
+```sql
+SELECT 
+  s.id,
+  COUNT(DISTINCT ss.student_id) as total_students,
+  COUNT(DISTINCT ar.student_id) as marked_students
+FROM sections s
+JOIN section_students ss ON s.id = ss.section_id
+LEFT JOIN attendance_records ar ON 
+  ss.student_id = ar.student_id 
+  AND ar.section_id = s.id 
+  AND ar.date = CURRENT_DATE
+WHERE s.attendance_enabled = true
+GROUP BY s.id
+```
+
+**Alternatives Considered:**
+- Default to "Present" (auto-marks everyone, teacher changes exceptions) - loses audit trail of what teacher actually verified
+- Require all-or-nothing (can't save partial) - prevents "mark now, finish later" workflow
+- No completion indicators - teachers lose track of what's done
+
+**Trade-offs:** More complex state management than simple present/absent boolean, but necessary for real-world teacher workflows
+
+---
+
+### Bulk Section Editing for Feature Toggles (2026-01-25)
+
+**Decision:** Add bulk edit capability to admin sections list for toggling attendance and presence features
+
+**Reasoning:**
+- ~20+ sections need attendance/presence enabled to demonstrate features
+- Editing sections one-by-one is tedious and error-prone
+- Bulk operations are standard in admin interfaces
+- Extensible pattern for future bulk actions (deactivate, change schedule pattern, etc.)
+- Makes gradual feature rollout practical
+
+**Implementation:**
+- Checkbox selection in sections table (select multiple sections)
+- Bulk actions dropdown:
+  - "Enable Attendance" - sets `attendance_enabled = true` for selected
+  - "Disable Attendance" - sets `attendance_enabled = false`
+  - "Enable Presence" - sets `presence_enabled = true`
+  - "Disable Presence" - sets `presence_enabled = false`
+  - Future: "Activate", "Deactivate", "Duplicate", etc.
+- Confirmation dialog before executing ("Enable attendance for 15 sections?")
+- Success toast with count ("Attendance enabled for 15 sections")
+
+**UX Pattern:**
+```
+[Admin → Sections]
+
+☑ Biology - Remote Work
+☑ Study Hall - Room 204  
+☑ Hub Monitor
+☐ Spanish 2 - Room 103
+☐ Independent Work Time
+
+[3 selected] [Bulk Actions ▼]
+            └─ Enable Attendance
+               Disable Attendance  
+               Enable Presence
+               Disable Presence
+```
+
+**Alternatives Considered:**
+- Edit each section individually (too tedious for 20+ sections)
+- Global organization toggle (not flexible enough - some sections legitimately don't need attendance)
+- CSV import for bulk updates (overengineered)
+- Separate "Attendance Settings" page (breaks single source of truth in sections list)
+
+**Trade-offs:** Additional UI complexity in sections list, but essential for practical feature management at scale
+
+---
+
+### Parent-Child Section Attendance Pattern (2026-01-25)
+
+**Decision:** Attendance is marked on child sections (where enrollments exist), but aggregated and displayed under parent section in teacher UI
+
+**Context:**
+- Parent sections (e.g., "Hub Monitor") group multiple child sections for teacher supervision
+- Students are enrolled in child sections ("Spanish 2", "Independent Work", "Art Studio")
+- Teacher needs ONE place to mark attendance for all supervised students
+- Students need to see attendance under their actual enrolled section
+
+**Reasoning:**
+- Attendance records must live where enrollments exist (child sections) for data accuracy
+- Student view: "Show my attendance" naturally queries their enrolled sections
+- Teacher view: Parent section aggregates attendance from all children for unified workflow
+- Mirrors existing spreadsheet pattern (Monitor Group heading with students listed by activity)
+- Allows per-child-section completion tracking (bonus insight for teachers)
+
+**Implementation:**
+```sql
+-- Attendance records stored on child sections
+attendance_records (
+  section_id,  -- points to child section (Spanish 2, not Hub Monitor)
+  student_id,
+  date,
+  status,
+  marked_by
+)
+
+-- Teacher roster query aggregates from children
+SELECT 
+  child.id as section_id,
+  child.name as section_name,
+  ss.student_id,
+  u.first_name,
+  u.last_name,
+  ar.status as attendance_status
+FROM sections parent
+JOIN sections child ON child.parent_section_id = parent.id
+JOIN section_students ss ON ss.section_id = child.id
+JOIN users u ON ss.student_id = u.id
+LEFT JOIN attendance_records ar ON 
+  ar.section_id = child.id 
+  AND ar.student_id = ss.student_id 
+  AND ar.date = CURRENT_DATE
+WHERE parent.id = 'hub-monitor-id'
+ORDER BY child.name, u.last_name;
+```
+
+**Teacher UI Pattern:**
+- Agenda card shows parent section with aggregated stats: "Hub Monitor ⚠ In Progress (18/23)"
+- Click to expand shows grouped view by child section:
+  ```
+  Hub Monitor - 3 sections
+  ├─ Spanish 2 (8 students) ✓ Complete
+  │  ☑ Garcia, Maria    👋
+  │  ☑ Johnson, Tyler   👋 ✓
+  ├─ Independent Work (10 students) ⚠ In Progress
+  │  ☑ Chen, Alex       👋 ✓ 📝
+  │  ☐ Smith, Jordan   👋
+  └─ Art Studio (5 students) Not Started
+     ☐ Lee, Samantha
+  ```
+- Optional toggle to unified alphabetical view (all students in one list)
+- Teacher marks attendance per student; saves to child section
+
+**Student UI Pattern:**
+- Student sees "Spanish 2" on their schedule
+- Attendance history shows under "Spanish 2" (their enrolled section)
+- No reference to parent "Hub Monitor" section
+
+**Benefits:**
+- ✓ Data accuracy: attendance lives with enrollments
+- ✓ Student perspective: attendance shows under their actual section  
+- ✓ Teacher workflow: one card to click, all students visible
+- ✓ Completion tracking: per-section visibility helps teacher prioritize
+- ✓ Mirrors existing spreadsheet structure
+
+**Alternatives Considered:**
+- Store attendance on parent section: simple but inaccurate; student queries become complex
+- Mirror enrollments on parent: duplicate data feels wrong
+- Require attendance on each child separately: defeats purpose of parent grouping
+- Make parent sections "view only": honest but removes attendance capability
+
+**Trade-offs:** Slightly more complex teacher UI (grouped view instead of flat roster), but provides better accuracy and per-section insights. Optional alphabetical toggle addresses preference for unified view.
 
 ---
 

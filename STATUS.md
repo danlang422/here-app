@@ -1,65 +1,109 @@
 # Here App - Status
 
-**Last Updated:** 2026-01-25
+**Last Updated:** 2026-01-25 (Evening Session - Documentation Complete)
 
 ---
 
 ## 🔨 In Progress
 
-- [ ] **Teacher Workflow Design**
-  - Refining teacher UI navigation structure (Agenda → Sections → Students)
-  - Planning attendance marking workflow
-  - See `/docs/wip/TEACHER_WORKFLOW.md` for detailed design
+**Nothing actively in progress** - Documentation phase complete, ready to implement.
 
 ---
 
-## 📋 Next Up
+## ⚠️ Action Required Before Development
 
-- [ ] **Teacher UI - Implementation**
-  - Teacher directory and routing
-  - Agenda page with section cards
-  - Section detail pages with check-in/out data
-  - Attendance marking interface
-  - Profile pages (role-aware with dynamic tabs)
+- [ ] **Run Database Migration** 
+  - File: `005_add_attendance_and_presence_features.sql`
+  - Adds: attendance_records table, presence interaction type, section feature toggles
+  - Run via: `supabase db push` or apply manually in Supabase dashboard
+  - See migration file for details on what's being added
 
-- [ ] **Profile Page Detail**
-  - Dynamic tabs based on viewed user's role
+---
+
+## 📋 Next Up - Teacher UI Implementation
+
+### Phase 1: Database & Types
+- [ ] Run migration 005 (see above)
+- [ ] Regenerate TypeScript types: `npm run generate-types`
+- [ ] Verify new fields appear in database.ts
+
+### Phase 2: Teacher Agenda Page
+- [ ] Create `/app/teacher` directory structure
+- [ ] Build agenda page (`/app/teacher/agenda/page.tsx`)
+  - Date navigation (← Prev | Today | Next →)
+  - Server component fetches today's sections for teacher
+  - Section cards with attendance completion indicators
+  - Visual indicators: 👋 presence count, ✓ check-in count, 📝 prompts count
+- [ ] Build attendance marking interface (expandable section cards)
+  - Default: Student name + indicators + attendance checkbox
+  - Expanded: Check-in details, prompt responses, comment box
+  - Parent section handling: Grouped by child sections
+  - Quick save: Mark attendance without expanding
+- [ ] Server actions for attendance marking
+  - `markAttendance(sectionId, studentId, date, status, notes?)`
+  - Validation: Teacher must teach section, section must have attendance_enabled
+  - Parent sections: Save to child sections where enrollments exist
+
+### Phase 3: Bulk Section Editing (Admin)
+- [ ] Add checkbox selection to admin sections list
+- [ ] Build bulk actions dropdown component
+  - "Enable Attendance" / "Disable Attendance"
+  - "Enable Presence" / "Disable Presence"
+- [ ] Server action for bulk updates
+  - `bulkUpdateSections(sectionIds, updates)`
+  - Confirmation dialog before executing
+- [ ] Success feedback (toast with count)
+
+### Phase 4: Profile Pages & Search
+- [ ] Build global search component
+  - Search users and sections
+  - Accessible from header/nav for teachers and admins
+- [ ] Create `/app/profile/[id]/page.tsx`
+  - Dynamic content based on viewed user's role
   - Student profiles: Schedule, Check-ins, Info tabs
   - Teacher profiles: Schedule, Students, Info tabs
-  - Schedule builder embedded in student Schedule tab (also teacher schedule tab, eventually)
+  - Admin/Mentor: Info tab only
+- [ ] Schedule builder component (embedded in Schedule tab)
+  - List view with time filtering
+  - Add/remove sections from student schedule
 
-
-- [ ] **Student Agenda - Real Data Integration**
-  - Connect agenda page to Supabase
-  - Display student's actual schedule for today
-  - Show check-in/out buttons based on section type
-
-- [ ] **Check-In Flow**
-  - Geolocation capture for internships
-  - Prompt for plans
-  - Create attendance event and interaction records
-  - Send mentor verification email (internships only)
-
-- [ ] **Check-Out Flow**
-  - Prompt for progress
-  - Create attendance event and interaction records
-
-- [ ] **Mentor Access**
-  - Make password optional in user creation form; generate random password for mentor accounts
-  - Set up email access for mentors to approve/deny student check-in/out data and add comments
+### Phase 5: Student Presence Feature
+- [ ] Add "👋 Say you're here!" button to student agenda
+  - Only shows for sections with presence_enabled
+  - Optional mood emoji picker (if presence_mood_enabled)
+- [ ] Server action: `createPresence(sectionId, moodEmoji?)`
+  - Creates interaction with type='presence'
+  - Validates section has presence_enabled
+- [ ] Display presence count on teacher agenda cards
 
 ---
 
 ## 🚧 Blocked / Questions
 
-- When adding child sessions, add associated teacher and location, or only on parent session?
+- **Attendance workflow observation needed**: Sub tomorrow to see who's actually marking attendance and how
+  - Is it all teachers? Just certain teachers?
+  - What's the actual workflow with the spreadsheet?
+  - This will inform whether we need different permission levels
 
 ---
 
-## 🐛 Potential Bug Notes
-- Parent sections list does not load newly created sections until refresh
+## ✅ Completed Recently (2026-01-25)
 
-## ✅ Completed Recently
+- [x] **Documentation Overhaul - Attendance & Presence Features**
+  - DECISIONS.md: Added 6 new decisions (presence, teacher UI, attendance workflow, bulk editing, parent-child attendance)
+  - DATABASE.md: Added attendance_records table, updated sections fields, new queries, new indexes
+  - ARCHITECTURE.md: Updated system overview, teacher UI section, added profile pages section
+  - Migration file created: 005_add_attendance_and_presence_features.sql
+  - All documentation aligned with new direction
+
+- [x] **Major Design Decisions Finalized**
+  - Attendance as optional section-level feature (enabled/disabled per section)
+  - Presence waves stored as interaction type (no separate table)
+  - Teacher UI: Agenda-first with expandable rows (no separate Sections/Students list pages)
+  - Profile pages: Role-agnostic routes at `/profile/[id]` with search access
+  - Parent sections: Attendance saved to children, aggregated for teacher display
+  - Bulk section editing for feature toggles
+  - Attendance workflow: Null default, completion indicators, expandable details
 
 - [x] **Schema Update - Parent-Child Section Relationship** (2026-01-23)
   - Added `parent_section_id` foreign key to sections table
@@ -83,10 +127,9 @@
   - Available slots tracking
   - Active/inactive status management
   - "Internships Created This Session" sidebar
-  - Location field placeholder (Leaflet integration in progress)
   - Delete with validation (prevents deletion if sections exist)
 
-- [x] **Admin UI - Calendar Management**
+- [x] **Admin UI - Calendar Management** (2026-01-23)
   - Calendar grid view - displays A/B days in blue/green and days off in red
   - Click day to add day off (requires confirmation)
   - A/B day setup - CSV import with date, day_type
@@ -157,12 +200,6 @@
   - Migrations created and applied
   - Documented in DATABASE.md
 
-- [x] **Admin UI Planning Session** (2026-01-14)
-  - Detailed UI specifications in `/docs/wip/ADMIN_UI.md`
-  - Build phases defined
-  - Smart form design for section creation
-  - Profile page architecture (role-aware tabs)
-
 - [x] **Project Setup** (2026-01-11 - 2026-01-14)
   - Next.js 16 with App Router
   - Tailwind CSS 4
@@ -185,18 +222,39 @@
 - Opportunity gallery/browsing (schema ready, UI deferred)
 - CSV import for bulk user creation (deferred to V2)
 - Mentor accounts with app access (deferred to V2)
+- Emoji reactions to student posts (deferred to V2)
+- Social feed / sharing workflow (deferred to V2)
 
 ---
 
 ## 📝 Notes
 
-- Admin UI is first major feature to implement
-- Building in phases: Sections ✅ → Users ✅ → Enrollment ✅ → Calendar ✅ → Internships ✅ → Teacher UI 🔨
-- Teacher profile pages and schedule views deferred until after admin basics complete
-- Smart form pattern with "Save & Add Another" established for bulk data entry
-- Multi-role users supported from V1
-- Email-based mentor engagement for V1 (in-app upgrade possible in V2)
-- Modal overlay reduced to 20% opacity for better visibility
-- Reusable modal components for sections (SectionFormModal) and users (UserFormModal)
-- Admin operations require SUPABASE_SERVICE_ROLE_KEY for auth.admin methods
-- Database trigger auto-creates basic user profiles on auth user creation
+### Build Phases
+- Admin UI: ✅ Complete (Sections → Users → Enrollment → Calendar → Internships)
+- Documentation: ✅ Complete (Major design decisions finalized 2026-01-25)
+- Teacher UI: 📋 Next (Agenda → Attendance → Profile/Search → Presence)
+- Student UI: 🔮 Future (Presence waves, improved check-in flow)
+
+### Key Patterns Established
+- Smart forms with "Save & Add Another" for bulk data entry
+- Server component pattern for instant data loading
+- Database views for N+1 query prevention
+- Reusable modal components (SectionFormModal, UserFormModal)
+- Multi-role support from V1
+- Feature toggles at section level (attendance, presence)
+- Parent-child section relationships for supervision groups
+
+### Technical Notes
+- Admin operations require SUPABASE_SERVICE_ROLE_KEY
+- Database trigger auto-creates user profiles
+- Modal overlay at 20% opacity for visibility
+- Performance optimized with parallel queries
+- Migration 005 pending - must run before teacher UI work
+
+### Product Direction
+- Attendance features are optional per section (gradual adoption)
+- Presence waves add lightweight engagement without requirements
+- Teacher workflow optimized for speed (agenda-first, expandable details)
+- Parent sections aggregate children for unified teacher view
+- Profile pages accessible via search (not directory browsing)
+- All decisions documented in DECISIONS.md with rationale
