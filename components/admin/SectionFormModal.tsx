@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createSection, updateSection, getSection, getTeachers, getPotentialParentSections, getEnrolledStudents, type SectionFormData, type SectionWithTeachers } from '@/app/admin/sections/actions'
+import { createSection, updateSection, getSection, getTeachers, getPotentialParentSections, getEnrolledStudents, getInternshipOpportunities, type SectionFormData, type SectionWithTeachers } from '@/app/admin/sections/actions'
 import type { Database } from '@/lib/types/database'
 import StudentSelector from './StudentSelector'
 
@@ -22,6 +22,14 @@ type PotentialParentSection = {
   start_time: string
   end_time: string
   schedule_pattern: SchedulePattern
+}
+
+type InternshipOpportunity = {
+  id: string
+  company_name: string
+  position_title: string
+  location: any
+  geofence_radius: number | null
 }
 
 type SectionFormModalProps = {
@@ -108,22 +116,29 @@ export default function SectionFormModal({
     sis_block: undefined,
     parent_section_id: undefined,
     student_ids: [],
+    attendance_enabled: false,
+    presence_enabled: false,
+    presence_mood_enabled: false,
+    internship_opportunity_id: undefined,
+    geofence_radius: undefined,
   })
 
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [potentialParents, setPotentialParents] = useState<PotentialParentSection[]>([])
+  const [internshipOpportunities, setInternshipOpportunities] = useState<InternshipOpportunity[]>([])
   const [enrolledStudentIds, setEnrolledStudentIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadingSection, setLoadingSection] = useState(false)
   const [enrollmentExpanded, setEnrollmentExpanded] = useState(false)
 
-  // Load teachers and potential parent sections on mount
+  // Load teachers, potential parent sections, and internship opportunities on mount
   useEffect(() => {
     async function loadData() {
-      const [teachersResult, parentsResult] = await Promise.all([
+      const [teachersResult, parentsResult, opportunitiesResult] = await Promise.all([
         getTeachers(),
         getPotentialParentSections(),
+        getInternshipOpportunities(),
       ])
       
       if (teachersResult.success && teachersResult.data) {
@@ -132,6 +147,10 @@ export default function SectionFormModal({
       
       if (parentsResult.success && parentsResult.data) {
         setPotentialParents(parentsResult.data)
+      }
+      
+      if (opportunitiesResult.success && opportunitiesResult.data) {
+        setInternshipOpportunities(opportunitiesResult.data)
       }
     }
     loadData()
@@ -187,6 +206,11 @@ export default function SectionFormModal({
             sis_block: section.sis_block || undefined,
             parent_section_id: section.parent_section_id || undefined,
             student_ids: [],
+            attendance_enabled: section.attendance_enabled ?? false,
+            presence_enabled: section.presence_enabled ?? false,
+            presence_mood_enabled: section.presence_mood_enabled ?? false,
+            internship_opportunity_id: section.internship_opportunity_id || undefined,
+            geofence_radius: section.geofence_radius || undefined,
           })
         }
         
@@ -222,6 +246,11 @@ export default function SectionFormModal({
         sis_block: undefined,
         parent_section_id: undefined,
         student_ids: [],
+        attendance_enabled: false,
+        presence_enabled: false,
+        presence_mood_enabled: false,
+        internship_opportunity_id: undefined,
+        geofence_radius: undefined,
       })
       setError(null)
       setEnrollmentExpanded(false)
@@ -258,6 +287,11 @@ export default function SectionFormModal({
             sis_block: undefined,
             parent_section_id: undefined,
             student_ids: [],
+            attendance_enabled: prev.attendance_enabled,
+            presence_enabled: prev.presence_enabled,
+            presence_mood_enabled: prev.presence_mood_enabled,
+            internship_opportunity_id: undefined,
+            geofence_radius: prev.geofence_radius,
           }))
           setEnrollmentExpanded(false)
         } else {
@@ -288,6 +322,37 @@ export default function SectionFormModal({
       ...prev,
       student_ids: studentIds,
     }))
+  }
+
+  const handleInternshipChange = (opportunityId: string) => {
+    const opportunity = internshipOpportunities.find(o => o.id === opportunityId)
+    
+    if (opportunity) {
+      // Auto-populate location and geofence from the selected opportunity
+      let address = ''
+      try {
+        if (typeof opportunity.location === 'string') {
+          const locationData = JSON.parse(opportunity.location)
+          address = locationData.address || ''
+        } else if (opportunity.location?.address) {
+          address = opportunity.location.address
+        }
+      } catch (e) {
+        console.error('Error parsing opportunity location:', e)
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        internship_opportunity_id: opportunityId,
+        location: address,
+        geofence_radius: opportunity.geofence_radius || undefined,
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        internship_opportunity_id: undefined,
+      }))
+    }
   }
 
   if (!isOpen) return null
@@ -520,6 +585,96 @@ export default function SectionFormModal({
                     placeholder="e.g., 1, 2, 3..."
                     min="1"
                   />
+                </div>
+
+                {/* Internship Opportunity (internship type only) */}
+                {formData.type === 'internship' && (
+                  <div>
+                    <label htmlFor="internship_opportunity_id" className="block text-sm font-medium text-gray-700 mb-1">
+                      Internship Opportunity
+                    </label>
+                    <select
+                      id="internship_opportunity_id"
+                      value={formData.internship_opportunity_id || ''}
+                      onChange={(e) => handleInternshipChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">No opportunity linked</option>
+                      {internshipOpportunities.map(opp => (
+                        <option key={opp.id} value={opp.id}>
+                          {opp.company_name} - {opp.position_title}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Selecting an opportunity will auto-fill location and geofence radius
+                    </p>
+                  </div>
+                )}
+
+                {/* Geofence Radius (internship type only) */}
+                {formData.type === 'internship' && (
+                  <div>
+                    <label htmlFor="geofence_radius" className="block text-sm font-medium text-gray-700 mb-1">
+                      Geofence Radius (meters)
+                    </label>
+                    <input
+                      type="number"
+                      id="geofence_radius"
+                      value={formData.geofence_radius || ''}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        geofence_radius: e.target.value ? parseInt(e.target.value) : undefined 
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., 100"
+                      min="1"
+                    />
+                  </div>
+                )}
+
+                {/* Feature Toggles */}
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Section Features</h3>
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.attendance_enabled}
+                        onChange={(e) => setFormData(prev => ({ ...prev, attendance_enabled: e.target.checked }))}
+                        className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Enable Attendance Tracking
+                        <span className="block text-xs text-gray-500 mt-0.5">Teachers can mark students present/absent/excused</span>
+                      </span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.presence_enabled}
+                        onChange={(e) => setFormData(prev => ({ ...prev, presence_enabled: e.target.checked }))}
+                        className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Enable Presence Waves
+                        <span className="block text-xs text-gray-500 mt-0.5">Students can wave 👋 to show they're here</span>
+                      </span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.presence_mood_enabled}
+                        onChange={(e) => setFormData(prev => ({ ...prev, presence_mood_enabled: e.target.checked }))}
+                        className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={!formData.presence_enabled}
+                      />
+                      <span className={`text-sm ${!formData.presence_enabled ? 'text-gray-400' : 'text-gray-700'}`}>
+                        Enable Mood Emoji with Presence
+                        <span className="block text-xs text-gray-500 mt-0.5">Students can add mood emoji when waving</span>
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Student Enrollment Section */}

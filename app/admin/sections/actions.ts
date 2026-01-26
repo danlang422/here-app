@@ -19,6 +19,13 @@ export type SectionFormData = {
   sis_block?: number
   parent_section_id?: string
   student_ids?: string[] // Array of student IDs to enroll
+  // Feature toggles
+  attendance_enabled?: boolean
+  presence_enabled?: boolean
+  presence_mood_enabled?: boolean
+  // Internship fields
+  internship_opportunity_id?: string
+  geofence_radius?: number
 }
 
 export type SectionWithTeachers = Database['public']['Tables']['sections']['Row'] & {
@@ -61,6 +68,13 @@ export async function createSection(data: SectionFormData) {
       sis_block: data.sis_block || null,
       parent_section_id: data.parent_section_id || null,
       created_by: user.id,
+      // Feature toggles
+      attendance_enabled: data.attendance_enabled ?? false,
+      presence_enabled: data.presence_enabled ?? false,
+      presence_mood_enabled: data.presence_mood_enabled ?? false,
+      // Internship fields
+      internship_opportunity_id: data.internship_opportunity_id || null,
+      geofence_radius: data.geofence_radius || null,
     }
 
     // Handle location for in_person and internship types
@@ -131,6 +145,13 @@ export async function updateSection(sectionId: string, data: SectionFormData) {
       sis_block: data.sis_block || null,
       parent_section_id: data.parent_section_id || null,
       updated_at: new Date().toISOString(),
+      // Feature toggles
+      attendance_enabled: data.attendance_enabled ?? false,
+      presence_enabled: data.presence_enabled ?? false,
+      presence_mood_enabled: data.presence_mood_enabled ?? false,
+      // Internship fields
+      internship_opportunity_id: data.internship_opportunity_id || null,
+      geofence_radius: data.geofence_radius || null,
     }
 
     // Handle location
@@ -510,6 +531,31 @@ export async function enrollStudents(sectionId: string, studentIds: string[]) {
   } catch (error) {
     console.error('Unexpected error enrolling students:', error)
     return { success: false, error: 'Failed to enroll students' }
+  }
+}
+
+/**
+ * Get all active internship opportunities
+ */
+export async function getInternshipOpportunities() {
+  const supabase = await createClient()
+  
+  try {
+    const { data: opportunities, error } = await supabase
+      .from('internship_opportunities')
+      .select('id, company_name, position_title, location, geofence_radius')
+      .eq('is_active', true)
+      .order('company_name', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching internship opportunities:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data: opportunities }
+  } catch (error) {
+    console.error('Unexpected error fetching internship opportunities:', error)
+    return { success: false, error: 'Failed to fetch internship opportunities' }
   }
 }
 

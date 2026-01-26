@@ -1,24 +1,17 @@
 # Here App - Status
 
-**Last Updated:** 2026-01-25 (Evening Session - Documentation Complete)
+**Last Updated:** 2026-01-26 (Afternoon Session - Admin Form Enhanced)
 
 ---
 
 ## 🔨 In Progress
 
-**Admin UI Enhancements** - Need to add feature toggles and internship linking before finalizing teacher UI testing.
+**Teacher UI Implementation** - Admin form ready, now implementing teacher attendance workflow.
 
 ---
 
 ## ⚠️ Action Required Before Continuing Teacher UI
 
-- [ ] **Admin Section Form Enhancements**
-  - Add attendance_enabled toggle checkbox
-  - Add presence_enabled toggle checkbox  
-  - Add presence_mood_enabled toggle checkbox
-  - Add internship opportunity dropdown (for internship-type sections)
-  - Auto-populate location/geofence from selected opportunity
-  - Ensure all geolocation fields exist in sections form
 - [ ] **Bulk Section Editing** (Phase 4 from plan below)
   - Enable/disable attendance for multiple sections at once
   - Enable/disable presence for multiple sections at once
@@ -101,6 +94,18 @@
 ---
 
 ## ✅ Completed Recently (2026-01-26)
+
+- [x] **Admin Section Form - Feature Toggles & Internship Integration**
+  - Added feature toggle checkboxes: attendance_enabled, presence_enabled, presence_mood_enabled
+  - Added internship opportunity dropdown (internship sections only)
+  - Auto-populates location and geofence_radius from selected opportunity
+  - Added geofence_radius field (internship sections only)
+  - Updated SectionFormData type with new fields
+  - Updated createSection() and updateSection() actions to save new fields
+  - Added getInternshipOpportunities() server action
+  - Mood emoji toggle automatically disabled unless presence is enabled
+  - Form properly preserves feature toggle defaults in "Save & Add Another" workflow
+  - All fields properly loaded when editing existing sections
 
 - [x] **Teacher UI Foundation - Agenda & Attendance Modal**
   - Teacher layout and sidebar with green accent theme
