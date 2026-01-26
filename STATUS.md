@@ -6,45 +6,58 @@
 
 ## 🔨 In Progress
 
-**Nothing actively in progress** - Documentation phase complete, ready to implement.
+**Admin UI Enhancements** - Need to add feature toggles and internship linking before finalizing teacher UI testing.
 
 ---
 
-## ⚠️ Action Required Before Development
+## ⚠️ Action Required Before Continuing Teacher UI
 
-- [ ] **Run Database Migration** 
-  - File: `005_add_attendance_and_presence_features.sql`
-  - Adds: attendance_records table, presence interaction type, section feature toggles
-  - Run via: `supabase db push` or apply manually in Supabase dashboard
-  - See migration file for details on what's being added
+- [ ] **Admin Section Form Enhancements**
+  - Add attendance_enabled toggle checkbox
+  - Add presence_enabled toggle checkbox  
+  - Add presence_mood_enabled toggle checkbox
+  - Add internship opportunity dropdown (for internship-type sections)
+  - Auto-populate location/geofence from selected opportunity
+  - Ensure all geolocation fields exist in sections form
+- [ ] **Bulk Section Editing** (Phase 4 from plan below)
+  - Enable/disable attendance for multiple sections at once
+  - Enable/disable presence for multiple sections at once
 
 ---
 
 ## 📋 Next Up - Teacher UI Implementation
 
 ### Phase 1: Database & Types
-- [ ] Run migration 005 (see above)
-- [ ] Regenerate TypeScript types: `npm run generate-types`
-- [ ] Verify new fields appear in database.ts
+- [x] Run migration 005
+- [x] Regenerate TypeScript types
+- [x] Verify new fields appear in database.ts
+- [x] Add RLS policy for teachers to view students
 
-### Phase 2: Teacher Agenda Page
-- [ ] Create `/app/teacher` directory structure
-- [ ] Build agenda page (`/app/teacher/agenda/page.tsx`)
-  - Date navigation (← Prev | Today | Next →)
-  - Server component fetches today's sections for teacher
-  - Section cards with attendance completion indicators
-  - Visual indicators: 👋 presence count, ✓ check-in count, 📝 prompts count
-- [ ] Build attendance marking interface (expandable section cards)
-  - Default: Student name + indicators + attendance checkbox
-  - Expanded: Check-in details, prompt responses, comment box
-  - Parent section handling: Grouped by child sections
-  - Quick save: Mark attendance without expanding
-- [ ] Server actions for attendance marking
-  - `markAttendance(sectionId, studentId, date, status, notes?)`
-  - Validation: Teacher must teach section, section must have attendance_enabled
-  - Parent sections: Save to child sections where enrollments exist
+### Phase 2: Teacher Agenda Page - Foundation
+- [x] Create `/app/teacher` directory structure
+- [x] Build teacher layout with sidebar and navigation
+- [x] Build agenda page with date navigation
+- [x] Server action to fetch teacher's sections for a date
+- [x] Section cards with attendance completion indicators
+- [x] Visual indicators: 👋 presence count, ✓ check-in count, 📝 prompts count
+- [x] Modal-based attendance interface (instead of inline)
+- [x] Expandable student rows with attendance buttons
+- [ ] Server action for saving attendance (placeholder exists, needs real implementation)
+- [ ] Parent section handling: Grouped by child sections
+- [ ] Teacher comment functionality
 
-### Phase 3: Bulk Section Editing (Admin)
+### Phase 3: Teacher Sections Page
+- [ ] Create sections list page (`/app/teacher/sections/page.tsx`)
+  - Server component fetches teacher's sections
+  - Display section cards with key info (name, time, student count, schedule pattern)
+  - Link to detailed views (roster, schedule)
+  - Handle parent sections (show aggregated student counts)
+- [ ] Server action for fetching teacher sections
+  - Query sections where teacher is assigned
+  - Include enrollment counts and basic metadata
+  - Sort by time or name
+
+### Phase 4: Bulk Section Editing (Admin)
 - [ ] Add checkbox selection to admin sections list
 - [ ] Build bulk actions dropdown component
   - "Enable Attendance" / "Disable Attendance"
@@ -54,7 +67,7 @@
   - Confirmation dialog before executing
 - [ ] Success feedback (toast with count)
 
-### Phase 4: Profile Pages & Search
+### Phase 5: Profile Pages & Search
 - [ ] Build global search component
   - Search users and sections
   - Accessible from header/nav for teachers and admins
@@ -67,7 +80,7 @@
   - List view with time filtering
   - Add/remove sections from student schedule
 
-### Phase 5: Student Presence Feature
+### Phase 6: Student Presence Feature
 - [ ] Add "👋 Say you're here!" button to student agenda
   - Only shows for sections with presence_enabled
   - Optional mood emoji picker (if presence_mood_enabled)
@@ -87,6 +100,32 @@
 
 ---
 
+## ✅ Completed Recently (2026-01-26)
+
+- [x] **Teacher UI Foundation - Agenda & Attendance Modal**
+  - Teacher layout and sidebar with green accent theme
+  - Sign out functionality added to both admin and teacher sidebars
+  - Teacher agenda page with working date navigation (Previous/Next/Today)
+  - Server action `getTeacherAgenda()` fetches sections for selected date
+  - Handles schedule patterns (every_day, specific_days, a_days, b_days)
+  - Section cards display with visual indicators for presence, check-ins, attendance completion
+  - Modal-based attendance interface (cleaner than inline approach)
+  - Expandable student rows (click arrow to see details)
+  - Attendance marking buttons (Present/Absent/Excused) with toggle behavior
+  - "Mark All Present" quick action button
+  - Shows check-in times, location verification, prompt responses when expanded
+  - Teacher comment textarea (placeholder for future functionality)
+  - RLS policy created: Teachers can view user profiles for students in their sections
+  - Migration 006: Added teacher view students policy
+  - Placeholder save functionality (needs real server action next)
+
+- [x] **Database Migration 005 - Attendance & Presence Features**
+  - Added attendance_records table for teacher-marked attendance
+  - Added presence interaction type to enum
+  - Added feature toggles to sections (attendance_enabled, presence_enabled, presence_mood_enabled)
+  - Created indexes for performance
+  - Set up RLS policies for attendance_records
+
 ## ✅ Completed Recently (2026-01-25)
 
 - [x] **Documentation Overhaul - Attendance & Presence Features**
@@ -99,7 +138,8 @@
 - [x] **Major Design Decisions Finalized**
   - Attendance as optional section-level feature (enabled/disabled per section)
   - Presence waves stored as interaction type (no separate table)
-  - Teacher UI: Agenda-first with expandable rows (no separate Sections/Students list pages)
+  - Teacher UI: Agenda-first with expandable rows for attendance marking
+  - Teacher Sections page: Overview list for "what sections do I teach" workflow
   - Profile pages: Role-agnostic routes at `/profile/[id]` with search access
   - Parent sections: Attendance saved to children, aggregated for teacher display
   - Bulk section editing for feature toggles
@@ -232,7 +272,7 @@
 ### Build Phases
 - Admin UI: ✅ Complete (Sections → Users → Enrollment → Calendar → Internships)
 - Documentation: ✅ Complete (Major design decisions finalized 2026-01-25)
-- Teacher UI: 📋 Next (Agenda → Attendance → Profile/Search → Presence)
+- Teacher UI: 📋 Next (Agenda → Sections → Attendance → Profile/Search → Presence)
 - Student UI: 🔮 Future (Presence waves, improved check-in flow)
 
 ### Key Patterns Established

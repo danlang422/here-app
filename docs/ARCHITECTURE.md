@@ -234,6 +234,7 @@ Each role has distinct interfaces optimized for their primary tasks. See `DECISI
 
 **Navigation:**
 - **Agenda** (default) - Today's sections with date navigation and attendance marking
+- **Sections** - List of Sections with basic key info
 - **Settings** - User settings (password reset, preferences)
 - **Global search** - Find students/sections → links to profile pages
 

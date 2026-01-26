@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       attendance_events: {
@@ -85,6 +60,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "attendance_events_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections_with_enrollment_counts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "attendance_events_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
@@ -94,6 +76,71 @@ export type Database = {
           {
             foreignKeyName: "attendance_events_verified_by_fkey"
             columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_records: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          marked_by: string
+          notes: string | null
+          section_id: string
+          status: string
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          marked_by: string
+          notes?: string | null
+          section_id: string
+          status: string
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          marked_by?: string
+          notes?: string | null
+          section_id?: string
+          status?: string
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_marked_by_fkey"
+            columns: ["marked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections_with_enrollment_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_student_id_fkey"
+            columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -201,6 +248,13 @@ export type Database = {
             columns: ["section_id"]
             isOneToOne: false
             referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections_with_enrollment_counts"
             referencedColumns: ["id"]
           },
         ]
@@ -367,6 +421,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "section_students_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections_with_enrollment_counts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "section_students_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
@@ -406,6 +467,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "section_teachers_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections_with_enrollment_counts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "section_teachers_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
@@ -416,6 +484,7 @@ export type Database = {
       }
       sections: {
         Row: {
+          attendance_enabled: boolean | null
           created_at: string | null
           created_by: string | null
           days_of_week: Json | null
@@ -426,6 +495,8 @@ export type Database = {
           internship_opportunity_id: string | null
           name: string
           parent_section_id: string | null
+          presence_enabled: boolean | null
+          presence_mood_enabled: boolean | null
           schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
           sis_block: number | null
           start_time: string
@@ -433,6 +504,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          attendance_enabled?: boolean | null
           created_at?: string | null
           created_by?: string | null
           days_of_week?: Json | null
@@ -443,6 +515,8 @@ export type Database = {
           internship_opportunity_id?: string | null
           name: string
           parent_section_id?: string | null
+          presence_enabled?: boolean | null
+          presence_mood_enabled?: boolean | null
           schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
           sis_block?: number | null
           start_time: string
@@ -450,6 +524,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          attendance_enabled?: boolean | null
           created_at?: string | null
           created_by?: string | null
           days_of_week?: Json | null
@@ -460,6 +535,8 @@ export type Database = {
           internship_opportunity_id?: string | null
           name?: string
           parent_section_id?: string | null
+          presence_enabled?: boolean | null
+          presence_mood_enabled?: boolean | null
           schedule_pattern?: Database["public"]["Enums"]["schedule_pattern"]
           sis_block?: number | null
           start_time?: string
@@ -486,6 +563,13 @@ export type Database = {
             columns: ["parent_section_id"]
             isOneToOne: false
             referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sections_parent_section_id_fkey"
+            columns: ["parent_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections_with_enrollment_counts"
             referencedColumns: ["id"]
           },
         ]
@@ -566,58 +650,23 @@ export type Database = {
     Views: {
       sections_with_enrollment_counts: {
         Row: {
+          active_student_count: number | null
           created_at: string | null
           created_by: string | null
           days_of_week: Json | null
-          end_time: string
+          end_time: string | null
           expected_location: Json | null
           geofence_radius: number | null
-          id: string
+          id: string | null
           internship_opportunity_id: string | null
-          name: string
-          parent_section_id: string | null
-          schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
+          name: string | null
+          schedule_pattern:
+            | Database["public"]["Enums"]["schedule_pattern"]
+            | null
           sis_block: number | null
-          start_time: string
-          type: Database["public"]["Enums"]["section_type"]
+          start_time: string | null
+          type: Database["public"]["Enums"]["section_type"] | null
           updated_at: string | null
-          active_student_count: number
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          days_of_week?: Json | null
-          end_time: string
-          expected_location?: Json | null
-          geofence_radius?: number | null
-          id?: string
-          internship_opportunity_id?: string | null
-          name: string
-          parent_section_id?: string | null
-          schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
-          sis_block?: number | null
-          start_time: string
-          type: Database["public"]["Enums"]["section_type"]
-          updated_at?: string | null
-          active_student_count?: number
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          days_of_week?: Json | null
-          end_time?: string
-          expected_location?: Json | null
-          geofence_radius?: number | null
-          id?: string
-          internship_opportunity_id?: string | null
-          name?: string
-          parent_section_id?: string | null
-          schedule_pattern?: Database["public"]["Enums"]["schedule_pattern"]
-          sis_block?: number | null
-          start_time?: string
-          type?: Database["public"]["Enums"]["section_type"]
-          updated_at?: string | null
-          active_student_count?: number
         }
         Relationships: [
           {
@@ -632,13 +681,6 @@ export type Database = {
             columns: ["internship_opportunity_id"]
             isOneToOne: false
             referencedRelation: "internship_opportunities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sections_parent_section_id_fkey"
-            columns: ["parent_section_id"]
-            isOneToOne: false
-            referencedRelation: "sections"
             referencedColumns: ["id"]
           },
         ]
@@ -657,7 +699,7 @@ export type Database = {
     Enums: {
       ab_designation: "a_day" | "b_day"
       event_type: "check_in" | "check_out"
-      interaction_type: "prompt_response" | "comment" | "message"
+      interaction_type: "prompt_response" | "comment" | "message" | "presence"
       prompt_trigger: "check_in" | "check_out" | "custom"
       role_name: "student" | "teacher" | "admin" | "mentor"
       schedule_pattern: "every_day" | "specific_days" | "a_days" | "b_days"
@@ -787,14 +829,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       ab_designation: ["a_day", "b_day"],
       event_type: ["check_in", "check_out"],
-      interaction_type: ["prompt_response", "comment", "message"],
+      interaction_type: ["prompt_response", "comment", "message", "presence"],
       prompt_trigger: ["check_in", "check_out", "custom"],
       role_name: ["student", "teacher", "admin", "mentor"],
       schedule_pattern: ["every_day", "specific_days", "a_days", "b_days"],

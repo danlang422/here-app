@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import RoleSwitcher from './RoleSwitcher'
+import RoleSwitcher from '@/components/admin/RoleSwitcher'
 import { logout } from '@/lib/auth/actions'
 
 interface NavItem {
@@ -12,13 +12,13 @@ interface NavItem {
   icon: string
 }
 
-interface AdminSidebarProps {
+interface TeacherSidebarProps {
   userEmail: string
   userRole: string
   availableRoles?: string[]
 }
 
-export default function AdminSidebar({ userEmail, userRole, availableRoles = [] }: AdminSidebarProps) {
+export default function TeacherSidebar({ userEmail, userRole, availableRoles = [] }: TeacherSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const pathname = usePathname()
 
@@ -31,11 +31,9 @@ export default function AdminSidebar({ userEmail, userRole, availableRoles = [] 
   }, [isCollapsed])
 
   const navItems: NavItem[] = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
-    { name: 'Sections', href: '/admin/sections', icon: '📚' },
-    { name: 'Internships', href: '/admin/internships', icon: '💼' },
-    { name: 'Users', href: '/admin/users', icon: '👥' },
-    { name: 'Settings', href: '/admin/settings', icon: '⚙️' },
+    { name: 'Agenda', href: '/teacher/agenda', icon: '📅' },
+    { name: 'Sections', href: '/teacher/sections', icon: '📚' },
+    { name: 'Settings', href: '/teacher/settings', icon: '⚙️' },
   ]
 
   const isActive = (href: string) => {
@@ -57,7 +55,7 @@ export default function AdminSidebar({ userEmail, userRole, availableRoles = [] 
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-bold text-gray-900 truncate">Here</h2>
               <p className="text-xs text-gray-500 truncate">{userEmail}</p>
-              <span className="inline-block px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded mt-1">
+              <span className="inline-block px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded mt-1">
                 {userRole}
               </span>
             </div>
@@ -72,7 +70,7 @@ export default function AdminSidebar({ userEmail, userRole, availableRoles = [] 
         </div>
         {isCollapsed && (
           <div className="mt-2 text-center">
-            <div className="w-10 h-10 mx-auto bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
+            <div className="w-10 h-10 mx-auto bg-green-500 text-white rounded-full flex items-center justify-center font-bold">
               {userEmail.charAt(0).toUpperCase()}
             </div>
           </div>
@@ -99,7 +97,7 @@ export default function AdminSidebar({ userEmail, userRole, availableRoles = [] 
             className={`
               flex items-center px-3 py-2.5 rounded-lg transition-colors
               ${isActive(item.href) 
-                ? 'bg-blue-50 text-blue-700 font-medium' 
+                ? 'bg-green-50 text-green-700 font-medium' 
                 : 'text-gray-700 hover:bg-gray-100'
               }
               ${isCollapsed ? 'justify-center' : 'gap-3'}
