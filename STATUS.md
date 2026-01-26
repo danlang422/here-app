@@ -1,20 +1,18 @@
 # Here App - Status
 
-**Last Updated:** 2026-01-26 (Afternoon Session - Admin Form Enhanced)
+**Last Updated:** 2026-01-26 (Evening Session - Bulk Section Editing)
 
 ---
 
 ## 🔨 In Progress
 
-**Teacher UI Implementation** - Admin form ready, now implementing teacher attendance workflow.
+**Teacher UI Implementation** - Bulk editing complete, continuing with teacher attendance workflow.
 
 ---
 
 ## ⚠️ Action Required Before Continuing Teacher UI
 
-- [ ] **Bulk Section Editing** (Phase 4 from plan below)
-  - Enable/disable attendance for multiple sections at once
-  - Enable/disable presence for multiple sections at once
+None - blocker resolved!
 
 ---
 
@@ -51,14 +49,15 @@
   - Sort by time or name
 
 ### Phase 4: Bulk Section Editing (Admin)
-- [ ] Add checkbox selection to admin sections list
-- [ ] Build bulk actions dropdown component
+- [x] Add checkbox selection to admin sections list
+- [x] Build bulk actions dropdown component
   - "Enable Attendance" / "Disable Attendance"
   - "Enable Presence" / "Disable Presence"
-- [ ] Server action for bulk updates
+- [x] Server action for bulk updates
   - `bulkUpdateSections(sectionIds, updates)`
   - Confirmation dialog before executing
-- [ ] Success feedback (toast with count)
+- [x] Success feedback (toast with count)
+- [x] Fixed database view to include feature toggle columns
 
 ### Phase 5: Profile Pages & Search
 - [ ] Build global search component
@@ -94,6 +93,20 @@
 ---
 
 ## ✅ Completed Recently (2026-01-26)
+
+- [x] **Bulk Section Editing (Admin) - COMPLETE**
+  - Checkbox selection on sections list (individual and select-all)
+  - BulkActionsDropdown component with four actions:
+    - Enable/Disable Attendance
+    - Enable/Disable Presence
+  - ConfirmationDialog component (reusable for future features)
+  - Server action `bulkUpdateSections()` using admin client to bypass RLS
+  - Success toast notification with count of updated sections
+  - Selected rows highlighted in blue
+  - Auto-reload sections after bulk update
+  - Selection auto-clears after successful update
+  - Migration 007: Recreated sections_with_enrollment_counts view to include feature toggle columns
+  - Fixed internship opportunities query (company_name → organization_name, position_title → name)
 
 - [x] **Admin Section Form - Feature Toggles & Internship Integration**
   - Added feature toggle checkboxes: attendance_enabled, presence_enabled, presence_mood_enabled
@@ -291,10 +304,11 @@
 
 ### Technical Notes
 - Admin operations require SUPABASE_SERVICE_ROLE_KEY
+- Bulk operations use admin client to bypass RLS policies
 - Database trigger auto-creates user profiles
 - Modal overlay at 20% opacity for visibility
 - Performance optimized with parallel queries
-- Migration 005 pending - must run before teacher UI work
+- Database views must be recreated when underlying table columns change
 
 ### Product Direction
 - Attendance features are optional per section (gradual adoption)

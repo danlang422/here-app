@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Database } from '@/lib/types/database'
 
@@ -543,9 +543,9 @@ export async function getInternshipOpportunities() {
   try {
     const { data: opportunities, error } = await supabase
       .from('internship_opportunities')
-      .select('id, company_name, position_title, location, geofence_radius')
+      .select('id, organization_name, name, location, geofence_radius')
       .eq('is_active', true)
-      .order('company_name', { ascending: true })
+      .order('organization_name', { ascending: true })
 
     if (error) {
       console.error('Error fetching internship opportunities:', error)
@@ -583,5 +583,58 @@ export async function unenrollStudent(sectionId: string, studentId: string) {
   } catch (error) {
     console.error('Unexpected error unenrolling student:', error)
     return { success: false, error: 'Failed to unenroll student' }
+  }
+}
+
+/**
+ * Bulk update multiple sections with the same changes
+ * Used for enabling/disabling attendance and presence features across multiple sections
+ */
+export async function bulkUpdateSections(
+  sectionIds: string[],
+  updates: {
+    attendance_enabled?: boolean
+    presence_enabled?: boolean
+    presence_mood_enabled?: boolean
+  }
+) {
+  // Use admin client for bulk operations to bypass RLS
+  const supabase = createAdminClient()
+
+  try {
+    // Validate that we have sections to update
+    if (!sectionIds || sectionIds.length === 0) {
+      return { success: false, error: 'No sections selected' }
+    }
+
+    // Validate that we have updates to apply
+    if (Object.keys(updates).length === 0) {
+      return { success: false, error: 'No updates specified' }
+    }
+
+    // Prepare update data
+    const updateData: SectionUpdate = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    }
+
+    // Perform bulk update
+    const { error } = await supabase
+      .from('sections')
+      .update(updateData)
+      .in('id', sectionIds)
+
+    if (error) {
+      console.error('Error bulk updating sections:', error)
+      return { success: false, error: error.message }
+    }
+
+    // Revalidate the sections list page
+    revalidatePath('/admin/sections')
+    
+    return { success: true, count: sectionIds.length }
+  } catch (error) {
+    console.error('Unexpected error bulk updating sections:', error)
+    return { success: false, error: 'Failed to bulk update sections' }
   }
 }

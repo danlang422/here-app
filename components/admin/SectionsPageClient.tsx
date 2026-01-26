@@ -3,11 +3,19 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import SectionFormModal from '@/components/admin/SectionFormModal'
-import { getSections, type SectionWithTeachers } from '@/app/admin/sections/actions'
+import BulkActionsDropdown from '@/components/admin/BulkActionsDropdown'
+import ConfirmationDialog from '@/components/admin/ConfirmationDialog'
+import { getSections, bulkUpdateSections, type SectionWithTeachers } from '@/app/admin/sections/actions'
 
 type SectionsPageClientProps = {
   initialSections: SectionWithTeachers[]
 }
+
+type BulkAction = 
+  | 'enable_attendance'
+  | 'disable_attendance'
+  | 'enable_presence'
+  | 'disable_presence'
 
 export default function SectionsPageClient({ initialSections }: SectionsPageClientProps) {
   const router = useRouter()
@@ -17,6 +25,16 @@ export default function SectionsPageClient({ initialSections }: SectionsPageClie
   const [createdThisSession, setCreatedThisSession] = useState<Array<SectionWithTeachers & { enrolledCount?: number }>>([])
   const [filterType, setFilterType] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Bulk actions state
+  const [selectedSectionIds, setSelectedSectionIds] = useState<Set<string>>(new Set())
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    action: BulkAction | null
+    title: string
+    message: string
+  }>({ isOpen: false, action: null, title: '', message: '' })
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   async function loadSections() {
     const result = await getSections()
@@ -52,6 +70,73 @@ export default function SectionsPageClient({ initialSections }: SectionsPageClie
   const handleEditSection = (sectionId: string) => {
     setEditingSectionId(sectionId)
     setIsModalOpen(true)
+  }
+
+  // Bulk selection handlers
+  const toggleSelectAll = () => {
+    if (selectedSectionIds.size === filteredSections.length) {
+      setSelectedSectionIds(new Set())
+    } else {
+      setSelectedSectionIds(new Set(filteredSections.map(s => s.id)))
+    }
+  }
+
+  const toggleSelectSection = (sectionId: string) => {
+    const newSelected = new Set(selectedSectionIds)
+    if (newSelected.has(sectionId)) {
+      newSelected.delete(sectionId)
+    } else {
+      newSelected.add(sectionId)
+    }
+    setSelectedSectionIds(newSelected)
+  }
+
+  // Bulk action handlers
+  const handleBulkAction = (action: BulkAction) => {
+    const actionLabels = {
+      enable_attendance: { title: 'Enable Attendance', message: 'attendance will be enabled' },
+      disable_attendance: { title: 'Disable Attendance', message: 'attendance will be disabled' },
+      enable_presence: { title: 'Enable Presence', message: 'presence waves will be enabled' },
+      disable_presence: { title: 'Disable Presence', message: 'presence waves will be disabled' },
+    }
+
+    const label = actionLabels[action]
+    setConfirmDialog({
+      isOpen: true,
+      action,
+      title: label.title,
+      message: `Are you sure you want to update ${selectedSectionIds.size} section(s)? For all selected sections, ${label.message}.`,
+    })
+  }
+
+  const executeBulkAction = async () => {
+    if (!confirmDialog.action) return
+
+    const updates = {
+      enable_attendance: { attendance_enabled: true },
+      disable_attendance: { attendance_enabled: false },
+      enable_presence: { presence_enabled: true },
+      disable_presence: { presence_enabled: false },
+    }[confirmDialog.action]
+
+    const result = await bulkUpdateSections(Array.from(selectedSectionIds), updates)
+
+    if (result.success) {
+      // Reload sections to show updated data
+      await loadSections()
+      
+      // Clear selection
+      setSelectedSectionIds(new Set())
+      
+      // Show success message
+      setSuccessMessage(`Successfully updated ${result.count} section(s)`)
+      setTimeout(() => setSuccessMessage(null), 3000)
+    } else {
+      alert(`Error: ${result.error}`)
+    }
+
+    // Close confirmation dialog
+    setConfirmDialog({ isOpen: false, action: null, title: '', message: '' })
   }
 
   // Format time for display (convert 24h to 12h)
@@ -109,17 +194,32 @@ export default function SectionsPageClient({ initialSections }: SectionsPageClie
 
   return (
     <div>
+      {/* Success Message */}
+      {successMessage && (
+        <div className="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md flex items-center gap-2">
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <span>{successMessage}</span>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Sections</h1>
           <p className="text-gray-600 mt-1">Manage class sections, schedules, and assignments</p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
-        >
-          + Create Section
-        </button>
+        <div className="flex items-center gap-3">
+          <BulkActionsDropdown
+            selectedCount={selectedSectionIds.size}
+            onAction={handleBulkAction}
+          />
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium"
+          >
+            + Create Section
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -182,6 +282,14 @@ export default function SectionsPageClient({ initialSections }: SectionsPageClie
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={selectedSectionIds.size === filteredSections.length && filteredSections.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Name
                 </th>
@@ -208,9 +316,18 @@ export default function SectionsPageClient({ initialSections }: SectionsPageClie
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredSections.map((section) => {
                 const primaryTeacher = section.section_teachers?.find(st => st.is_primary)
+                const isSelected = selectedSectionIds.has(section.id)
 
                 return (
-                  <tr key={section.id} className="hover:bg-gray-50">
+                  <tr key={section.id} className={`hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectSection(section.id)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-gray-900">{section.name}</div>
                     </td>
@@ -274,6 +391,16 @@ export default function SectionsPageClient({ initialSections }: SectionsPageClie
         mode={editingSectionId ? 'edit' : 'create'}
         sectionId={editingSectionId}
         createdSections={createdThisSession}
+      />
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel="Update Sections"
+        onConfirm={executeBulkAction}
+        onCancel={() => setConfirmDialog({ isOpen: false, action: null, title: '', message: '' })}
       />
     </div>
   )
