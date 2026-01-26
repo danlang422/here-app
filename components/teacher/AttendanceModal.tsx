@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { saveAttendance } from '@/lib/teacher/attendance-actions'
 
 interface Student {
   id: string
@@ -42,7 +43,14 @@ export default function AttendanceModal({ section, date, onClose, onUpdate }: At
       [student.id]: student.attendance_status || ''
     }), {})
   )
+  const [notes, setNotes] = useState<Record<string, string>>(
+    section.students.reduce((acc, student) => ({
+      ...acc,
+      [student.id]: student.attendance_notes || ''
+    }), {})
+  )
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const toggleStudent = (studentId: string) => {
     const newExpanded = new Set(expandedStudents)
@@ -63,14 +71,26 @@ export default function AttendanceModal({ section, date, onClose, onUpdate }: At
 
   const handleSave = async () => {
     setSaving(true)
+    setError(null)
     
-    // TODO: Call server action to save attendance
-    // For now, just simulate a save
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // Build attendance data array
+    const attendanceArray = section.students.map(student => ({
+      studentId: student.id,
+      status: attendanceData[student.id] || null,
+      notes: notes[student.id] || undefined
+    }))
     
-    setSaving(false)
-    onUpdate()
-    onClose()
+    // Call server action
+    const result = await saveAttendance(section.id, date, attendanceArray)
+    
+    if (result.success) {
+      setSaving(false)
+      onUpdate() // Refresh parent data
+      onClose()  // Close modal
+    } else {
+      setSaving(false)
+      setError(result.error || 'Failed to save attendance')
+    }
   }
 
   const formatTime = (timestamp: string | null) => {
@@ -262,10 +282,15 @@ export default function AttendanceModal({ section, date, onClose, onUpdate }: At
                             </div>
                           )}
 
-                          {/* Add Comment (placeholder for future) */}
+                          {/* Teacher Notes/Comment */}
                           <div>
                             <textarea
                               placeholder="Add a comment..."
+                              value={notes[student.id] || ''}
+                              onChange={(e) => setNotes(prev => ({
+                                ...prev,
+                                [student.id]: e.target.value
+                              }))}
                               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                               rows={2}
                             />
@@ -280,20 +305,31 @@ export default function AttendanceModal({ section, date, onClose, onUpdate }: At
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-gray-200 flex items-center justify-between">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save & Close'}
-            </button>
+          <div className="p-6 border-t border-gray-200">
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            )}
+            
+            {/* Buttons */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={onClose}
+                disabled={saving}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save & Close'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
