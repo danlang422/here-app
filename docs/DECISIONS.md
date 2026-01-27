@@ -790,6 +790,109 @@ ORDER BY child.name, u.last_name;
 
 ---
 
+### Teacher Assignment on Parent-Child Sections (2026-01-27)
+
+**Decision:** Teachers are assigned to BOTH parent and child sections, with automatic cascading of assignments
+
+**Context:**
+- Parent/child sections create a question: is teacher assigned to just the parent, or to both?
+- RLS policies and `marked_by` field in attendance_records require teacher to be assigned to the section where attendance is saved
+- Attendance saves to child sections (where enrollments exist)
+
+**Reasoning:**
+- **Simpler queries:** No special-case parent/child logic needed in queries
+- **RLS works naturally:** Teacher is assigned where attendance is stored
+- **`marked_by` is valid:** Teacher legitimately assigned to sections where they mark attendance
+- **Future-proof:** Other features ("find student's teachers") work without hacks
+- **Trade-off is minimal:** A few extra rows in `section_teachers` is acceptable overhead
+
+**Implementation:**
+- When child section is linked to parent via `parent_section_id`:
+  - Automatically copy ALL teacher assignments from parent to child
+  - Show UI affordance: "This will also assign teachers from [Parent Section Name]"
+- When teacher is added/removed from parent section:
+  - Cascade the add/remove to all child sections
+- Multiple teachers supported via existing `section_teachers` many-to-many relationship
+- `is_primary` flag can distinguish primary teacher from co-teachers/coverage
+
+**Admin Workflow:**
+1. Create parent section (e.g., "Hub Monitor - Period 1")
+2. Assign teacher(s) to parent section
+3. Create or link child sections:
+   - **Option A:** Create child sections, then link to parent (teachers auto-copied)
+   - **Option B:** Bulk-link existing children to parent (teachers auto-copied)
+   - **Option C:** From parent detail page, add children (teachers auto-copied)
+4. Child sections now have both parent's teachers AND can have additional teachers if needed
+
+**Alternatives Considered:**
+- Teacher assigned to parent only: simpler conceptually, but complex queries and RLS issues
+- Teacher assigned to children only: loses the "parent section = teacher schedule block" concept
+- Text-based tagging: no explicit relationships, prone to inconsistency
+
+**Trade-offs:** Redundant data (teacher assignments duplicated), but this redundancy buys significant simplicity in queries, RLS policies, and future features. The few extra rows are negligible compared to query complexity.
+
+---
+
+### Instructor Display for College Classes (2026-01-27)
+
+**Decision:** Add `instructor_name` and `show_assigned_teacher` fields to sections for external instruction scenarios
+
+**Context:**
+- Some City View students attend college classes during monitoring sections
+- City View teacher takes attendance (for SIS reporting) but college professor teaches the class
+- Student shouldn't see City View teacher as "their teacher" for college classes
+- This also applies to some mentored internships and self-directed sections
+
+**Reasoning:**
+- Separates "who takes attendance" from "who teaches" without complex schema changes
+- City View teacher remains assigned (for RLS, attendance marking, teacher workflow)
+- Student UI can hide assigned teacher and show external instructor when appropriate
+- Defaults preserve current behavior (show assigned teacher) for standard sections
+- Minimal schema additions (two optional fields)
+
+**Implementation:**
+```sql
+-- Add to sections table
+ALTER TABLE sections
+ADD COLUMN instructor_name text,  -- e.g., "Prof. Garcia"
+ADD COLUMN show_assigned_teacher boolean NOT NULL DEFAULT true;
+```
+
+**Student UI Logic:**
+- IF `show_assigned_teacher = true`: Show assigned teacher from `section_teachers` (default)
+- IF `show_assigned_teacher = false` AND `instructor_name` exists: Show instructor name
+- IF `show_assigned_teacher = false` AND no instructor: Show section name only
+
+**Common Scenarios:**
+- **In-person class:** `show_assigned_teacher = true` → "Ms. Johnson - Biology"
+- **College class:** `show_assigned_teacher = false`, `instructor_name = "Prof. Garcia"` → "Prof. Garcia - College Algebra"
+- **Remote work:** `show_assigned_teacher = false`, no instructor → "Remote Study Time"
+- **Internship:** `show_assigned_teacher = false`, `instructor_name = "Mr. Chen (Mentor)"` → "Mr. Chen (Mentor) - Library Internship"
+
+**Admin Workflow:**
+1. Create or edit child section (e.g., "College Algebra")
+2. Teacher assignments automatically copied from parent (e.g., "Hub Monitor")
+3. In section form Student View Options:
+   - Check "Hide assigned teacher on student view"
+   - Enter instructor name: "Prof. Garcia"
+4. Student sees "Prof. Garcia - College Algebra" on their schedule
+5. City View teacher still sees section on their agenda and can mark attendance
+
+**Default Settings:**
+- Child sections linked to parent: `show_assigned_teacher = false` by default
+  - Assumes most child sections are either college classes, remote work, or other non-traditional instruction
+  - Admin can change to `true` if needed (e.g., actual City View class happening during monitoring)
+- Standalone sections: `show_assigned_teacher = true` by default (standard behavior)
+
+**Alternatives Considered:**
+- Separate "attendance blocks" table: more "correct" but significant refactoring, overkill for this use case
+- `instructor` as separate user account: requires account creation for college professors, complex permission management
+- Don't show any teacher for child sections: accurate but loses helpful context for students
+
+**Trade-offs:** Two additional fields add minor complexity, but solve real problem with minimal changes. Default values ensure most sections work correctly without configuration.
+
+---
+
 ## Notes
 
 - This log focuses on **why** decisions were made, not just **what** was decided

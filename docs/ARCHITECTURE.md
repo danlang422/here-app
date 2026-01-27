@@ -269,6 +269,12 @@ Each role has distinct interfaces optimized for their primary tasks. See `DECISI
   - Per-section completion tracking visible
   - Attendance saved to child sections (where enrollments exist)
   - Optional toggle for unified alphabetical view (all students in one list)
+- Teacher assignments automatically copied from parent to children
+- Changes to parent teachers cascade to all children
+- Child sections can hide assigned teacher and show external instructor name
+  - College classes show professor name instead of City View teacher
+  - Remote work shows section name only (no teacher)
+  - Internships can show mentor name
 
 **Features NOT Built (V1):**
 - `/teacher/sections` list page - unclear value beyond Agenda
@@ -329,6 +335,11 @@ Each role has distinct interfaces optimized for their primary tasks. See `DECISI
 - **Smart Section Form**: "Save & Add Another" workflow for bulk entry with session tracking
 - **Student Enrollment**: Multi-select enrollment integrated into section creation/editing
 - **Parent-Child Sections**: Support for supervision groups (e.g., Hub Monitor duties)
+  - Section detail page with "Manage Children" interface
+  - Bulk "Link to Parent Section" action on sections list
+  - Auto-copy teacher assignments from parent to children
+  - Cascade teacher changes from parent to all children
+  - Instructor name and teacher visibility controls for college classes
 - **User Management**: Create accounts, assign multiple roles, password resets
 - **Internship Management**: Full CRUD with Leaflet map integration for geofencing
 - **Calendar Management**: CSV import, visual grid editor with A/B day color coding
@@ -339,6 +350,8 @@ Each role has distinct interfaces optimized for their primary tasks. See `DECISI
 - Server-first rendering for optimal performance
 - "Created This Session" sidebars for bulk entry visibility
 - Consistent server action patterns with type safety
+- Bulk operations with confirmation dialogs (section linking, feature toggles)
+- Auto-cascading relationships (teacher assignments parent → children)
 
 **Admin Access to Teacher Features:**
 - Admins with teacher role can access teacher UI (student search, profiles)

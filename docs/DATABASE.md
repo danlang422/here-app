@@ -156,6 +156,8 @@ Schedule blocks (classes, remote work sessions, internships).
 | attendance_enabled | boolean | DEFAULT false | Whether attendance tracking is enabled for this section |
 | presence_enabled | boolean | DEFAULT false | Whether optional presence "waves" are enabled |
 | presence_mood_enabled | boolean | DEFAULT false | Whether mood emoji picker is shown after presence wave |
+| instructor_name | text | NULLABLE | Name of external instructor (e.g., college professor) for student UI display |
+| show_assigned_teacher | boolean | DEFAULT true | Controls whether assigned teacher displays on student UI (set false for college classes) |
 | created_by | uuid | FOREIGN KEY users(id) | Who created this section |
 | created_at | timestamptz | | |
 | updated_at | timestamptz | | |
@@ -179,6 +181,21 @@ Schedule blocks (classes, remote work sessions, internships).
 - Parent sections typically have no direct enrollments (students enrolled in children)
 - Deleting parent section sets children's `parent_section_id` to null (children remain intact)
 - Example: Hub Monitor (parent) ← Spanish 2 Edgenuity (child) + Independent Work Time (child) + CR US Humanities (child)
+- **Teacher Assignment Pattern:** Teachers are assigned to BOTH parent and child sections
+  - When child is linked to parent, teacher assignments are automatically copied from parent to child
+  - This ensures RLS policies work correctly and attendance `marked_by` field is valid
+  - Multiple teachers supported via `section_teachers` many-to-many relationship
+  - Adding/removing teachers on parent cascades to all child sections
+
+**Instructor Display (College Classes & External Instruction):**
+- Child sections may have external instructors (college professors, mentors, etc.)
+- `instructor_name`: Optional field for external instructor's name
+- `show_assigned_teacher`: Controls student UI display (defaults to true)
+  - `true`: Shows assigned City View teacher (default for most sections)
+  - `false`: Hides assigned teacher; shows `instructor_name` if provided
+- Use case: College class where City View teacher takes attendance but professor teaches
+- Student sees: "Prof. Garcia - College Algebra" instead of City View teacher
+- Teacher still assigned for attendance marking and RLS policies
 
 #### section_teachers
 Many-to-many relationship between sections and teachers.

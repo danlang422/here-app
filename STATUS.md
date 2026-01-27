@@ -1,18 +1,32 @@
 # Here App - Status
 
-**Last Updated:** 2026-01-26 (Evening Session - Bulk Section Editing)
+**Last Updated:** 2026-01-27 (Parent-Child Sections Design & Documentation)
 
 ---
 
 ## 🔨 In Progress
 
-**Teacher UI Implementation** - Bulk editing complete, continuing with teacher attendance workflow.
+**Documentation Update** - Finalizing parent-child section teacher assignment and instructor display patterns before implementation.
 
 ---
 
-## ⚠️ Action Required Before Continuing Teacher UI
+## ⚠️ Action Required Before Continuing
 
-None - blocker resolved!
+**Database Migration:**
+- [ ] Run migration 008: `008_add_instructor_fields_to_sections.sql`
+- [ ] Regenerate TypeScript types: `npm run generate-types`
+- [ ] Verify new fields (`instructor_name`, `show_assigned_teacher`) appear in `database.ts`
+
+**RLS Policy Review:**
+- [ ] Audit all RLS policies for teacher access to student data
+- [ ] Verify teachers can view students in child sections (via parent assignment)
+- [ ] Test multi-role access patterns
+
+**Admin UI Updates Needed:**
+- [ ] Section detail page redesign (to support child section management)
+- [ ] Add "Manage Children" interface to parent section detail page
+- [ ] Add "Link to Parent Section" bulk action on sections list
+- [ ] Update section form with instructor fields and student view options
 
 ---
 
@@ -33,11 +47,43 @@ None - blocker resolved!
 - [x] Visual indicators: 👋 presence count, ✓ check-in count, 📝 prompts count
 - [x] Modal-based attendance interface (instead of inline)
 - [x] Expandable student rows with attendance buttons
-- [ ] Server action for saving attendance (placeholder exists, needs real implementation)
-- [ ] Parent section handling: Grouped by child sections
-- [ ] Teacher comment functionality
+- [x] Server action for saving attendance
+- [x] Teacher comment functionality (notes field working)
+- [ ] Parent section handling in agenda modal: Grouped by child sections with collapsible groups
+- [ ] Optional alphabetical toggle for parent section view
 
-### Phase 3: Teacher Sections Page
+### Phase 3: Admin UI - Parent-Child Section Management
+- [ ] Update section detail page to show child sections
+  - Display list of children with enrollment counts
+  - "Add Child Section" and "Create New Child" actions
+  - Remove child functionality
+- [ ] Bulk "Link to Parent Section" action on sections list
+  - Multi-select sections
+  - Choose parent from dropdown
+  - Confirmation: "This will copy teachers from [Parent] to these X sections"
+- [ ] Auto-copy teacher assignments when linking child to parent
+  - Server action: `linkChildToParent(childId, parentId)`
+  - Copies all teachers from parent to child
+  - Sets `show_assigned_teacher = false` by default for children
+- [ ] Add instructor fields to section form
+  - "Student View Options" section
+  - Checkbox: "Hide assigned teacher on student view"
+  - Text input: "Instructor Name" (shown when teacher hidden)
+- [ ] Server actions for cascading teacher changes
+  - When teacher added to parent → add to all children
+  - When teacher removed from parent → remove from all children
+
+### Phase 4: Teacher UI - Parent Section Display
+- [ ] Update AttendanceModal to detect and handle parent sections
+  - Query child sections and their enrollments
+  - Group students by child section (collapsible groups)
+  - Show per-section completion tracking
+  - Optional toggle for alphabetical view (all students flat)
+- [ ] Update TeacherAgendaClient to show parent section metadata
+  - Aggregate counts from children (total students, marked, etc.)
+  - Visual indication that section has children
+
+### Phase 5: Teacher Sections Page (Deferred)
 - [ ] Create sections list page (`/app/teacher/sections/page.tsx`)
   - Server component fetches teacher's sections
   - Display section cards with key info (name, time, student count, schedule pattern)
@@ -59,7 +105,7 @@ None - blocker resolved!
 - [x] Success feedback (toast with count)
 - [x] Fixed database view to include feature toggle columns
 
-### Phase 5: Profile Pages & Search
+### Phase 6: Profile Pages & Search
 - [ ] Build global search component
   - Search users and sections
   - Accessible from header/nav for teachers and admins
@@ -72,7 +118,7 @@ None - blocker resolved!
   - List view with time filtering
   - Add/remove sections from student schedule
 
-### Phase 6: Student Presence Feature
+### Phase 7: Student Presence Feature
 - [ ] Add "👋 Say you're here!" button to student agenda
   - Only shows for sections with presence_enabled
   - Optional mood emoji picker (if presence_mood_enabled)
@@ -91,6 +137,36 @@ None - blocker resolved!
   - This will inform whether we need different permission levels
 
 ---
+
+## ✅ Completed Recently (2026-01-27)
+
+- [x] **Parent-Child Section Pattern Design & Documentation**
+  - Resolved teacher assignment pattern: Teachers assigned to BOTH parent and children
+  - Auto-copy teacher assignments from parent to children when linking
+  - Cascade teacher changes from parent to all children
+  - Designed instructor display for college classes and external instruction
+  - Added `instructor_name` and `show_assigned_teacher` fields to sections schema
+  - Created migration 008: Add instructor fields to sections table
+  - Updated DATABASE.md with new fields and parent-child patterns
+  - Updated DECISIONS.md with two new decisions:
+    - "Teacher Assignment on Parent-Child Sections"
+    - "Instructor Display for College Classes"
+  - Updated ARCHITECTURE.md with admin UI workflows and teacher UI patterns
+  - Updated STATUS.md with new phases and action items
+  - Finalized bulk linking UI pattern (both detail page and sections list)
+  - Default `show_assigned_teacher = false` for child sections
+  - Student UI logic for showing/hiding teachers based on section settings
+
+- [x] **Teacher Attendance Saving - COMPLETE**
+  - Created `saveAttendance()` server action with full functionality
+  - Upsert logic for creating/updating attendance records
+  - Deletion support for unmarking students
+  - Teacher notes field fully functional
+  - Batch updates for multiple students
+  - Teacher assignment verification
+  - Error handling and user feedback
+  - Integration with AttendanceModal component
+  - Committed changes with focused commit message
 
 ## ✅ Completed Recently (2026-01-26)
 
