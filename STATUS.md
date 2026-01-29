@@ -1,21 +1,16 @@
 # Here App - Status
 
-**Last Updated:** 2026-01-27 (Parent-Child Sections Design & Documentation)
+**Last Updated:** 2026-01-29 (Design System Created, Instructor Fields Added)
 
 ---
 
 ## 🔨 In Progress
 
-**Documentation Update** - Finalizing parent-child section teacher assignment and instructor display patterns before implementation.
+**Student Agenda Redesign** - Implementing Clean Bright design system with new interaction patterns (👋 buttons, collapsible sections, color-rotated "here" text).
 
 ---
 
 ## ⚠️ Action Required Before Continuing
-
-**Database Migration:**
-- [ ] Run migration 008: `008_add_instructor_fields_to_sections.sql`
-- [ ] Regenerate TypeScript types: `npm run generate-types`
-- [ ] Verify new fields (`instructor_name`, `show_assigned_teacher`) appear in `database.ts`
 
 **RLS Policy Review:**
 - [ ] Audit all RLS policies for teacher access to student data
@@ -26,7 +21,7 @@
 - [ ] Section detail page redesign (to support child section management)
 - [ ] Add "Manage Children" interface to parent section detail page
 - [ ] Add "Link to Parent Section" bulk action on sections list
-- [ ] Update section form with instructor fields and student view options
+- [ ] Server actions for cascading teacher changes (parent → children)
 
 ---
 
@@ -65,9 +60,9 @@
   - Server action: `linkChildToParent(childId, parentId)`
   - Copies all teachers from parent to child
   - Sets `show_assigned_teacher = false` by default for children
-- [ ] Add instructor fields to section form
+- [x] Add instructor fields to section form
   - "Student View Options" section
-  - Checkbox: "Hide assigned teacher on student view"
+  - Checkbox: "Show assigned teacher on student view"
   - Text input: "Instructor Name" (shown when teacher hidden)
 - [ ] Server actions for cascading teacher changes
   - When teacher added to parent → add to all children
@@ -138,6 +133,28 @@
 
 ---
 
+## ✅ Completed Recently (2026-01-29)
+
+- [x] **Design System Documentation (Clean Bright Style)**
+  - Created comprehensive `/docs/DESIGN_SYSTEM.md`
+  - Defined 4-color accent palette (Orange, Purple, Pink, Yellow)
+  - Specified "here" text treatment with color rotation
+  - Documented emoji button interactions (👋 wave, ✌️ peace)
+  - Defined collapsible plans/progress section with tabs
+  - Animation specifications (timing, easing, hover effects)
+  - Check-in/check-out flow states documented
+  - Presence wave pattern documented
+  - Component specifications ready for implementation
+
+- [x] **Instructor Display Fields - Admin UI**
+  - Added `instructor_name` and `show_assigned_teacher` to section form
+  - "Student View Options" section in form
+  - Checkbox to show/hide assigned teacher on student view
+  - Text input for external instructor name
+  - Updated SectionFormData type with new fields
+  - Updated createSection() and updateSection() to save new fields
+  - Migration 008 run and types regenerated
+
 ## ✅ Completed Recently (2026-01-27)
 
 - [x] **Parent-Child Section Pattern Design & Documentation**
@@ -148,6 +165,7 @@
   - Added `instructor_name` and `show_assigned_teacher` fields to sections schema
   - Created migration 008: Add instructor fields to sections table
   - Updated DATABASE.md with new fields and parent-child patterns
+  - Created migration 008: Add instructor fields to sections table
   - Updated DECISIONS.md with two new decisions:
     - "Teacher Assignment on Parent-Child Sections"
     - "Instructor Display for College Classes"

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       attendance_events: {
@@ -492,12 +517,14 @@ export type Database = {
           expected_location: Json | null
           geofence_radius: number | null
           id: string
+          instructor_name: string | null
           internship_opportunity_id: string | null
           name: string
           parent_section_id: string | null
           presence_enabled: boolean | null
           presence_mood_enabled: boolean | null
           schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
+          show_assigned_teacher: boolean
           sis_block: number | null
           start_time: string
           type: Database["public"]["Enums"]["section_type"]
@@ -512,12 +539,14 @@ export type Database = {
           expected_location?: Json | null
           geofence_radius?: number | null
           id?: string
+          instructor_name?: string | null
           internship_opportunity_id?: string | null
           name: string
           parent_section_id?: string | null
           presence_enabled?: boolean | null
           presence_mood_enabled?: boolean | null
           schedule_pattern: Database["public"]["Enums"]["schedule_pattern"]
+          show_assigned_teacher?: boolean
           sis_block?: number | null
           start_time: string
           type: Database["public"]["Enums"]["section_type"]
@@ -532,12 +561,14 @@ export type Database = {
           expected_location?: Json | null
           geofence_radius?: number | null
           id?: string
+          instructor_name?: string | null
           internship_opportunity_id?: string | null
           name?: string
           parent_section_id?: string | null
           presence_enabled?: boolean | null
           presence_mood_enabled?: boolean | null
           schedule_pattern?: Database["public"]["Enums"]["schedule_pattern"]
+          show_assigned_teacher?: boolean
           sis_block?: number | null
           start_time?: string
           type?: Database["public"]["Enums"]["section_type"]
@@ -651,6 +682,7 @@ export type Database = {
       sections_with_enrollment_counts: {
         Row: {
           active_student_count: number | null
+          attendance_enabled: boolean | null
           created_at: string | null
           created_by: string | null
           days_of_week: Json | null
@@ -660,6 +692,9 @@ export type Database = {
           id: string | null
           internship_opportunity_id: string | null
           name: string | null
+          parent_section_id: string | null
+          presence_enabled: boolean | null
+          presence_mood_enabled: boolean | null
           schedule_pattern:
             | Database["public"]["Enums"]["schedule_pattern"]
             | null
@@ -681,6 +716,20 @@ export type Database = {
             columns: ["internship_opportunity_id"]
             isOneToOne: false
             referencedRelation: "internship_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sections_parent_section_id_fkey"
+            columns: ["parent_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sections_parent_section_id_fkey"
+            columns: ["parent_section_id"]
+            isOneToOne: false
+            referencedRelation: "sections_with_enrollment_counts"
             referencedColumns: ["id"]
           },
         ]
@@ -829,6 +878,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       ab_designation: ["a_day", "b_day"],

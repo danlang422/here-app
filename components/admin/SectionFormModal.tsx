@@ -121,6 +121,8 @@ export default function SectionFormModal({
     presence_mood_enabled: false,
     internship_opportunity_id: undefined,
     geofence_radius: undefined,
+    instructor_name: '',
+    show_assigned_teacher: true,
   })
 
   const [teachers, setTeachers] = useState<Teacher[]>([])
@@ -211,6 +213,8 @@ export default function SectionFormModal({
             presence_mood_enabled: section.presence_mood_enabled ?? false,
             internship_opportunity_id: section.internship_opportunity_id || undefined,
             geofence_radius: section.geofence_radius || undefined,
+            instructor_name: section.instructor_name || '',
+            show_assigned_teacher: section.show_assigned_teacher ?? true,
           })
         }
         
@@ -292,6 +296,8 @@ export default function SectionFormModal({
             presence_mood_enabled: prev.presence_mood_enabled,
             internship_opportunity_id: undefined,
             geofence_radius: prev.geofence_radius,
+            instructor_name: '',
+            show_assigned_teacher: true,
           }))
           setEnrollmentExpanded(false)
         } else {
@@ -524,6 +530,42 @@ export default function SectionFormModal({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Student View Options */}
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Student View Options</h3>
+                  <div className="space-y-4">
+                    <label className="flex items-start">
+                      <input
+                        type="checkbox"
+                        checked={formData.show_assigned_teacher}
+                        onChange={(e) => setFormData(prev => ({ ...prev, show_assigned_teacher: e.target.checked }))}
+                        className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Show assigned teacher on student view
+                        <span className="block text-xs text-gray-500 mt-0.5">Uncheck for college classes or self-directed sections where teacher shouldn't be displayed</span>
+                      </span>
+                    </label>
+                    
+                    <div>
+                      <label htmlFor="instructor_name" className="block text-sm font-medium text-gray-700 mb-1">
+                        Instructor Name <span className="text-gray-500 text-xs font-normal">(optional - shown when teacher is hidden)</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="instructor_name"
+                        value={formData.instructor_name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, instructor_name: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., Prof. Garcia, Mr. Chen (Mentor)"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Use for college classes, external instructors, or mentored internships where students see a different instructor name
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Parent Section (optional - for supervision groups) */}

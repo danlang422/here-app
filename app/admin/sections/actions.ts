@@ -26,6 +26,9 @@ export type SectionFormData = {
   // Internship fields
   internship_opportunity_id?: string
   geofence_radius?: number
+  // Instructor display fields
+  instructor_name?: string
+  show_assigned_teacher?: boolean
 }
 
 export type SectionWithTeachers = Database['public']['Tables']['sections']['Row'] & {
@@ -75,6 +78,9 @@ export async function createSection(data: SectionFormData) {
       // Internship fields
       internship_opportunity_id: data.internship_opportunity_id || null,
       geofence_radius: data.geofence_radius || null,
+      // Instructor display fields
+      instructor_name: data.instructor_name || null,
+      show_assigned_teacher: data.show_assigned_teacher ?? true,
     }
 
     // Handle location for in_person and internship types
@@ -152,6 +158,9 @@ export async function updateSection(sectionId: string, data: SectionFormData) {
       // Internship fields
       internship_opportunity_id: data.internship_opportunity_id || null,
       geofence_radius: data.geofence_radius || null,
+      // Instructor display fields
+      instructor_name: data.instructor_name || null,
+      show_assigned_teacher: data.show_assigned_teacher ?? true,
     }
 
     // Handle location
