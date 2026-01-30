@@ -1,12 +1,12 @@
 # Here App - Status
 
-**Last Updated:** 2026-01-29 (Design System Created, Instructor Fields Added)
+**Last Updated:** 2026-01-30 (Student Agenda Redesign Complete - Functional)
 
 ---
 
 ## 🔨 In Progress
 
-**Student Agenda Redesign** - Implementing Clean Bright design system with new interaction patterns (👋 buttons, collapsible sections, color-rotated "here" text).
+**Student Agenda Visual Polish** - Functional redesign complete. Remaining work: style refinements (card appearance, modal positioning/overlay, header styling), animation tweaks, and final UX polish.
 
 ---
 
@@ -25,29 +25,17 @@
 
 ---
 
-## 📋 Next Up - Teacher UI Implementation
+## 📋 Next Up 
 
-### Phase 1: Database & Types
-- [x] Run migration 005
-- [x] Regenerate TypeScript types
-- [x] Verify new fields appear in database.ts
-- [x] Add RLS policy for teachers to view students
+### Student Agenda - Visual Polish
+- [ ] Card styling refinements (appearance, shadows, spacing)
+- [ ] Modal positioning and overlay effects for check-in/check-out prompts
+- [ ] Header styling improvements
+- [ ] Animation timing adjustments
+- [ ] Address card width inconsistencies with/without buttons
+- [ ] Review and finalize overall aesthetic
 
-### Phase 2: Teacher Agenda Page - Foundation
-- [x] Create `/app/teacher` directory structure
-- [x] Build teacher layout with sidebar and navigation
-- [x] Build agenda page with date navigation
-- [x] Server action to fetch teacher's sections for a date
-- [x] Section cards with attendance completion indicators
-- [x] Visual indicators: 👋 presence count, ✓ check-in count, 📝 prompts count
-- [x] Modal-based attendance interface (instead of inline)
-- [x] Expandable student rows with attendance buttons
-- [x] Server action for saving attendance
-- [x] Teacher comment functionality (notes field working)
-- [ ] Parent section handling in agenda modal: Grouped by child sections with collapsible groups
-- [ ] Optional alphabetical toggle for parent section view
-
-### Phase 3: Admin UI - Parent-Child Section Management
+### Admin UI - Parent-Child Section Management
 - [ ] Update section detail page to show child sections
   - Display list of children with enrollment counts
   - "Add Child Section" and "Create New Child" actions
@@ -60,15 +48,12 @@
   - Server action: `linkChildToParent(childId, parentId)`
   - Copies all teachers from parent to child
   - Sets `show_assigned_teacher = false` by default for children
-- [x] Add instructor fields to section form
-  - "Student View Options" section
-  - Checkbox: "Show assigned teacher on student view"
-  - Text input: "Instructor Name" (shown when teacher hidden)
+- [x] Add instructor fields to section form *(COMPLETED)*
 - [ ] Server actions for cascading teacher changes
   - When teacher added to parent → add to all children
   - When teacher removed from parent → remove from all children
 
-### Phase 4: Teacher UI - Parent Section Display
+### Teacher UI - Parent Section Display
 - [ ] Update AttendanceModal to detect and handle parent sections
   - Query child sections and their enrollments
   - Group students by child section (collapsible groups)
@@ -77,8 +62,9 @@
 - [ ] Update TeacherAgendaClient to show parent section metadata
   - Aggregate counts from children (total students, marked, etc.)
   - Visual indication that section has children
+- [ ] Verify presence wave count calculation on teacher agenda
 
-### Phase 5: Teacher Sections Page (Deferred)
+### Teacher Sections Page
 - [ ] Create sections list page (`/app/teacher/sections/page.tsx`)
   - Server component fetches teacher's sections
   - Display section cards with key info (name, time, student count, schedule pattern)
@@ -89,18 +75,7 @@
   - Include enrollment counts and basic metadata
   - Sort by time or name
 
-### Phase 4: Bulk Section Editing (Admin)
-- [x] Add checkbox selection to admin sections list
-- [x] Build bulk actions dropdown component
-  - "Enable Attendance" / "Disable Attendance"
-  - "Enable Presence" / "Disable Presence"
-- [x] Server action for bulk updates
-  - `bulkUpdateSections(sectionIds, updates)`
-  - Confirmation dialog before executing
-- [x] Success feedback (toast with count)
-- [x] Fixed database view to include feature toggle columns
-
-### Phase 6: Profile Pages & Search
+### Profile Pages & Search
 - [ ] Build global search component
   - Search users and sections
   - Accessible from header/nav for teachers and admins
@@ -113,27 +88,79 @@
   - List view with time filtering
   - Add/remove sections from student schedule
 
-### Phase 7: Student Presence Feature
-- [ ] Add "👋 Say you're here!" button to student agenda
-  - Only shows for sections with presence_enabled
-  - Optional mood emoji picker (if presence_mood_enabled)
-- [ ] Server action: `createPresence(sectionId, moodEmoji?)`
-  - Creates interaction with type='presence'
-  - Validates section has presence_enabled
-- [ ] Display presence count on teacher agenda cards
-
----
+### Future Enhancements
+- [ ] Mood emoji picker for presence waves (admin toggle exists, UI not built)
+- [ ] Multi-role user handling (prevent redirect loops when user has multiple roles)
+- [ ] Internship geolocation features (admin debugging required first)
+- [ ] Schedule pattern bug fix (sections appearing on Saturdays when they shouldn't)
 
 ## 🚧 Blocked / Questions
 
-- **Attendance workflow observation needed**: Sub tomorrow to see who's actually marking attendance and how
-  - Is it all teachers? Just certain teachers?
-  - What's the actual workflow with the spreadsheet?
-  - This will inform whether we need different permission levels
+- Nothing is blocked, currently. 
+
+---
+
+## ✅ Completed Recently (2026-01-30)
+
+- [x] **Student Agenda Redesign - Functional Implementation COMPLETE**
+  - Redesigned card layout with emoji buttons positioned outside cards
+  - Buttons to right on desktop (vertically stacked), below card on mobile (horizontally side-by-side)
+  - Emoji-only buttons (no backgrounds) - grayscale + position shift for pressed state
+  - Consistent max-width for all cards regardless of button presence
+  - Button state persistence when navigating between dates (cache refresh syncs component state)
+  - Section type formatting fixed ("In Person" vs "IN_PERSON")
+  - Vertical button centering adjusted (unpressed emojis start higher, pressed state ends centered with card)
+  
+- [x] **CSS Tooltip for Presence Waves**
+  - Removed animated "Say hey!" text for presence waves
+  - Added CSS-only hover tooltip (no dependencies, clean styling)
+  - Tooltip appears on hover with fade animation
+  - Desktop-focused (hover-based), mobile can use long-press in some browsers
+  
+- [x] **Time-Based Button Restrictions**
+  - Check-ins available 15 minutes before section start through section end time
+  - Presence waves available 5 minutes before section start with no end restriction (can wave all day once enabled)
+  - Check-outs available immediately after check-in through end of day (no time limit for late check-outs)
+  - All buttons restricted to today's date only (disabled on past/future dates)
+  - Disabled state shows helpful message below button when clicked ("Check-in opens at 8:45 AM")
+  - Disabled presence waves still animate for fun (button waves, but doesn't save)
+  - No visual style change for disabled buttons (clean UI, feedback on interaction)
+  
+- [x] **Check-In/Check-Out Flow Fully Functional**
+  - Modal prompts for plans and progress working correctly
+  - Collapsible Plans/Progress section appears after check-in (inside card, below main info)
+  - Tab switching between Plans and Progress working
+  - Wave animation on check-in submit (2 rotations)
+  - Peace sign rotation on check-out submit (360°)
+  - State management handles all transitions correctly
+  - Remote and internship sections both working (geolocation features deferred until internship admin debugging complete)
 
 ---
 
 ## ✅ Completed Recently (2026-01-29)
+
+- [x] **Student Presence Feature**
+  - Added presence wave button to student agenda (👋 for in-person sections)
+  - Shows only for sections with presence_enabled = true
+  - Server action createPresenceWave() validates and creates interaction records
+  - Teacher agenda displays presence count indicators (working, shows wave count)
+  - Mood emoji picker not yet implemented (checkbox exists in admin UI, feature deferred)
+  - Time-based restrictions applied (5min before section start, no end time)
+  - TODO: Verify presence count calculation accuracy on teacher agenda
+
+- [x] **Student Agenda - Initial Implementation (Claude Code)**
+  - Built complete student agenda based on DESIGN_SYSTEM.md specifications
+  - Component structure: AgendaCard, EmojiButton, CollapsibleSection, CheckInPrompt, CheckOutPrompt
+  - Server actions for presence waves, check-ins, check-outs
+  - Date navigation with caching (Previous/Next/Today)
+  - Presence wave functionality for in-person sections
+  - Check-in/check-out flow with plans and progress prompts
+  - Collapsible Plans/Progress section with tabs
+  - Button animations (wave 2x, peace rotation 360°)
+  - "Here" text color rotation (header only)
+  - Initial styling with CSS-in-JS and CSS Modules
+  - Functional but had issues: button state not persisting, styling inconsistencies, no time restrictions
+  - Multiple troubleshooting sessions required to refine functionality
 
 - [x] **Design System Documentation (Clean Bright Style)**
   - Created comprehensive `/docs/DESIGN_SYSTEM.md`

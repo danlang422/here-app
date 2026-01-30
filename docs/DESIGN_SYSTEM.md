@@ -2,9 +2,44 @@
 
 **Version:** 1.0  
 **Last Updated:** January 29, 2026  
-**Style Direction:** Clean Bright
+**Style Direction:** Clean Bright  
+**Status:** ⚠️ PARTIALLY IMPLEMENTED - See Implementation Notes Below
 
 This document defines the visual language, interaction patterns, and implementation guidelines for Here app. It captures design decisions made during the style exploration phase and serves as the source of truth for implementation.
+
+---
+
+## ⚠️ Implementation Status (Updated January 30, 2026)
+
+This design system represents the **original vision** for the student agenda. During implementation, several aspects evolved or remain incomplete:
+
+### ✅ **Fully Implemented:**
+- Color palette (base colors, section type colors)
+- Emoji buttons (👋 wave, ✌️ peace animations)
+- Card gradient backgrounds and shadows
+- Collapsible Plans/Progress section with tabs
+- Section type badges
+- Spacing system and border radius values
+
+### 🔄 **Implemented Differently:**
+- **Button styling**: Emojis now have NO background (not gradient buttons). Pressed state uses grayscale + position shift instead of depressed button appearance.
+- **Button positioning**: Buttons are OUTSIDE cards (to the right on desktop, below on mobile), not inside the "action area" as originally designed.
+- **Presence wave text**: Uses CSS tooltip on hover instead of animated fade in/out text.
+- **"Here" text color rotation**: Only implemented in header, not throughout agenda cards.
+
+### ❌ **Not Yet Implemented:**
+- "Here" text rainbow shimmer hover effect (CSS defined but `.here` class not applied to agenda text)
+- Color rotation for "here" instances in agenda cards
+- Background orbs on cards (CSS defined but connection logic unclear)
+- Some animation timing details may differ from specs
+
+### 📝 **Added During Implementation:**
+- Time-based button restrictions (15min before/after windows)
+- Button state persistence across date navigation
+- Disabled state feedback messages
+- CSS tooltip system for presence waves
+
+**Recommendation:** Keep this document as a reference for the original vision and core principles. After final visual polish is complete, either update with "as-built" specifications or create a new "DESIGN_SYSTEM_V2.md" reflecting the actual implementation.
 
 ---
 
