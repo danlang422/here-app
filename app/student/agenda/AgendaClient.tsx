@@ -7,7 +7,7 @@ import { getStudentSchedule } from './actions'
 interface Section {
   id: string
   name: string
-  section_type: 'remote' | 'internship' | 'class'
+  section_type: 'remote' | 'internship' | 'in_person'
   start_time: string
   end_time: string
   presence_enabled: boolean
@@ -47,7 +47,7 @@ export default function AgendaClient({ initialSections, initialDate }: AgendaCli
 
   // Apply "here" color rotation on mount and when sections change
   useEffect(() => {
-    const COLORS = ['#FF9500', '#7C3AED', '#DB2777', '#F59E0B']
+    const COLORS = ['#FF9500', '#7C3AED', '#DB2777', '#06B6D4']
     const startIndex = Math.floor(Math.random() * COLORS.length)
 
     const hereElements = document.querySelectorAll('.here')
@@ -145,13 +145,31 @@ export default function AgendaClient({ initialSections, initialDate }: AgendaCli
     })
   }
 
+  const getShortDate = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
+
+  const checkIsToday = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return date.getTime() === today.getTime()
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-6">
       <div className="
         flex items-center justify-center gap-4 mb-8 p-5
-        bg-gradient-to-br from-[#FFFEF9] to-[#FFF8F0]
+        bg-white
         rounded-[20px]
-        shadow-[0_2px_10px_rgba(0,0,0,0.05)]
+        shadow-[0_2px_12px_rgba(0,0,0,0.08)]
       ">
         <button
           onClick={() => navigateDate('prev')}
@@ -165,8 +183,15 @@ export default function AgendaClient({ initialSections, initialDate }: AgendaCli
         >
           Previous
         </button>
-        <div className="text-xl font-bold text-[#1F2937] min-w-[250px] text-center">
-          {formatDisplayDate(currentDate)}
+        <div className="min-w-[250px] text-center">
+          <div className="text-xl font-bold text-[#1F2937]">
+            {formatDisplayDate(currentDate)}
+          </div>
+          {checkIsToday(currentDate) && (
+            <div className="text-sm text-[#6B7280] mt-1">
+              {getShortDate(currentDate)}
+            </div>
+          )}
         </div>
         <button
           onClick={() => navigateDate('today')}

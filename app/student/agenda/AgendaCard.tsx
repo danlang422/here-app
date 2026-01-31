@@ -5,12 +5,13 @@ import EmojiButton from './EmojiButton'
 import CollapsibleSection from './CollapsibleSection'
 import CheckInPrompt from './CheckInPrompt'
 import CheckOutPrompt from './CheckOutPrompt'
+import Toast from './Toast'
 import { createPresenceWave, createCheckIn, createCheckOut } from './actions'
 
 interface Section {
   id: string
   name: string
-  section_type: 'remote' | 'internship' | 'class'
+  section_type: 'remote' | 'internship' | 'in_person'
   start_time: string
   end_time: string
   presence_enabled: boolean
@@ -38,6 +39,7 @@ interface CardState {
   progress: string | null
   waveAnimation: boolean
   peaceAnimation: boolean
+  toastMessage: string | null
 }
 
 export default function AgendaCard({ section, onActionComplete, currentDate }: AgendaCardProps) {
@@ -52,12 +54,23 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
     progress: section.existingProgress || null,
     waveAnimation: false,
     peaceAnimation: false,
+    toastMessage: null,
   })
-
-  const [disabledMessage, setDisabledMessage] = useState<string | null>(null)
 
   const requiresCheckIn = section.section_type === 'remote' || section.section_type === 'internship'
   const isPresenceOnly = section.presence_enabled && !requiresCheckIn
+
+  // Apply "here" color rotation whenever component renders
+  useEffect(() => {
+    const COLORS = ['#FF9500', '#7C3AED', '#DB2777', '#06B6D4']
+    const startIndex = Math.floor(Math.random() * COLORS.length)
+
+    const hereElements = document.querySelectorAll('.here')
+    hereElements.forEach((el, i) => {
+      const colorIndex = (startIndex + i) % COLORS.length
+      ;(el as HTMLElement).style.color = COLORS[colorIndex]
+    })
+  }, [state.isCheckedIn, state.isCheckedOut])
 
   // Check if current date is today
   const isToday = () => {
@@ -128,30 +141,18 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
     }))
   }, [section.hasWaved, section.hasCheckedIn, section.hasCheckedOut, section.existingPlans, section.existingProgress])
 
-  // Clear disabled message after 3 seconds
-  useEffect(() => {
-    if (disabledMessage) {
-      const timer = setTimeout(() => {
-        setDisabledMessage(null)
-      }, 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [disabledMessage])
-
   const handleWaveClick = async () => {
     if (isPresenceOnly) {
       const restriction = checkTimeRestrictions('wave')
       if (!restriction.allowed) {
-        setDisabledMessage(restriction.message || 'Not available')
-        // Still do the wave animation for fun
-        setState((prev) => ({ ...prev, waveAnimation: true }))
+        setState((prev) => ({ ...prev, toastMessage: restriction.message || 'Not available', waveAnimation: true }))
         return
       }
 
       setState((prev) => ({ ...prev, waveAnimation: true }))
       try {
         await createPresenceWave(section.id)
-        setState((prev) => ({ ...prev, hasWaved: true }))
+        setState((prev) => ({ ...prev, hasWaved: true, toastMessage: 'Hey! 👋' }))
         if (onActionComplete) {
           onActionComplete()
         }
@@ -161,7 +162,7 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
     } else if (requiresCheckIn && !state.isCheckedIn) {
       const restriction = checkTimeRestrictions('checkin')
       if (!restriction.allowed) {
-        setDisabledMessage(restriction.message || 'Not available')
+        setState((prev) => ({ ...prev, toastMessage: restriction.message || 'Not available' }))
         return
       }
       setState((prev) => ({ ...prev, showCheckInPrompt: true }))
@@ -177,6 +178,7 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
         isCheckedIn: true,
         plans,
         showCheckInPrompt: false,
+        toastMessage: "You're here! ✨",
       }))
       if (onActionComplete) {
         onActionComplete()
@@ -195,7 +197,7 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
     if (state.isCheckedIn && !state.isCheckedOut) {
       const restriction = checkTimeRestrictions('checkout')
       if (!restriction.allowed) {
-        setDisabledMessage(restriction.message || 'Not available')
+        setState((prev) => ({ ...prev, toastMessage: restriction.message || 'Not available' }))
         return
       }
       setState((prev) => ({ ...prev, showCheckOutPrompt: true }))
@@ -211,6 +213,7 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
         isCheckedOut: true,
         progress,
         showCheckOutPrompt: false,
+        toastMessage: 'See you later! ✌️',
       }))
       if (onActionComplete) {
         onActionComplete()
@@ -232,11 +235,11 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
   const getBadgeClasses = () => {
     switch (section.section_type) {
       case 'remote':
-        return 'bg-[rgba(124,58,237,0.12)] text-[#7C3AED]'
+        return 'bg-[rgba(124,58,237,0.15)] text-[#7C3AED]'
       case 'internship':
-        return 'bg-[rgba(219,39,119,0.12)] text-[#DB2777]'
-      case 'class':
-        return 'bg-[rgba(245,158,11,0.12)] text-[#D97706]'
+        return 'bg-[rgba(219,39,119,0.15)] text-[#DB2777]'
+      case 'in_person':
+        return 'bg-[rgba(6,182,212,0.15)] text-[#06B6D4]'
       default:
         return ''
     }
@@ -246,43 +249,36 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
     return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
   }
 
-  const getWaveButtonText = () => {
-    if (requiresCheckIn) {
+  const getTooltipText = () => {
+    if (isPresenceOnly) {
+      return state.hasWaved ? 'Hey!' : 'Say hey!'
+    } else if (requiresCheckIn) {
       if (state.isCheckedOut) {
         return null
       } else if (state.isCheckedIn) {
-        return 'You\'re <span class="here">here</span>.'
+        return "You're here"
       } else {
-        return 'Say you\'re <span class="here">here</span>!'
+        return 'Check in here'
       }
     }
     return null
   }
 
-  const getPeaceButtonText = () => {
-    if (state.isCheckedOut) {
-      return 'You\'re out!'
-    } else if (state.isCheckedIn) {
-      return 'Check out'
-    }
-    return null
+  const getCheckOutTooltip = () => {
+    return state.isCheckedOut ? "You're out!" : 'Check out'
   }
 
   return (
     <div className="mb-5">
-      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
         <div className="
-          flex-1 lg:max-w-2xl
+          w-full lg:w-[700px] lg:flex-shrink-0
           relative overflow-hidden
-          bg-gradient-to-br from-[#FFFEF9] to-[#FFF8F0]
+          bg-white
           rounded-[20px] p-6
-          shadow-[0_4px_20px_rgba(0,0,0,0.06)]
+          shadow-[0_2px_12px_rgba(0,0,0,0.08)]
           transition-all duration-300
-          hover:shadow-[0_8px_30px_rgba(0,0,0,0.1)] hover:-translate-y-0.5
-          before:absolute before:top-[-30px] before:right-[-30px]
-          before:w-[120px] before:h-[120px]
-          before:bg-[radial-gradient(circle,rgba(255,149,0,0.08)_0%,transparent_70%)]
-          before:rounded-full before:pointer-events-none
+          hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)] hover:-translate-y-0.5
         ">
           <div className="flex justify-between items-start mb-2">
             <div>
@@ -308,12 +304,11 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
         </div>
 
         {(isPresenceOnly || requiresCheckIn) && (
-          <div className="flex gap-6 justify-center lg:flex-col lg:justify-center lg:-mt-2">
-            <div className="flex flex-col items-center gap-2">
-              {/* Presence wave gets tooltip, check-in buttons don't */}
+          <div className="flex gap-6 justify-center lg:flex-col lg:justify-center">
+            <div className="flex flex-col items-center">
               <div 
-                className={isPresenceOnly ? 'emoji-tooltip' : ''}
-                data-tooltip={isPresenceOnly ? 'Say hey!' : undefined}
+                className="emoji-tooltip"
+                data-tooltip={getTooltipText() || undefined}
               >
                 <EmojiButton
                   emoji="👋"
@@ -322,41 +317,21 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
                   animationType={state.waveAnimation ? 'wave' : null}
                 />
               </div>
-              {getWaveButtonText() && (
-                <span
-                  className="text-[13px] font-semibold text-[#1F2937] text-center whitespace-nowrap transition-opacity duration-600"
-                  style={{ opacity: state.isCheckedIn && requiresCheckIn ? 0.5 : 1 }}
-                  dangerouslySetInnerHTML={{ __html: getWaveButtonText() || '' }}
-                />
-              )}
-              {disabledMessage && !state.isCheckedIn && (
-                <span className="text-[11px] font-semibold text-[#FF9500] text-center whitespace-nowrap animate-fade-in-text">
-                  {disabledMessage}
-                </span>
-              )}
             </div>
 
             {state.isCheckedIn && requiresCheckIn && (
-              <div className="flex flex-col items-center gap-2">
-                <EmojiButton
-                  emoji="✌️"
-                  onClick={handlePeaceClick}
-                  pressed={state.isCheckedOut}
-                  animationType={state.peaceAnimation ? 'peace' : null}
-                />
-                {getPeaceButtonText() && (
-                  <span 
-                    className="text-[13px] font-semibold text-[#1F2937] text-center whitespace-nowrap transition-opacity duration-600"
-                    style={{ opacity: state.isCheckedOut ? 0.5 : 1 }}
-                  >
-                    {getPeaceButtonText()}
-                  </span>
-                )}
-                {disabledMessage && state.isCheckedIn && (
-                  <span className="text-[11px] font-semibold text-[#FF9500] text-center whitespace-nowrap animate-fade-in-text">
-                    {disabledMessage}
-                  </span>
-                )}
+              <div className="flex flex-col items-center">
+                <div 
+                  className="emoji-tooltip"
+                  data-tooltip={getCheckOutTooltip()}
+                >
+                  <EmojiButton
+                    emoji="✌️"
+                    onClick={handlePeaceClick}
+                    pressed={state.isCheckedOut}
+                    animationType={state.peaceAnimation ? 'peace' : null}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -376,6 +351,13 @@ export default function AgendaCard({ section, onActionComplete, currentDate }: A
           sectionId={section.id}
           onSubmit={handleCheckOutSubmit}
           onCancel={handleCheckOutCancel}
+        />
+      )}
+
+      {state.toastMessage && (
+        <Toast
+          message={state.toastMessage}
+          onClose={() => setState((prev) => ({ ...prev, toastMessage: null }))}
         />
       )}
     </div>

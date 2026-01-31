@@ -216,17 +216,98 @@ Each role has distinct interfaces optimized for their primary tasks. See `DECISI
 
 ### Student UI
 
+**Status:** V1 Complete - Agenda page fully functional with visual redesign
+
 **Navigation:**
 - **Agenda** - Daily schedule view with check-in/check-out buttons
-- **History** - Past check-ins with prompt responses
-- **Profile** - Student settings and preferences
+- **History** - Past check-ins with prompt responses (planned)
+- **Profile** - Student settings and preferences (planned)
+
+**Agenda Page (Implemented):**
+- Server component fetches schedule for selected date
+- Client component handles interactivity and state management
+- Date navigation: ← Previous Day | Today (with date) | Next Day →
+- Schedule caching for instant navigation between dates
+- Section cards display:
+  - Section name, time, type
+  - Type badges: In Person (teal), Remote (purple), Internship (pink)
+  - Clean white cards with subtle shadows
+  - Emoji buttons positioned to right on desktop, below on mobile
+  - Collapsible Plans/Progress section (after check-in)
+
+**Interaction Patterns:**
+- **Presence Waves** (In-Person Sections):
+  - Optional 👋 button (only if `presence_enabled = true`)
+  - Available 5 minutes before section start, no end time
+  - Tooltip: "Say hey!" → "Hey!" (state-based)
+  - Toast notification: "Hey! 👋" (on action)
+  - Button pressed state: grayscale + position shift
+  
+- **Check-In Flow** (Remote/Internship Sections):
+  - Available 15 minutes before section start through section end
+  - Tooltip: "Check in here" → "You're here" (state-based)
+  - Click button → Opens modal prompt: "What are your plans?"
+  - Submit → Wave animation (2 rotations) + Toast: "You're here! ✨"
+  - Internships capture geolocation (soft verification)
+  - After check-in: Shows collapsible Plans/Progress section in card
+  
+- **Check-Out Flow** (After Check-In):
+  - ✌️ button appears after check-in
+  - Available immediately, no time restrictions (late check-outs allowed)
+  - Tooltip: "Check out" → "You're out!" (state-based)
+  - Click button → Opens modal prompt: "What progress did you make?"
+  - Submit → Peace rotation animation (360°) + Toast: "See you later! ✌️"
+  
+**Toast Notification System:**
+- Dark gradient background with slide-in animation
+- Appears at top-center of screen
+- Auto-dismisses after 2 seconds
+- Used for action feedback and time restriction messages
+- Examples:
+  - Success: "Hey! 👋", "You're here! ✨", "See you later! ✌️"
+  - Restrictions: "Check-in opens at 8:45 AM", "Wave opens at 9:25 AM"
+
+**Tooltip System:**
+- CSS-only hover tooltips (no JavaScript dependencies)
+- Appear above button with fade animation
+- Text changes based on button/action state
+- All emoji buttons have tooltips (presence waves, check-in, check-out)
+- Mobile support via long-press in some browsers
+
+**Time-Based Restrictions:**
+- All actions restricted to today's date only
+- Presence waves: 5 min before start, no end time
+- Check-ins: 15 min before start through section end
+- Check-outs: No restrictions after check-in (late check-outs allowed)
+- Restriction messages shown as toast notifications
+
+**Visual Design:**
+- Clean, minimal aesthetic with white cards on light gray background
+- 4-color accent palette: Orange (#FF9500), Purple (#7C3AED), Pink (#DB2777), Teal (#06B6D4)
+- "here" text rotates through accent colors with rainbow shimmer on hover
+- Emoji-only buttons with no backgrounds (visual weight on interaction, not decoration)
+- Consistent card width (700px desktop) regardless of button presence
+- Defined shadows for card presence without being heavy
+
+**Component Structure:**
+- `page.tsx` - Server component, fetches initial schedule
+- `AgendaClient.tsx` - Client component, handles date navigation and state
+- `AgendaCard.tsx` - Individual section card with interaction logic
+- `EmojiButton.tsx` - Reusable button with animations
+- `CheckInPrompt.tsx` / `CheckOutPrompt.tsx` - Modal prompts for plans/progress
+- `CollapsibleSection.tsx` - Plans/Progress tabs after check-in
+- `Toast.tsx` - Toast notification component
+- `actions.ts` - Server actions for presence waves, check-ins, check-outs
 
 **Key Features:**
 - View full daily schedule (all section types visible)
-- Check in/out only for remote and internship sections
-- In-person sections shown but no interaction needed
-- Check-in flow captures location (internships) and plans
-- Check-out flow captures progress updates
+- Presence waves for in-person engagement (optional)
+- Check in/out for remote and internship sections (required)
+- Modal prompts capture plans (check-in) and progress (check-out)
+- Geolocation capture for internships with soft verification
+- Button state persistence across date navigation
+- Toast feedback for all actions
+- Tooltip hints for all interactions
 
 ### Teacher UI
 

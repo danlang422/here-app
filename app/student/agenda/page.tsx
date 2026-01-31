@@ -16,7 +16,7 @@ export default async function StudentAgendaPage() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#fffef9',
+        background: '#f9fafb',
         padding: '40px 20px',
       }}
     >
@@ -35,7 +35,7 @@ export default async function StudentAgendaPage() {
             margin: '0 0 8px 0',
           }}
         >
-          Your <span className="here">here</span> agenda
+          you're <span className="here">here</span>
         </h1>
         <p
           style={{
