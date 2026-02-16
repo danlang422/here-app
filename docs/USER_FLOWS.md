@@ -1,7 +1,7 @@
 # Here App - User Flows Documentation
 **Date**: February 2026  
 **Status**: Design complete, ready for implementation  
-**Last Updated**: February 14, 2026 - Updated for status updates model
+**Last Updated**: February 16, 2026 - Updated conflict resolution to priority-based model (removed enrollment_overrides)
 
 **Key Changes:**
 - Replaced embedded plans/progress in check-ins with separate status_updates table
@@ -314,56 +314,48 @@ This document describes detailed user workflows for the Here attendance tracking
 
 ---
 
-### Managing Schedule Conflicts
+### Viewing Schedule Conflicts
 
-**Entry Point:** Student sees conflict indicator on calendar
+**Entry Point:** Student sees conflict indicator on calendar (rare — most conflicts are pre-resolved by admin-set priorities)
 
-**Flow:**
+**How conflicts appear to students:**
 
-1. **Conflict Notification**
-   - Banner on daily view: "You have overlapping sessions in Block 2 on B days"
-   - "Resolve Conflict" button
+Most of the time, students don't see conflicts at all. When a student is enrolled in Advisory (M-F) but also has Kennedy Band on A days, the priority system automatically shows the right activity for each day. The student simply sees "Kennedy Band" on A days and "Advisory" on B days in their schedule.
 
-2. **Conflict Resolution Screen**
-   - Shows both conflicting sessions:
+**Flow for resolved conflicts (normal case):**
+
+1. **Daily Schedule View**
+   - Student sees only the winning activity per block per day
+   - On A day: Block 0 shows "Kennedy Band - Kennedy HS"
+   - On B day: Block 0 shows "Advisory - Room 103"
+   - No conflict indicator needed — it just works
+
+2. **"Show all enrolled" toggle** (optional)
+   - Student can toggle "Show all enrolled sessions" to see everything
+   - Hidden sessions shown grayed out with reason:
      ```
-     Block 2 - Tuesday (B Day)
+     Block 0 - Monday (A Day)
      
-     ⚠️ CONFLICT
-     
-     Session 1: Advisory
-     - Teacher: Ms. Johnson
-     - Location: Room 103
-     - Type: On-campus
-     
-     Session 2: Kennedy Band
-     - Teacher: Mr. Smith (Kennedy HS)
-     - Location: Kennedy High School
-     - Type: Off-campus
+     Kennedy Band - Kennedy HS        ← active today
+     Advisory - Room 103  (grayed)    "Lower priority on A days"
      ```
-   
-3. **Resolution Options**
-   - Radio buttons:
-     - ○ Attend Advisory (hide Kennedy Band on B days)
-     - ○ Attend Kennedy Band (hide Advisory on B days)
-     - ○ I'll choose each day (no automatic override)
-   - Text field: "Reason" (optional, helps teacher understand)
-   - "Save Preference" button
 
-4. **Confirmation**
-   - "Conflict resolved! Kennedy Band will show on B days."
-   - Calendar updates immediately
-   - Teacher sees updated roster
+**Flow for unresolved conflicts (admin needs to set priorities):**
 
-5. **One-Time Override**
-   - On a specific day, student can tap hidden session
-   - "Show this session today" option
-   - Creates temporary override
+1. **Conflict Indicator**
+   - If two activities have equal priority, block card shows ⚠️ warning
+   - Banner: "Block 2 has overlapping activities — contact your advisor"
+   - Both activities shown with conflict indicator
+
+2. **Student Action**
+   - Student cannot resolve this themselves (priority is an admin setting)
+   - "Notify advisor" button sends message to advisor
+   - Until resolved, both activities appear
 
 **Edge Cases:**
-- **Admin already set priority:** Shows "Default: Kennedy Band takes priority. Change?"
-- **Multiple conflicts:** Handle one at a time
-- **Mid-semester change:** Can update preference anytime
+- **Student shows up unexpectedly (external class cancelled):** Teacher marks present manually, no override needed
+- **Multiple conflicts across blocks:** Each block resolved independently
+- **Mid-semester priority change:** Admin updates priority, roster recalculates automatically on next load
 
 ---
 
@@ -736,7 +728,7 @@ This document describes detailed user workflows for the Here attendance tracking
      - Grade level
      - Advisor
      - Days active (if subset of session days)
-     - Off-campus overrides (if any)
+     - Off-campus activities (if any, with priority info)
    - "Add Student" button
    - Edit icon per student
 
@@ -752,7 +744,7 @@ This document describes detailed user workflows for the Here attendance tracking
 3. **Edit Student Enrollment**
    - Change days active
    - Add/edit notes
-   - View/edit off-campus overrides
+   - View off-campus activities that may conflict
    - "Remove from Session" button
 
 4. **Bulk Add**
@@ -1018,7 +1010,7 @@ This document describes detailed user workflows for the Here attendance tracking
    - After enrollment, can click student to:
      - Set days active (subset of session days)
      - Add notes
-     - Configure overrides (if conflicts)
+     - View/set conflict priorities (if conflicts exist)
 
 **For Monitoring Sessions: Create Student Activities**
 
@@ -1045,7 +1037,7 @@ This document describes detailed user workflows for the Here attendance tracking
   ```
   Warning: Sarah is already in Physics Lab (Block 2, B Days)
   This session is Block 2, All Days
-  Continue anyway? [Yes] [No, configure override]
+  Continue anyway? [Yes] [No, set conflict priority]
   ```
 - **Dropped student:** Mark enrollment inactive instead of deleting
 
@@ -1059,17 +1051,17 @@ This document describes detailed user workflows for the Here attendance tracking
 
 1. **Conflict Detection Dashboard**
    - "Schedule Conflicts" menu item
-   - Shows all detected conflicts:
+   - Shows all students with overlapping activities in same block:
      ```
-     Sarah Johnson - Block 2 Conflict
-     - Biology Lab (M-F)
-     - Physics Online (B Days)
-     Priority: Physics Online
+     ✅ Sarah Johnson - Block 2
+     - Advisory (M-F, priority 0)
+     - Kennedy Band (A days, priority 10)
+     Status: Resolved — Band wins on A days
      
-     Carlos Martinez - Block 3 Conflict
-     - Advisory (M-F)  
-     - Kirkwood English (Tue, Thu)
-     Priority: Not Set ⚠️
+     ⚠️ Carlos Martinez - Block 3
+     - Advisory (M-F, priority 0)  
+     - Kirkwood English (Tue/Thu, priority 0)
+     Status: Unresolved — equal priority!
      ```
    - Filter by:
      - Resolved / Unresolved
@@ -1078,39 +1070,28 @@ This document describes detailed user workflows for the Here attendance tracking
 
 2. **Resolve Individual Conflict**
    - Click conflict → detail view
-   - Shows both sessions side-by-side
-   - Options:
-     - **Set Activity Priority:**
-       - Adjust conflict_priority on activities
-       - Higher priority activity shows by default
-     
-     - **Create Enrollment Override:**
-       - Choose enrollment to override
-       - Select override type:
-         - Rotation days
-         - Days of week
-         - Specific dates
-       - Enter reason
-       - Save
-     
-     - **Remove Enrollment:**
-       - If conflict is error, can remove one enrollment
+   - Shows both activities side-by-side with current priorities
+   - **Set Priority:**
+     - Adjust `conflict_priority` on each activity
+     - Higher number wins when both are active
+     - Preview shows which activity wins on which days
+   - **Remove Activity (if error):**
+     - If the conflict is a data entry mistake, can deactivate one activity
    
-3. **Bulk Conflict Resolution**
-   - For common patterns (e.g., all Kennedy Band students)
-   - Select multiple similar conflicts
-   - "Apply Same Rule to All"
-   - Creates overrides for all selected
+3. **Bulk Priority Setting**
+   - For common patterns (e.g., all Kennedy students need external class = 10)
+   - Select multiple activities with similar patterns
+   - "Set Priority for All" → applies same priority value
 
 4. **Preview Student Calendar**
    - "Preview Calendar" button
-   - Shows what student will see after resolution
+   - Shows what student will see per day after priority change
    - Verify before saving
 
 **Edge Cases:**
-- **Three-way conflict:** Handle pairwise, may require manual schedule adjustment
-- **Changing priority mid-term:** Warning about impact on existing overrides
-- **Student-created override:** Admin can view/edit/delete
+- **Three-way conflict:** Each pair resolved independently by priority; highest wins
+- **Changing priority mid-term:** Takes effect immediately on next roster load; no historical impact
+- **Equal priority:** Flagged as unresolved; admin must differentiate priorities to resolve
 
 ---
 

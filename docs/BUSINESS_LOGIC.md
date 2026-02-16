@@ -494,118 +494,171 @@ function getStreakDisplay(studentId, activityId, date):
 
 ## Schedule Conflict Resolution
 
-### Conflict Detection
+### How Conflicts Arise
 
-**Purpose:** Identify when a student has overlapping activities.
+Conflicts occur when a student has multiple activities assigned to the same block on the same day. The most common scenario at City View is shared students who attend classes at their home high school (Kennedy, Washington, Jefferson) on certain rotation days while being enrolled in a City View session (usually Advisory) for the same block every day.
 
-**Algorithm:**
+**Key insight:** City View itself does NOT use A/B rotation. The district calendar's A/B rotation only matters because external schools follow it, which determines when shared students are pulled away.
 
-```
-function detectConflicts(studentId, date):
-  conflicts = []
-  
-  // Get all activities for student on this date
-  activities = getStudentActivitiesForDate(studentId, date)
-  
-  // Group by block
-  byBlock = groupBy(activities, 'block')
-  
-  for block, activitiesInBlock in byBlock:
-    if activitiesInBlock.length > 1:
-      conflicts.push({
-        block: block,
-        date: date,
-        activities: activitiesInBlock
-      })
-  
-  return conflicts
-```
+### The Priority Model
 
-### Conflict Resolution Priority
+Conflicts are resolved at **query time** using the `conflict_priority` field on `student_activities`. There is no separate overrides table. The student remains enrolled in all their sessions, and the system simply determines which activity "wins" on any given day.
 
-**Purpose:** Determine which activity to show when conflict exists.
+**Priority scale (suggested defaults):**
+- External school class (Kennedy Band, etc.): **10**
+- Kirkwood community college course: **10**
+- City View core class: **5**
+- Monitoring / independent work: **0**
 
-**Priority Hierarchy:**
-1. **Explicit override** (enrollment_overrides table)
-2. **Activity priority** (conflict_priority field)
-3. **Ask student** (if no override/priority set)
+Higher number wins. When two activities share the same block on the same day, the one with the higher `conflict_priority` takes precedence.
+
+### Activity Applicability Check
+
+**Purpose:** Determine if a student_activity is active on a given date.
 
 **Algorithm:**
 
 ```
-function resolveConflict(conflict, date):
-  activities = conflict.activities
+function isActivityActiveOnDate(activity, date, rotationDay):
+  // Check date range
+  if activity.start_date and date < activity.start_date:
+    return false
+  if activity.end_date and date > activity.end_date:
+    return false
   
-  // 1. Check for enrollment overrides
-  for activity in activities:
-    if activity.session_id: // Has enrollment
-      enrollment = getEnrollment(activity.student_id, activity.session_id)
-      override = getActiveOverride(enrollment.id, date)
-      
-      if override:
-        // This enrollment should be hidden today
-        return activities.filter(a => a.id != activity.id)[0]
+  // Check day of week
+  dayName = getDayName(date) // "Mon", "Tue", etc.
+  if dayName not in activity.days_of_week:
+    return false
   
-  // 2. Use conflict_priority
+  // Check rotation constraint
+  if activity.rotation_day_type is not null:
+    if rotationDay != activity.rotation_day_type:
+      return false
+  
+  // Check active flag
+  if not activity.is_active:
+    return false
+  
+  return true
+```
+
+### Conflict Resolution
+
+**Purpose:** For a given student, block, and date, determine which activity to show.
+
+**Algorithm:**
+
+```
+function resolveStudentBlock(studentId, block, date):
+  rotationDay = calculateRotationDay(date, organization)
+  dayName = getDayName(date)
+  
+  // Get all activities for this student and block
+  activities = getStudentActivities(studentId, block)
+    .filter(a => isActivityActiveOnDate(a, date, rotationDay))
+  
+  if activities.length == 0:
+    return null // Nothing scheduled
+  
+  if activities.length == 1:
+    return activities[0] // No conflict
+  
+  // Multiple activities — resolve by priority
   sortedByPriority = activities.sort((a, b) => b.conflict_priority - a.conflict_priority)
   
-  if sortedByPriority[0].conflict_priority > sortedByPriority[1].conflict_priority:
-    // Clear winner by priority
-    return sortedByPriority[0]
+  winner = sortedByPriority[0]
+  losers = sortedByPriority.slice(1)
   
-  // 3. No clear resolution - show conflict indicator to student
+  // If top two have equal priority, flag as unresolved
+  if sortedByPriority.length > 1 
+     and sortedByPriority[0].conflict_priority == sortedByPriority[1].conflict_priority:
+    return {
+      type: "unresolved_conflict",
+      activities: sortedByPriority,
+      message: "Overlapping activities with equal priority — admin should set priorities"
+    }
+  
   return {
-    type: "unresolved_conflict",
-    activities: activities,
-    message: "You have overlapping sessions - please choose which to attend"
+    active: winner,
+    hidden: losers // Available for display as "also enrolled" or for teacher context
   }
 ```
 
-### Override Application
+### Teacher Roster Filtering
 
-**Purpose:** Determine if an override applies to a given date.
+**Purpose:** Build a session's roster for a given day, hiding students who are pulled away by higher-priority activities.
 
 **Algorithm:**
 
 ```
-function isOverrideActive(override, date, sessionDayOfWeek, rotationDay):
-  if not override.is_active:
-    return false
+function getSessionRosterForDate(sessionId, date):
+  session = getSession(sessionId)
+  rotationDay = calculateRotationDay(date, session.organization_id)
+  dayName = getDayName(date)
   
-  switch override.override_type:
-    case "rotation_days":
-      return rotationDay in override.applies_to_rotation_days
-    
-    case "days_of_week":
-      return sessionDayOfWeek in override.applies_to_days_of_week
-    
-    case "specific_dates":
-      return date in override.override_dates
-    
-    case "always_if_conflict":
-      // Check if there IS a conflict on this date
-      conflicts = detectConflicts(override.student_id, date)
-      return conflicts.length > 0
+  // Get all active enrollments
+  enrollments = getActiveEnrollments(sessionId)
   
-  return false
+  roster = []
+  awayStudents = []
+  
+  for enrollment in enrollments:
+    studentId = enrollment.student_id
+    
+    // Find any higher-priority activity that pulls this student away
+    conflictingActivity = getHigherPriorityActivity(
+      studentId, session.block, date, rotationDay, dayName,
+      sessionPriority = 5 // or whatever the session's effective priority is
+    )
+    
+    if conflictingActivity:
+      awayStudents.push({
+        student: enrollment.student,
+        reason: conflictingActivity.custom_name or conflictingActivity.activity_type.name,
+        activity: conflictingActivity
+      })
+    else:
+      roster.push(enrollment.student)
+  
+  return { present: roster, away: awayStudents }
 ```
 
-**Examples:**
+### Examples
 
-Override type: "rotation_days", applies_to: ["B"]
-- Monday A day: FALSE (not a B day)
-- Tuesday B day: TRUE (is a B day)
+**Example 1: Allison has Advisory (M-F) and Kennedy Band (A days)**
 
-Override type: "days_of_week", applies_to: ["Tue", "Thu"]
-- Monday: FALSE
-- Tuesday: TRUE
-- Wednesday: FALSE
-- Thursday: TRUE
+- Advisory enrollment exists (Block 0, M-F, priority effectively 0-5)
+- Kennedy Band student_activity exists (Block 0, M-F, `rotation_day_type = 'A'`, `conflict_priority = 10`)
 
-Override type: "specific_dates", applies_to: ["2026-03-15", "2026-04-10"]
-- March 15: TRUE
-- March 16: FALSE
-- April 10: TRUE
+On an **A day Monday:**
+- Advisory: active (M-F, no rotation constraint)
+- Kennedy Band: active (Mon in days_of_week, rotation_day = 'A' matches)
+- Band priority (10) > Advisory priority (0-5) → Band wins
+- Allison hidden from Advisory roster, teacher sees "At Kennedy Band"
+
+On a **B day Tuesday:**
+- Advisory: active
+- Kennedy Band: NOT active (rotation_day_type = 'A', but today is B) → filtered out
+- Only Advisory remains → Allison shows on roster normally
+
+**Example 2: Carlos has Advisory (M-F) and Kirkwood English (Tue/Thu)**
+
+- Advisory enrollment exists (Block 3, M-F)
+- Kirkwood English student_activity exists (Block 3, `days_of_week = ['Tue', 'Thu']`, `rotation_day_type = null`, `conflict_priority = 10`)
+
+On **Monday:** Only Advisory active → Carlos on roster
+On **Tuesday:** Both active, Kirkwood (10) > Advisory → Carlos hidden, "At Kirkwood English"
+On **Wednesday:** Only Advisory active → Carlos on roster
+On **Thursday:** Both active, Kirkwood wins → Carlos hidden
+On **Friday:** Only Advisory active → Carlos on roster
+
+**Example 3: Equal priority (admin needs to fix)**
+
+- Student has two City View activities in Block 2, both priority 5
+- System flags as unresolved conflict
+- Admin dashboard shows warning
+- Both activities appear on student's schedule with conflict indicator until resolved
 
 ---
 
@@ -665,12 +718,16 @@ function canMarkAttendance(teacherId, sessionId, studentId, date):
   if not sessionMeetsToday(session, date):
     return {allowed: false, reason: "Session doesn't meet today"}
   
-  // Check for enrollment override
-  if enrollment has active override for date:
+  // Check if student is pulled away by a higher-priority activity
+  conflicting = getHigherPriorityActivity(
+    studentId, session.block, date, rotationDay, dayName,
+    sessionPriority = session.effective_priority
+  )
+  if conflicting:
     return {
       allowed: false,
       reason: "Student off-campus today",
-      details: override.reason
+      details: conflicting.custom_name or conflicting.activity_type.name
     }
   
   // Already marked?
@@ -690,8 +747,8 @@ function canMarkAttendance(teacherId, sessionId, studentId, date):
 **Purpose:** Define how "Mark All Present" works.
 
 **Rules:**
-1. Only applies to currently visible students
-2. Skips students with active overrides (off-campus)
+1. Only applies to currently visible students (present roster, not away students)
+2. Skips students pulled away by higher-priority activities (off-campus)
 3. Skips students already marked
 4. Creates individual attendance_record for each student
 
@@ -951,7 +1008,7 @@ if geofenceValidation.valid == false:
 | status_update.content | 1 | 500 | Required during check-in/out |
 | interaction.content_text | 1 | 1000 | Teacher comments |
 | attendance_record.notes | 0 | 500 | Optional |
-| enrollment_override.reason | 1 | 200 | Required |
+| student_activities.custom_name | 0 | 200 | Optional |
 | presence_waves | N/A | N/A | No text content |
 
 ### Email Validation
@@ -1101,10 +1158,10 @@ function getDataForUser(userId, dataType):
 **Scenario:** Student enrolled in both Biology and Chemistry at Block 2 (shouldn't happen, but possible).
 
 **Handling:**
-1. Conflict detection flags this
-2. Student must resolve via enrollment override
+1. Conflict detection flags this (equal priority = unresolved)
+2. Admin sets `conflict_priority` on activities to differentiate
 3. Until resolved, both show with conflict indicator
-4. Teacher of hidden session sees grayed-out student with reason
+4. Teacher of lower-priority session sees grayed-out student with reason
 
 ### Late Semester Enrollment
 
