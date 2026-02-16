@@ -37,7 +37,7 @@ Here App replaces manual spreadsheet-based attendance tracking with a streamline
 
 ## Tech Stack
 
-- **Frontend:** React 19 + Vite
+- **Frontend:** React 19 + Vite 7
 - **Routing:** React Router v6
 - **Styling:** Tailwind CSS + DaisyUI
 - **Backend:** Supabase (PostgreSQL, Auth, Real-time)
@@ -68,18 +68,7 @@ cd here-app
 npm install
 ```
 
-### 3. Install Additional Packages
-
-```bash
-# Core dependencies
-npm install @supabase/supabase-js @tanstack/react-query react-router-dom zustand react-hook-form react-icons
-
-# Styling
-npm install -D tailwindcss postcss autoprefixer daisyui
-npx tailwindcss init -p
-```
-
-### 4. Configure Environment Variables
+### 3. Configure Environment Variables
 
 Create a `.env.local` file in the root directory:
 
@@ -94,14 +83,14 @@ VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-### 5. Set Up Supabase Database
+### 4. Set Up Supabase Database
 
 Run the SQL migrations found in `docs/DATABASE_SCHEMA.md` to create:
 - Tables (user_profiles, sessions, enrollments, check_ins, etc.)
 - Row Level Security (RLS) policies
 - Indexes for performance
 
-### 6. Configure Tailwind + DaisyUI
+### 5. Configure Tailwind + DaisyUI
 
 Update `tailwind.config.js`:
 
@@ -143,7 +132,7 @@ Update `src/index.css`:
 @tailwind utilities;
 ```
 
-### 7. Start Development Server
+### 6. Start Development Server
 
 ```bash
 npm run dev

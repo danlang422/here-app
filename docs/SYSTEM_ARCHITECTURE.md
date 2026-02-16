@@ -35,10 +35,11 @@ This document defines the technical architecture for the Here attendance trackin
   - Native ESM support
   - Simple configuration
 
-- **React 18+** - UI library
+- **React 19** - UI library
   - Functional components with Hooks
-  - Concurrent features for better UX
-  - Suspense for data fetching
+  - `use()` hook for promises and context
+  - ref as prop (no more forwardRef)
+  - Improved Suspense for data fetching
 
 ### Routing
 - **React Router v6** - Client-side routing
@@ -115,13 +116,13 @@ This document defines the technical architecture for the Here attendance trackin
 ## Project Structure
 
 ```
-here-app-v01/
+here-app/
 ├── docs/                           # Project documentation
 │   ├── DATABASE_SCHEMA.md
 │   ├── USER_FLOWS.md
 │   ├── BUSINESS_LOGIC.md
 │   ├── SYSTEM_ARCHITECTURE.md
-│   └── API_REFERENCE.md (future)
+│   └── API_REFERENCE.md           # (future)
 │
 ├── public/                         # Static assets
 │   ├── favicon.ico
@@ -228,7 +229,7 @@ here-app-v01/
 │
 ├── .env.example                   # Environment variables template
 ├── .env.local                     # Local environment (gitignored)
-├── .eslintrc.cjs                  # ESLint configuration
+├── eslint.config.js               # ESLint flat config (ESLint 9+)
 ├── .prettierrc                    # Prettier configuration
 ├── index.html                     # HTML entry point
 ├── package.json                   # Dependencies and scripts
@@ -1185,7 +1186,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 5173, // Vite default
   },
   build: {
     outDir: 'dist',
@@ -1254,7 +1255,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -1269,28 +1270,16 @@ const queryClient = new QueryClient({
 ### Initial Setup
 
 ```bash
-# 1. Create Vite project
-npm create vite@latest here-app-v01 -- --template react
-
-# 2. Install dependencies
-cd here-app-v01
+# 1. Clone and install
+git clone <repository-url>
+cd here-app
 npm install
 
-# 3. Install additional packages
-npm install @supabase/supabase-js
-npm install @tanstack/react-query
-npm install react-router-dom
-npm install zustand
-npm install react-hook-form
-npm install react-icons
-npm install -D tailwindcss postcss autoprefixer daisyui
-npx tailwindcss init -p
-
-# 4. Configure environment
+# 2. Configure environment
 cp .env.example .env.local
 # Edit .env.local with Supabase credentials
 
-# 5. Start dev server
+# 3. Start dev server
 npm run dev
 ```
 

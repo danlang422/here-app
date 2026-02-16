@@ -346,10 +346,18 @@ CREATE INDEX idx_enrollments_active ON enrollments(session_id, is_active) WHERE 
 - **Monitoring sessions:** Always create StudentActivities (shows what students are doing)
   - Each student has activity record describing their work
   - Activities may be on-campus (session_id set) or off-campus (session_id null)
-- **Three-layer system:**
+- **Two-layer system:**
   1. Enrollments = Roster/accountability ("Trevor is responsible for Allison during Block 0")
-  2. Student_activities = Actual work ("Allison does Kennedy Band on B days")
-  3. Enrollment_overrides = Exceptions ("Don't expect Allison at Advisory on B days")
+  2. Student_activities = Actual work with scheduling constraints ("Allison does Kennedy Band on A days")
+
+**Conflict resolution (no separate overrides table needed):**
+- Allison is enrolled in Advisory (M-F session) AND has a Kennedy Band student_activity (Block 0, A days, priority 10)
+- On A days: Band (priority 10) beats Advisory (priority 5) → Allison hidden from Advisory roster
+- On B days: Band doesn't apply (rotation_day_type = 'A') → Allison shows on Advisory roster
+- Resolution happens at query time, not via stored override records
+- Teacher sees "At Kennedy Band" note on A days, normal roster entry on B days
+
+**Important context:** City View itself does not use A/B rotation. The rotation calendar only matters because external schools (Kennedy, Washington, Jefferson) rotate, which determines when shared students are pulled away. The app tracks the external A/B calendar so it can correctly show/hide these students.
 
 ### student_activities
 What students actually do - their work/tasks.
@@ -371,6 +379,7 @@ CREATE TABLE student_activities (
   
   block INTEGER NOT NULL,
   days_of_week TEXT[] NOT NULL,
+  rotation_day_type TEXT, -- 'A', 'B', or null (null = active regardless of rotation)
   start_date DATE,
   end_date DATE,
   
@@ -379,7 +388,7 @@ CREATE TABLE student_activities (
   allows_status_updates BOOLEAN DEFAULT true,
   requires_geofence BOOLEAN DEFAULT false,
   allows_remote BOOLEAN DEFAULT false,
-  conflict_priority INTEGER DEFAULT 0,
+  conflict_priority INTEGER DEFAULT 0, -- higher wins when overlapping; e.g., external class=10, City View class=5, monitoring=0,
   
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -395,9 +404,10 @@ CREATE INDEX idx_student_activities_internship ON student_activities(internship_
 ```
 
 **New fields:**
+- `rotation_day_type`: Constrains this activity to specific rotation days. `null` means the activity is active regardless of rotation (most City View activities). `'A'` or `'B'` means it only applies on that rotation day. This is primarily used for external school classes (Kennedy Band on A days, Japanese 3 on B days, etc.).
 - `allows_presence_wave`: Enables optional "👋 Say hey!" one-time wave per day with streak tracking
 - `allows_status_updates`: Allows students to add Plans/Progress/Reflection updates (default true)
-- `conflict_priority`: Higher number = higher priority when schedule conflicts occur (e.g., Kennedy Band = 10, Hub Monitor = 0)
+- `conflict_priority`: Higher number = higher priority when schedule conflicts occur. Suggested scale: external school class = 10, City View core class = 5, monitoring/independent work = 0. When two activities overlap for the same student/block/day, the higher priority activity wins and the student is hidden from the lower-priority session's roster for that day.
 
 **When StudentActivities are created:**
 - Monitoring sessions: Always (shows what student is doing)
@@ -483,6 +493,7 @@ CREATE TABLE status_updates (
   created_during_checkin BOOLEAN DEFAULT false,
   related_checkin_id UUID REFERENCES check_ins(id),
   
+  edited_at TIMESTAMPTZ, -- set when student edits content after initial creation
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -661,57 +672,6 @@ CREATE INDEX idx_interactions_created ON interactions(created_at DESC);
 - Students see interactions on their own work
 - Future: Student-to-student visibility possible
 
-### enrollment_overrides
-Manages schedule conflicts by indicating when students won't attend enrolled sessions.
-
-```sql
-CREATE TABLE enrollment_overrides (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  enrollment_id UUID NOT NULL REFERENCES enrollments(id) ON DELETE CASCADE,
-  override_type TEXT NOT NULL CHECK (override_type IN 
-    ('rotation_days',      -- Hide on specific rotation days (A or B)
-     'days_of_week',       -- Hide on specific weekdays (Tue/Thu)
-     'specific_dates',     -- Hide on specific calendar dates
-     'always_if_conflict'  -- Always hide when ANY conflict exists
-    )),
-  
-  -- Conditional fields based on override_type
-  applies_to_rotation_days TEXT[], -- ['A'], ['B'], or null
-  applies_to_days_of_week TEXT[],  -- ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], or null
-  override_dates DATE[],            -- [date1, date2, ...], or null
-  
-  reason TEXT NOT NULL, -- "Kennedy Band", "Kirkwood English 101"
-  created_by_role TEXT NOT NULL CHECK (created_by_role IN ('admin', 'teacher', 'student')),
-  is_active BOOLEAN DEFAULT true,
-  
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_enrollment_overrides_enrollment ON enrollment_overrides(enrollment_id);
-CREATE INDEX idx_enrollment_overrides_active ON enrollment_overrides(enrollment_id, is_active) 
-  WHERE is_active = true;
-```
-
-**Purpose:** Handles schedule conflicts elegantly without deleting enrollments.
-
-**Use cases:**
-- Student goes to Kennedy Band on B days instead of Advisory
-- Student attends Kirkwood college class on Tue/Thu instead of Hub Monitor
-- One-time override for special event or circumstance
-
-**Multi-level control:**
-- Admins set defaults when configuring sessions (via conflict_priority)
-- Teachers adjust for individual students
-- Students can create temporary overrides
-
-**How it works:**
-1. Student enrolled in Advisory (M-F)
-2. Also has Kennedy Band activity (B days, higher priority)
-3. Override created on Advisory enrollment: `applies_to_rotation_days = ['B']`
-4. Student's calendar shows Band on B days, Advisory on A days
-5. Teacher sees student grayed out on B days with reason "Kennedy Band"
-
 ### notifications
 Real-time notifications for important events.
 
@@ -774,9 +734,9 @@ CREATE INDEX idx_audit_log_created ON audit_log(created_at DESC);
 
 **Tracked tables:**
 - `enrollments` - When students are added/removed from sessions
-- `student_activities` - When activities are created/modified
+- `student_activities` - When activities are created/modified (including conflict_priority changes)
 - `sessions` - When session details change (time, location, teacher)
-- `school_days` - When calendar is modified
+- `school_days` - When calendar is modified (especially rotation_day changes)
 
 **Use cases:**
 - "Why isn't Sarah in my Block 2 anymore?" → Check audit_log for her enrollment
@@ -940,9 +900,14 @@ CREATE POLICY "Admins full access"
 
 ### Composite indexes for common queries
 ```sql
--- Student schedule lookup
+-- Student schedule lookup (with rotation awareness)
 CREATE INDEX idx_student_schedule_lookup 
   ON student_activities(student_id, block, is_active) 
+  WHERE is_active = true;
+
+-- Conflict resolution: find competing activities for a block
+CREATE INDEX idx_student_activity_conflicts
+  ON student_activities(student_id, block, conflict_priority, rotation_day_type)
   WHERE is_active = true;
 
 -- Teacher roster lookup
@@ -1052,22 +1017,79 @@ CREATE INDEX idx_user_roles_gin ON user_profiles USING GIN(roles);
 ### Daily workflow queries
 ```sql
 -- What's today's schedule template?
-SELECT schedule_template_id FROM school_days 
+SELECT schedule_template_id, rotation_day 
+FROM school_days 
 WHERE organization_id = ? AND date = CURRENT_DATE;
 
 -- Who's in my Block 4 monitoring session today?
-SELECT e.student_id, sa.activity_type_id, ci.checked_in_at
-FROM enrollments e
-LEFT JOIN student_activities sa ON sa.student_id = e.student_id AND sa.block = 4
-LEFT JOIN check_ins ci ON ci.student_activity_id = sa.id AND ci.date = CURRENT_DATE
-WHERE e.session_id = ? AND e.is_active = true;
+-- Step 1: Get enrolled students
+-- Step 2: For each, check if a higher-priority activity pulls them away
+WITH today AS (
+  SELECT rotation_day, 
+    TRIM(TO_CHAR(CURRENT_DATE, 'Dy')) AS day_name
+  FROM school_days 
+  WHERE organization_id = ? AND date = CURRENT_DATE
+),
+enrolled_students AS (
+  SELECT e.student_id
+  FROM enrollments e
+  JOIN sessions s ON s.id = e.session_id
+  WHERE e.session_id = ? 
+    AND e.is_active = true
+    AND (SELECT day_name FROM today) = ANY(s.days_of_week)
+),
+conflicting_activities AS (
+  SELECT sa.student_id, sa.custom_name, sa.conflict_priority
+  FROM student_activities sa, today t
+  WHERE sa.student_id IN (SELECT student_id FROM enrolled_students)
+    AND sa.block = 4
+    AND sa.is_active = true
+    AND t.day_name = ANY(sa.days_of_week)
+    AND (sa.rotation_day_type IS NULL OR sa.rotation_day_type = t.rotation_day)
+    AND sa.conflict_priority > 5  -- higher than the session's own priority
+)
+SELECT 
+  es.student_id,
+  ca.custom_name AS conflicting_activity,  -- null if no conflict
+  ca.custom_name IS NOT NULL AS is_away_today
+FROM enrolled_students es
+LEFT JOIN conflicting_activities ca ON ca.student_id = es.student_id;
 
 -- What's on my calendar for Monday Block 2?
-SELECT s.name, s.location, s.teacher_id
+-- Returns the winning activity for this student/block/day
+WITH today AS (
+  SELECT rotation_day FROM school_days 
+  WHERE organization_id = ? AND date = CURRENT_DATE
+)
+SELECT s.name, s.location, s.teacher_id, 'enrollment' AS source
 FROM enrollments e
 JOIN sessions s ON s.id = e.session_id
 WHERE e.student_id = ? 
   AND s.block = 2 
   AND 'Mon' = ANY(s.days_of_week)
-  AND e.is_active = true;
+  AND e.is_active = true
+  AND NOT EXISTS (
+    -- Exclude if a higher-priority activity applies today
+    SELECT 1 FROM student_activities sa, today t
+    WHERE sa.student_id = e.student_id
+      AND sa.block = s.block
+      AND 'Mon' = ANY(sa.days_of_week)
+      AND (sa.rotation_day_type IS NULL OR sa.rotation_day_type = t.rotation_day)
+      AND sa.conflict_priority > 5
+      AND sa.is_active = true
+  )
+UNION ALL
+SELECT 
+  COALESCE(sa.custom_name, at.name) AS name,
+  sa.custom_location AS location,
+  NULL AS teacher_id,
+  'activity' AS source
+FROM student_activities sa
+JOIN activity_types at ON at.id = sa.activity_type_id
+CROSS JOIN (SELECT rotation_day FROM school_days WHERE organization_id = ? AND date = CURRENT_DATE) t
+WHERE sa.student_id = ?
+  AND sa.block = 2
+  AND 'Mon' = ANY(sa.days_of_week)
+  AND (sa.rotation_day_type IS NULL OR sa.rotation_day_type = t.rotation_day)
+  AND sa.is_active = true;
 ```
