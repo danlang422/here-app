@@ -377,7 +377,9 @@ CREATE TABLE student_activities (
   custom_location_lng NUMERIC(10, 7),
   custom_geofence_radius NUMERIC(10, 2),
   
-  block INTEGER NOT NULL,
+  block INTEGER, -- nullable; UI label/convenience only (e.g., "Block 2"), not used for conflict resolution
+  default_start_time TIME, -- nullable if session-linked (inherits from session/template)
+  default_end_time TIME,   -- nullable if session-linked (inherits from session/template)
   days_of_week TEXT[] NOT NULL,
   rotation_day_type TEXT, -- 'A', 'B', or null (null = active regardless of rotation)
   start_date DATE,
@@ -388,32 +390,45 @@ CREATE TABLE student_activities (
   allows_status_updates BOOLEAN DEFAULT true,
   requires_geofence BOOLEAN DEFAULT false,
   allows_remote BOOLEAN DEFAULT false,
-  conflict_priority INTEGER DEFAULT 0, -- higher wins when overlapping; e.g., external class=10, City View class=5, monitoring=0,
+  conflict_priority INTEGER DEFAULT 0, -- higher wins when overlapping; e.g., external class=10, City View class=5, monitoring=0
   
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   
-  CONSTRAINT valid_block CHECK (block >= 0 AND block <= 5)
+  CONSTRAINT valid_block CHECK (block IS NULL OR (block >= 0 AND block <= 5)),
+  CONSTRAINT valid_time_range CHECK (
+    (default_start_time IS NULL AND default_end_time IS NULL) OR
+    (default_start_time IS NOT NULL AND default_end_time IS NOT NULL AND default_end_time > default_start_time)
+  )
 );
 
 CREATE INDEX idx_student_activities_student ON student_activities(student_id);
 CREATE INDEX idx_student_activities_session ON student_activities(session_id);
-CREATE INDEX idx_student_activities_block ON student_activities(student_id, block);
+CREATE INDEX idx_student_activities_student_active ON student_activities(student_id, is_active)
+  WHERE is_active = true;
 CREATE INDEX idx_student_activities_internship ON student_activities(internship_opportunity_id);
 ```
 
-**New fields:**
+**Key fields:**
+
+- `block`: Optional UI label. When set, indicates which City View attendance block this activity corresponds to. Used for display ("Block 2 — Kennedy Band") and as a shortcut during data entry (selecting a block auto-fills times). **Not used for conflict resolution** — conflicts are determined by time overlap.
+- `default_start_time` / `default_end_time`: The activity's own time range. For session-linked activities, these can be null (times come from the session's schedule template). For non-session activities (external classes, internships, lunch), these are the fixed times that don't change with City View's schedule.
 - `rotation_day_type`: Constrains this activity to specific rotation days. `null` means the activity is active regardless of rotation (most City View activities). `'A'` or `'B'` means it only applies on that rotation day. This is primarily used for external school classes (Kennedy Band on A days, Japanese 3 on B days, etc.).
-- `allows_presence_wave`: Enables optional "👋 Say hey!" one-time wave per day with streak tracking
-- `allows_status_updates`: Allows students to add Plans/Progress/Reflection updates (default true)
-- `conflict_priority`: Higher number = higher priority when schedule conflicts occur. Suggested scale: external school class = 10, City View core class = 5, monitoring/independent work = 0. When two activities overlap for the same student/block/day, the higher priority activity wins and the student is hidden from the lower-priority session's roster for that day.
+- `allows_presence_wave`: Enables optional "👋 Say hey!" one-time wave per day with streak tracking.
+- `allows_status_updates`: Allows students to add Plans/Progress/Reflection updates (default true).
+- `conflict_priority`: Higher number = higher priority when schedule conflicts occur. Suggested scale: external school class = 10, City View core class = 5, monitoring/independent work = 0. When two activities have overlapping times for the same student on the same day, the higher priority activity wins and the student is hidden from the lower-priority session's roster.
+
+**Time resolution for conflict detection:**
+- **Session-linked activity** (`session_id` is set): Get actual times from the session's block definition in that day's schedule template. The activity's own `default_start_time`/`default_end_time` are ignored for conflict purposes.
+- **Non-session activity** (`session_id` is null): Use the activity's `default_start_time`/`default_end_time` directly. These are fixed and don't shift with City View schedule changes (e.g., Kennedy Band is always 7:30-9:00 regardless of a City View 2-hour delay).
 
 **When StudentActivities are created:**
 - Monitoring sessions: Always (shows what student is doing)
 - Standard classes: Optional for MVP (can derive from Enrollment)
 - Off-campus: Always (session_id is null)
 - Internships: Always (needs location/check-in rules)
+- Lunch: Optional (session_id = null, no engagement flags, just for student schedule display)
 
 **Location handling:**
 - If `internship_opportunity_id` is set: Use opportunity's location
@@ -614,11 +629,9 @@ CREATE TABLE interactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   author_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   
-  -- What this interaction is about (one of these should be set)
-  related_status_update_id UUID REFERENCES status_updates(id),
-  related_checkin_id UUID REFERENCES check_ins(id),
-  related_attendance_id UUID REFERENCES attendance_records(id),
-  related_presence_wave_id UUID REFERENCES presence_waves(id),
+  -- Polymorphic relation: what is this interaction about?
+  related_type TEXT NOT NULL,  -- e.g., 'status_update', 'checkin', 'attendance', 'presence_wave'
+  related_id UUID NOT NULL,    -- ID of the related record (no FK constraint due to polymorphism),
   
   parent_interaction_id UUID REFERENCES interactions(id), -- for threading (future)
   
@@ -630,32 +643,38 @@ CREATE TABLE interactions (
   
   CONSTRAINT has_content CHECK (
     content_text IS NOT NULL OR emoji_reaction IS NOT NULL
+  ),
+  CONSTRAINT valid_related_type CHECK (
+    related_type IN ('status_update', 'checkin', 'attendance', 'presence_wave')
   )
 );
 
+CREATE INDEX idx_interactions_related ON interactions(related_type, related_id);
 CREATE INDEX idx_interactions_author ON interactions(author_id);
-CREATE INDEX idx_interactions_status ON interactions(related_status_update_id);
-CREATE INDEX idx_interactions_checkin ON interactions(related_checkin_id);
-CREATE INDEX idx_interactions_attendance ON interactions(related_attendance_id);
-CREATE INDEX idx_interactions_presence ON interactions(related_presence_wave_id);
 CREATE INDEX idx_interactions_parent ON interactions(parent_interaction_id);
 CREATE INDEX idx_interactions_created ON interactions(created_at DESC);
 ```
 
 **Purpose:** Teacher (and eventually student) comments and reactions on student engagement.
 
+**Polymorphic design:**
+
+The `related_type` + `related_id` pattern allows interactions to reference any entity type without adding new FK columns. Currently supported types: `status_update`, `checkin`, `attendance`, `presence_wave`. To add new commentable entities (e.g., work submissions, direct messages), simply add the new type to the CHECK constraint — no schema migration needed beyond that.
+
+The tradeoff is that Postgres cannot enforce FK integrity on `related_id` since it could point to any of several tables. The application layer is responsible for ensuring the referenced record exists. In practice this is fine since all writes go through the app.
+
 **What can be commented on:**
-- **Status updates:** Comment on specific plans/progress/reflection
-- **Check-ins:** General comment on check-in/out
-- **Presence waves:** Acknowledge student's presence
-- **Attendance records:** Add context to attendance marking
+- **Status updates** (`related_type = 'status_update'`): Comment on specific plans/progress/reflection
+- **Check-ins** (`related_type = 'checkin'`): General comment on check-in/out
+- **Presence waves** (`related_type = 'presence_wave'`): Acknowledge student's presence
+- **Attendance records** (`related_type = 'attendance'`): Add context to attendance marking
 
 **Interaction types:**
 - **Text comment:** `content_text` is set
 - **Emoji reaction:** `emoji_reaction` is set (👍 👏 ✨ 💯)
 - Can have both (emoji + text)
 
-**Usage (MVP - flat comments):**
+**Usage (MVP — flat comments):**
 - Teacher views student's status update
 - Can add comment: "Great progress today!"
 - Can react with emoji: 👍
@@ -900,14 +919,14 @@ CREATE POLICY "Admins full access"
 
 ### Composite indexes for common queries
 ```sql
--- Student schedule lookup (with rotation awareness)
+-- Student schedule lookup
 CREATE INDEX idx_student_schedule_lookup 
-  ON student_activities(student_id, block, is_active) 
+  ON student_activities(student_id, is_active) 
   WHERE is_active = true;
 
--- Conflict resolution: find competing activities for a block
+-- Conflict resolution: find competing activities by time overlap
 CREATE INDEX idx_student_activity_conflicts
-  ON student_activities(student_id, block, conflict_priority, rotation_day_type)
+  ON student_activities(student_id, conflict_priority, rotation_day_type)
   WHERE is_active = true;
 
 -- Teacher roster lookup
@@ -1021,14 +1040,27 @@ SELECT schedule_template_id, rotation_day
 FROM school_days 
 WHERE organization_id = ? AND date = CURRENT_DATE;
 
--- Who's in my Block 4 monitoring session today?
--- Step 1: Get enrolled students
--- Step 2: For each, check if a higher-priority activity pulls them away
+-- Who's in my monitoring session today?
+-- Given a session, find enrolled students and check for higher-priority conflicts by time overlap
 WITH today AS (
-  SELECT rotation_day, 
-    TRIM(TO_CHAR(CURRENT_DATE, 'Dy')) AS day_name
-  FROM school_days 
-  WHERE organization_id = ? AND date = CURRENT_DATE
+  SELECT sd.rotation_day, 
+    TRIM(TO_CHAR(CURRENT_DATE, 'Dy')) AS day_name,
+    sd.schedule_template_id
+  FROM school_days sd
+  WHERE sd.organization_id = ? AND sd.date = CURRENT_DATE
+),
+session_times AS (
+  -- Get this session's actual times from today's schedule template
+  SELECT 
+    (block_def->>'start_time')::TIME AS session_start,
+    (block_def->>'end_time')::TIME AS session_end
+  FROM schedule_templates st,
+    jsonb_array_elements(st.block_definitions) AS block_def,
+    today t
+  WHERE st.id = COALESCE(t.schedule_template_id, (
+    SELECT id FROM schedule_templates WHERE organization_id = ? AND is_default = true LIMIT 1
+  ))
+  AND (block_def->>'block')::INT = (SELECT block FROM sessions WHERE id = ?)
 ),
 enrolled_students AS (
   SELECT e.student_id
@@ -1040,13 +1072,16 @@ enrolled_students AS (
 ),
 conflicting_activities AS (
   SELECT sa.student_id, sa.custom_name, sa.conflict_priority
-  FROM student_activities sa, today t
+  FROM student_activities sa, today t, session_times st
   WHERE sa.student_id IN (SELECT student_id FROM enrolled_students)
-    AND sa.block = 4
+    AND sa.session_id IS NULL  -- only non-session activities can conflict
     AND sa.is_active = true
     AND t.day_name = ANY(sa.days_of_week)
     AND (sa.rotation_day_type IS NULL OR sa.rotation_day_type = t.rotation_day)
     AND sa.conflict_priority > 5  -- higher than the session's own priority
+    -- Time overlap check
+    AND sa.default_start_time < st.session_end
+    AND sa.default_end_time > st.session_start
 )
 SELECT 
   es.student_id,
@@ -1055,41 +1090,29 @@ SELECT
 FROM enrolled_students es
 LEFT JOIN conflicting_activities ca ON ca.student_id = es.student_id;
 
--- What's on my calendar for Monday Block 2?
--- Returns the winning activity for this student/block/day
+-- What's on my calendar for a given time slot?
+-- Returns the winning activity for this student at a specific time on a specific day
+-- (Application layer would call this per block/time slot when building the day view)
 WITH today AS (
   SELECT rotation_day FROM school_days 
   WHERE organization_id = ? AND date = CURRENT_DATE
 )
-SELECT s.name, s.location, s.teacher_id, 'enrollment' AS source
-FROM enrollments e
-JOIN sessions s ON s.id = e.session_id
-WHERE e.student_id = ? 
-  AND s.block = 2 
-  AND 'Mon' = ANY(s.days_of_week)
-  AND e.is_active = true
-  AND NOT EXISTS (
-    -- Exclude if a higher-priority activity applies today
-    SELECT 1 FROM student_activities sa, today t
-    WHERE sa.student_id = e.student_id
-      AND sa.block = s.block
-      AND 'Mon' = ANY(sa.days_of_week)
-      AND (sa.rotation_day_type IS NULL OR sa.rotation_day_type = t.rotation_day)
-      AND sa.conflict_priority > 5
-      AND sa.is_active = true
-  )
-UNION ALL
 SELECT 
   COALESCE(sa.custom_name, at.name) AS name,
   sa.custom_location AS location,
-  NULL AS teacher_id,
+  sa.conflict_priority,
   'activity' AS source
 FROM student_activities sa
 JOIN activity_types at ON at.id = sa.activity_type_id
-CROSS JOIN (SELECT rotation_day FROM school_days WHERE organization_id = ? AND date = CURRENT_DATE) t
+CROSS JOIN today t
 WHERE sa.student_id = ?
-  AND sa.block = 2
+  AND sa.session_id IS NULL  -- non-session activities with their own times
   AND 'Mon' = ANY(sa.days_of_week)
   AND (sa.rotation_day_type IS NULL OR sa.rotation_day_type = t.rotation_day)
-  AND sa.is_active = true;
+  AND sa.is_active = true
+  -- Overlaps with the requested time slot (e.g., 9:55-10:40 for Block 2)
+  AND sa.default_start_time < '10:40'::TIME
+  AND sa.default_end_time > '09:55'::TIME
+ORDER BY sa.conflict_priority DESC
+LIMIT 1;
 ```

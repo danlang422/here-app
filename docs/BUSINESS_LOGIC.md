@@ -543,45 +543,85 @@ function isActivityActiveOnDate(activity, date, rotationDay):
   return true
 ```
 
-### Conflict Resolution
+### Getting Effective Times
 
-**Purpose:** For a given student, block, and date, determine which activity to show.
+**Purpose:** Resolve an activity's actual start/end time for a given date.
 
 **Algorithm:**
 
 ```
-function resolveStudentBlock(studentId, block, date):
+function getEffectiveTimes(activity, date, organization):
+  if activity.session_id is not null:
+    // Session-linked: get times from today's schedule template
+    session = getSession(activity.session_id)
+    template = getScheduleTemplateForDate(date, organization)
+    blockDef = template.block_definitions.find(b => b.block == session.block)
+    return { start: blockDef.start_time, end: blockDef.end_time }
+  else:
+    // Non-session: use the activity's own fixed times
+    return { start: activity.default_start_time, end: activity.default_end_time }
+```
+
+**Key distinction:**
+- Session-linked activity times shift with schedule changes (2-hour delay, early dismissal)
+- Non-session activity times (external classes, internships) are fixed — Kennedy Band is 7:30-9:00 regardless of City View's schedule
+
+### Time Overlap Check
+
+**Purpose:** Determine if two time ranges overlap.
+
+```
+function timesOverlap(startA, endA, startB, endB):
+  return startA < endB AND startB < endA
+```
+
+### Conflict Resolution
+
+**Purpose:** For a given student and date, determine which activities to show at each time slot.
+
+Conflicts are detected by **time overlap**, not by block number. This correctly handles activities that span multiple blocks, activities with no block assignment (like lunch), and schedule template changes that shift block times.
+
+**Algorithm:**
+
+```
+function resolveStudentSchedule(studentId, date):
   rotationDay = calculateRotationDay(date, organization)
-  dayName = getDayName(date)
   
-  // Get all activities for this student and block
-  activities = getStudentActivities(studentId, block)
-    .filter(a => isActivityActiveOnDate(a, date, rotationDay))
+  // Get all active items for today
+  // 1. Session enrollments (get times from schedule template)
+  // 2. Student activities (session-linked get template times, others use own times)
+  allItems = getAllScheduleItemsForDate(studentId, date, rotationDay)
   
-  if activities.length == 0:
-    return null // Nothing scheduled
+  // For each item, resolve effective times
+  for item in allItems:
+    times = getEffectiveTimes(item, date, organization)
+    item.effective_start = times.start
+    item.effective_end = times.end
   
-  if activities.length == 1:
-    return activities[0] // No conflict
+  // Find all overlapping pairs
+  conflicts = []
+  for i in range(allItems.length):
+    for j in range(i+1, allItems.length):
+      if timesOverlap(allItems[i].effective_start, allItems[i].effective_end,
+                       allItems[j].effective_start, allItems[j].effective_end):
+        conflicts.push([allItems[i], allItems[j]])
   
-  // Multiple activities — resolve by priority
-  sortedByPriority = activities.sort((a, b) => b.conflict_priority - a.conflict_priority)
+  // Resolve each conflict by priority
+  hiddenItems = new Set()
+  unresolvedConflicts = []
   
-  winner = sortedByPriority[0]
-  losers = sortedByPriority.slice(1)
-  
-  // If top two have equal priority, flag as unresolved
-  if sortedByPriority.length > 1 
-     and sortedByPriority[0].conflict_priority == sortedByPriority[1].conflict_priority:
-    return {
-      type: "unresolved_conflict",
-      activities: sortedByPriority,
-      message: "Overlapping activities with equal priority — admin should set priorities"
-    }
+  for [itemA, itemB] in conflicts:
+    if itemA.conflict_priority == itemB.conflict_priority:
+      unresolvedConflicts.push([itemA, itemB])
+    else if itemA.conflict_priority > itemB.conflict_priority:
+      hiddenItems.add(itemB)
+    else:
+      hiddenItems.add(itemA)
   
   return {
-    active: winner,
-    hidden: losers // Available for display as "also enrolled" or for teacher context
+    visible: allItems.filter(i => !hiddenItems.has(i)),
+    hidden: Array.from(hiddenItems),
+    unresolved: unresolvedConflicts
   }
 ```
 
@@ -597,6 +637,9 @@ function getSessionRosterForDate(sessionId, date):
   rotationDay = calculateRotationDay(date, session.organization_id)
   dayName = getDayName(date)
   
+  // Get the session's actual times from today's schedule template
+  sessionTimes = getEffectiveTimes({ session_id: sessionId }, date, organization)
+  
   // Get all active enrollments
   enrollments = getActiveEnrollments(sessionId)
   
@@ -606,17 +649,23 @@ function getSessionRosterForDate(sessionId, date):
   for enrollment in enrollments:
     studentId = enrollment.student_id
     
-    // Find any higher-priority activity that pulls this student away
-    conflictingActivity = getHigherPriorityActivity(
-      studentId, session.block, date, rotationDay, dayName,
-      sessionPriority = 5 // or whatever the session's effective priority is
-    )
+    // Find non-session activities that overlap this session's time and have higher priority
+    conflictingActivities = getStudentActivities(studentId)
+      .filter(a => a.session_id is null)  // only non-session activities conflict
+      .filter(a => isActivityActiveOnDate(a, date, rotationDay))
+      .filter(a => timesOverlap(
+        a.default_start_time, a.default_end_time,
+        sessionTimes.start, sessionTimes.end
+      ))
+      .filter(a => a.conflict_priority > session.conflict_priority)
+      .sort((a, b) => b.conflict_priority - a.conflict_priority)
     
-    if conflictingActivity:
+    if conflictingActivities.length > 0:
+      winner = conflictingActivities[0]
       awayStudents.push({
         student: enrollment.student,
-        reason: conflictingActivity.custom_name or conflictingActivity.activity_type.name,
-        activity: conflictingActivity
+        reason: winner.custom_name or winner.activity_type.name,
+        activity: winner
       })
     else:
       roster.push(enrollment.student)
@@ -719,10 +768,15 @@ function canMarkAttendance(teacherId, sessionId, studentId, date):
     return {allowed: false, reason: "Session doesn't meet today"}
   
   // Check if student is pulled away by a higher-priority activity
-  conflicting = getHigherPriorityActivity(
-    studentId, session.block, date, rotationDay, dayName,
-    sessionPriority = session.effective_priority
-  )
+  sessionTimes = getEffectiveTimes({ session_id: sessionId }, date, organization)
+  conflicting = getStudentActivities(studentId)
+    .filter(a => a.session_id is null and isActivityActiveOnDate(a, date, rotationDay))
+    .filter(a => timesOverlap(a.default_start_time, a.default_end_time,
+                               sessionTimes.start, sessionTimes.end))
+    .filter(a => a.conflict_priority > session.conflict_priority)
+    .sort((a, b) => b.conflict_priority - a.conflict_priority)
+    [0] // highest priority conflicting activity, or undefined
+  
   if conflicting:
     return {
       allowed: false,
@@ -1038,6 +1092,8 @@ function validateDateRange(startDate, endDate):
 
 ```
 function validateBlock(block):
+  if block is null:
+    return {valid: true} // block is optional on student_activities
   if block < 0 or block > 5:
     return {valid: false, error: "Block must be 0-5"}
   return {valid: true}

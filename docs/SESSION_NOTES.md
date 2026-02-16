@@ -126,8 +126,52 @@ Once the remaining clusters are resolved, these docs may need corresponding upda
 
 ---
 
+## Session 2 Changes (February 16, 2026 — continued)
+
+### Conflict resolution docs updated
+- BUSINESS_LOGIC.md Section 5 rewritten for priority-based model (was done in prior commit)
+- BUSINESS_LOGIC.md Section 6 attendance rules updated to use time overlap
+- USER_FLOWS.md student and admin conflict flows rewritten
+- All `enrollment_overrides` references removed across all docs
+
+### Schema changes — time-based conflict resolution
+- **student_activities.block**: Changed from `INTEGER NOT NULL` to `INTEGER` (nullable). Block is now a UI label/convenience only, not used for conflict resolution.
+- **student_activities.default_start_time / default_end_time**: New `TIME` columns (nullable). For non-session activities, these are the fixed times. For session-linked activities, these can be null (times come from the session's schedule template for that day).
+- **Conflict resolution** now uses time overlap (`startA < endB AND startB < endA`) instead of block matching. This correctly handles multi-block spans, lunch, and schedule template shifts.
+- Updated example queries in DATABASE_SCHEMA.md to use time overlap.
+
+### Interactions table — polymorphic refactor
+- Replaced 4 nullable FK columns (`related_status_update_id`, `related_checkin_id`, `related_attendance_id`, `related_presence_wave_id`) with `related_type TEXT NOT NULL` + `related_id UUID NOT NULL`.
+- CHECK constraint validates `related_type IN ('status_update', 'checkin', 'attendance', 'presence_wave')`.
+- Adding new commentable entities (work submissions, direct messages) only requires updating the CHECK constraint.
+- Tradeoff: no database-level FK enforcement on `related_id`. Application layer ensures referential integrity.
+
+### Notification strategy decided
+- MVP: In-app notifications only via Supabase Realtime. No email/SMS/push. (Email used only for Supabase Auth: password reset, verification.)
+- Triggers implemented in application logic (JavaScript), not database triggers.
+- MVP trigger: Teacher comments on student work only.
+- Deferred: Schedule change notifications, missed check-out reminders, attendance marked, streak milestones.
+- Added Notification Strategy section to SYSTEM_ARCHITECTURE.md.
+
+### Timezone strategy documented
+- Added Timezone & Date Handling Strategy section to SYSTEM_ARCHITECTURE.md.
+- `TIME` columns for wall-clock times (block schedules), `TIMESTAMPTZ` for event timestamps.
+- Org timezone used only for determining current local date.
+- Frontend displays TIMESTAMPTZ in user's browser timezone (not hardcoded to org timezone).
+
+### Lunch handling decided
+- Lunch is a student_activity with `session_id = null`, no engagement flags, no block assignment.
+- Uses `default_start_time`/`default_end_time` for its time range (11:30-12:15).
+- Shows on student schedule; doesn't appear for teachers (no session).
+- No schema changes needed — the nullable block and time fields support this naturally.
+
+### Tuesday anomaly dismissed
+- The oddly-labeled Tuesday column in the CSV is a data entry artifact, not a special rotation rule.
+
+---
+
 ## Next Steps
 
-1. Resolve remaining issue clusters (2 and 3) in a new conversation
-2. Update BUSINESS_LOGIC.md and USER_FLOWS.md to match the new conflict resolution model
-3. After all doc issues resolved: create GitHub repo, create Supabase project, begin implementation
+1. Create GitHub repo and push current state
+2. Create Supabase project
+3. Begin implementation

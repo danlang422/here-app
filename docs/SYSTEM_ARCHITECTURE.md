@@ -16,13 +16,15 @@ This document defines the technical architecture for the Here attendance trackin
 3. [Data Flow Architecture](#data-flow-architecture)
 4. [Authentication & Authorization](#authentication--authorization)
 5. [Real-Time Subscriptions](#real-time-subscriptions)
-6. [State Management Strategy](#state-management-strategy)
-7. [Form Handling](#form-handling)
-8. [API Layer](#api-layer)
-9. [Component Architecture](#component-architecture)
-10. [Styling & Theming](#styling--theming)
-11. [Build & Deployment](#build--deployment)
-12. [Development Workflow](#development-workflow)
+6. [Timezone & Date Handling Strategy](#timezone--date-handling-strategy)
+7. [Notification Strategy](#notification-strategy)
+8. [State Management Strategy](#state-management-strategy)
+9. [Form Handling](#form-handling)
+10. [API Layer](#api-layer)
+11. [Component Architecture](#component-architecture)
+12. [Styling & Theming](#styling--theming)
+13. [Build & Deployment](#build--deployment)
+14. [Development Workflow](#development-workflow)
 
 ---
 
@@ -551,6 +553,141 @@ function SessionRoster({ sessionId, date }) {
 - Unsubscribe when component unmounts
 - Use channel multiplexing when possible
 - Throttle rapid updates (debounce invalidations)
+
+---
+
+## Timezone & Date Handling Strategy
+
+### Design Principle
+
+The schema uses two different time column types intentionally:
+
+- **`TIME` (without timezone)** — for block schedules, session start/end times, and student activity times. These represent "wall clock" times that mean the same thing in any timezone. Block 1 starts at 9:05 AM local time, period.
+- **`TIMESTAMPTZ` (with timezone)** — for event timestamps: check-ins, attendance records, status updates, notifications, audit logs. Postgres stores these as UTC internally and converts on retrieval.
+
+### Organization Timezone
+
+The `organizations.settings.timezone` field (e.g., `"America/Chicago"`) serves one purpose: **determining the current local date**. When the app needs to answer "what school day is it right now?", it converts the current UTC moment to the org's timezone to get the local date. This drives:
+
+- Which `school_day` record to look up
+- Which rotation day applies
+- Whether a check-in is "today" or "yesterday"
+- Date boundaries for "one check-in per day" constraints
+
+### Frontend Display
+
+The frontend displays all `TIMESTAMPTZ` values converted to the **user's browser timezone**, not hardcoded to the org timezone. This means:
+
+- A teacher in `America/Chicago` sees "Checked in at 9:03 AM" (CST)
+- A teacher traveling in `America/New_York` sees "Checked in at 10:03 AM" (EST)
+- Both are correct — same moment, different local representations
+
+This is the browser's default behavior with `Date` objects and formatting libraries like `date-fns`. No special configuration needed.
+
+### `TIME` columns are timezone-agnostic
+
+Block schedule times (`default_start_time`, `default_end_time` on sessions and student_activities) are plain `TIME` values. They represent local wall-clock time and are displayed as-is, with no timezone conversion. "Block 1 starts at 9:05" means 9:05 at the school, always.
+
+### Implementation Notes
+
+```jsx
+// Getting "today" in the org's timezone
+import { formatInTimeZone } from 'date-fns-tz'
+
+function getSchoolDate(orgTimezone) {
+  return formatInTimeZone(new Date(), orgTimezone, 'yyyy-MM-dd')
+}
+
+// Displaying a TIMESTAMPTZ value in user's local timezone
+// (default browser behavior, no conversion needed)
+function formatEventTime(timestamptz) {
+  return new Date(timestamptz).toLocaleTimeString()
+}
+
+// Displaying a TIME value (wall clock, no conversion)
+function formatBlockTime(timeString) {
+  // timeString is like "09:05:00" — display as "9:05 AM"
+  // Parse as local time, do NOT treat as UTC
+  const [hours, minutes] = timeString.split(':')
+  return new Date(0, 0, 0, hours, minutes).toLocaleTimeString(
+    [], { hour: 'numeric', minute: '2-digit' }
+  )
+}
+```
+
+---
+
+## Notification Strategy
+
+### MVP Scope
+
+For MVP, notifications are **in-app only** via Supabase Realtime subscriptions. No email notifications, no push notifications, no SMS. (Email is used only for Supabase Auth flows: password reset, email verification, etc.)
+
+### Trigger Implementation
+
+Notifications are created in **application logic** (JavaScript), not database triggers. This keeps all business logic in one language, makes it easy to add conditional rules, and is simpler to debug and test.
+
+**MVP trigger: Teacher comments on student work**
+
+This is the core feedback loop. When a teacher creates an interaction (comment or emoji reaction) on a student's status update, check-in, or presence wave, a notification is created for the student.
+
+```jsx
+// In the interaction creation mutation
+async function createInteraction(interactionData) {
+  // 1. Create the interaction
+  const { data: interaction } = await supabase
+    .from('interactions')
+    .insert(interactionData)
+    .select()
+    .single()
+  
+  // 2. Create notification for the student
+  const studentId = await getStudentForRelatedRecord(
+    interactionData.related_type,
+    interactionData.related_id
+  )
+  
+  await supabase
+    .from('notifications')
+    .insert({
+      user_id: studentId,
+      type: 'teacher_comment',
+      related_interaction_id: interaction.id,
+      message: `${teacherName} commented on your ${interactionData.related_type}`
+    })
+  
+  return interaction
+}
+```
+
+**Deferred triggers (post-MVP):**
+- Schedule change notifications
+- Missed check-out reminders (would need a scheduled job or Supabase cron)
+- Attendance marked notifications
+- Streak milestone celebrations
+
+### Real-Time Delivery
+
+Students subscribe to the `notifications` table filtered by their user ID. New notifications appear instantly via Supabase Realtime without polling.
+
+```jsx
+// In NotificationCenter component
+useEffect(() => {
+  const channel = supabase
+    .channel('user-notifications')
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'notifications',
+      filter: `user_id=eq.${userId}`
+    }, (payload) => {
+      queryClient.invalidateQueries(['notifications'])
+    })
+    .subscribe()
+  
+  return () => supabase.removeChannel(channel)
+}, [userId])
+```
 
 ---
 
