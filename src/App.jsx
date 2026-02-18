@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 
+// Auth
+import ProtectedRoute from './components/layout/ProtectedRoute'
+
 // Pages
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -12,13 +15,21 @@ function App() {
     <Routes>
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
-      
-      {/* Protected routes - will add auth guard later */}
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/student" element={<StudentDashboard />} />
-      <Route path="/teacher" element={<TeacherDashboard />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-      
+
+      {/* Protected routes */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute><DashboardPage /></ProtectedRoute>
+      } />
+      <Route path="/student" element={
+        <ProtectedRoute><StudentDashboard /></ProtectedRoute>
+      } />
+      <Route path="/teacher" element={
+        <ProtectedRoute><TeacherDashboard /></ProtectedRoute>
+      } />
+      <Route path="/admin" element={
+        <ProtectedRoute><AdminDashboard /></ProtectedRoute>
+      } />
+
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
