@@ -19,7 +19,7 @@
 1. Status updates (must be created before comments due to FK reference)
 2. Posts, post_responses
 3. Comments (references posts, post_responses, and status_updates)
-4. Notifications
+4. Notifications (references posts, post_responses, status_updates, and check_ins)
 
 ---
 
@@ -35,7 +35,7 @@
 
 ### Not in MVP
 - Post broadcasting by activity type (e.g., push message to all internship activities)
-- Schedule-building features (visual block availability, conflict-aware placement — the `is_not_scheduled` flag and enrollment queries already support this; the UI is the deferred part)
+- Schedule-building features (visual block availability, enrollment-aware placement — the `is_not_scheduled` flag and one-per-block constraint already support this; the UI is the deferred part)
 - Student-created activities or self-scheduling
 - Parent/guardian access (new role + relationship to students)
 - Direct messaging (expand comments model)

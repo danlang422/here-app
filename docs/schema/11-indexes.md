@@ -24,12 +24,12 @@ CREATE INDEX idx_enrollments_activity_active
   WHERE is_active = true;
 
 -- Daily attendance lookup
-CREATE INDEX idx_attendance_instance_lookup
-  ON attendance_records(activity_instance_id, student_id);
+-- REMOVED: idx_attendance_instance_lookup — redundant with UNIQUE(activity_instance_id, student_id)
+-- constraint on attendance_records, which creates an implicit index.
 
 -- Check-in status
-CREATE INDEX idx_checkin_student_instance
-  ON check_ins(student_id, activity_instance_id);
+-- REMOVED: idx_checkin_student_instance — redundant with UNIQUE(student_id, activity_instance_id)
+-- constraint on check_ins, which creates an implicit index.
 
 -- Feed query (recent posts for enrolled activities)
 -- Note: idx_posts_instance_created is defined on the posts table in 06-social.md.
