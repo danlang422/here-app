@@ -82,7 +82,8 @@ CREATE TABLE school_days (
   date DATE NOT NULL,
   is_school_day BOOLEAN DEFAULT true,
   schedule_template_id UUID REFERENCES schedule_templates(id),
-  rotation_day TEXT CHECK (rotation_day IN ('A', 'B')),
+  rotation_day TEXT, -- Validated in application layer against organization.settings.rotation_day_names
+                     -- Defaults to 'A'/'B' if org hasn't configured custom names.
   override_reason TEXT CHECK (override_reason IN ('weather', 'planned_holiday', 'emergency')),
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),

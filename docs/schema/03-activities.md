@@ -42,6 +42,9 @@ The central table. Replaces both `sessions` and `student_activities` from V1.
 CREATE TABLE activities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  term_id UUID REFERENCES academic_terms(id),
+  -- Optional but recommended. Links activity to a specific term for easy term-based queries.
+  -- Activities without a term_id can still be filtered by date range using start_date/end_date.
   name TEXT NOT NULL,
 
   -- UI hint only — drives form field visibility during data entry, not behavior
@@ -74,16 +77,18 @@ CREATE TABLE activities (
   mentor_name TEXT,                                 -- Internship mentor (external, not in system)
 
   -- Scheduling
-  block INTEGER,                  -- 0-5; identifies which attendance block this activity belongs to.
-                                  -- Required for City View roster generation and attendance ledger association.
-                                  -- NULL until assigned (valid for not-yet-scheduled activities).
-                                  -- Note: block assignment is meaningful, not just a UI label —
-                                  -- it is what connects an activity to the teacher roster and attendance records.
+  block INTEGER,                  -- 0-5; identifies which City View attendance block this activity occupies.
+                                  -- Required for City View-scheduled activities (regular_class, freeform, etc.).
+                                  -- NULL for external activities (external_hs_course, off-campus college courses)
+                                  -- and unscheduled activities (online_course with is_not_scheduled = true).
+                                  -- The block value is denormalized onto enrollments to enforce one-per-block.
+                                  -- NULL until assigned is also valid for not-yet-scheduled activities.
   days_of_week INTEGER[],         -- Values per EXTRACT(DOW): 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
                                   -- e.g. [1,2,3,4,5] for Mon-Fri
                                   -- NULL for online_course (is_not_scheduled) and external_hs_course
                                   -- (uses rotation_day_type instead — see academic calendar docs)
-  rotation_day_type TEXT CHECK (rotation_day_type IN ('A', 'B')),
+  rotation_day_type TEXT,          -- Validated in application layer against organization.settings.rotation_day_names
+                                  -- Defaults to 'A'/'B' if org hasn't configured custom names.
                                   -- Used when an activity only occurs on one rotation day.
                                   -- Most common for external_hs_course, but any type can use it —
                                   -- e.g. a regular_class that meets opposite an external_hs_course
@@ -119,6 +124,8 @@ CREATE TABLE activities (
   -- true = validate student location against lat/lng + radius on check-in
 
   -- Internship opportunity link (optional — auto-populates location/contact fields)
+  -- Note: Location/contact fields are COPIED from the opportunity at creation time, not synced.
+  -- Updating the internship opportunity record does not propagate to existing activities.
   internship_opportunity_id UUID REFERENCES internship_opportunities(id),
 
   description TEXT,
@@ -146,6 +153,7 @@ CREATE INDEX idx_activities_monitor ON activities(monitor_id);
 CREATE INDEX idx_activities_type ON activities(organization_id, type);
 CREATE INDEX idx_activities_active ON activities(organization_id, is_active) WHERE is_active = true;
 CREATE INDEX idx_activities_days_gin ON activities USING GIN(days_of_week);
+CREATE INDEX idx_activities_term ON activities(term_id) WHERE term_id IS NOT NULL;
 ```
 
 **Scheduling rules by type:**
@@ -194,17 +202,33 @@ CREATE TABLE enrollments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-  notes TEXT, -- "Joins B days only", "Enrolled mid-semester"
+  block INTEGER,
+  -- Denormalized from activities.block at enrollment time.
+  -- Enables the one-enrollment-per-block constraint below.
+  -- NULL when the parent activity has no block (external_hs_course, online_course, etc.).
+  -- Must be updated if the activity's block changes (application responsibility).
+  notes TEXT, -- "Enrolled mid-semester", "Kirkwood campus on Tue/Thu"
   is_active BOOLEAN DEFAULT true,
   enrolled_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
 
-  CONSTRAINT unique_student_activity UNIQUE (student_id, activity_id)
+  CONSTRAINT unique_student_activity UNIQUE (student_id, activity_id),
+  CONSTRAINT valid_block CHECK (block IS NULL OR (block >= 0 AND block <= 5))
 );
+
+-- A student can have at most one active enrollment per numbered block.
+-- Activities without a block (external courses, online courses) are exempt — NULL values
+-- are treated as distinct in PostgreSQL unique indexes, so multiple block-NULL enrollments
+-- are always allowed.
+CREATE UNIQUE INDEX idx_enrollments_one_per_block
+  ON enrollments(student_id, block)
+  WHERE is_active = true AND block IS NOT NULL;
 
 CREATE INDEX idx_enrollments_student ON enrollments(student_id);
 CREATE INDEX idx_enrollments_activity ON enrollments(activity_id);
 CREATE INDEX idx_enrollments_active ON enrollments(activity_id, is_active) WHERE is_active = true;
 ```
+
+**One enrollment per block:** A student cannot be actively enrolled in two activities that share the same block number. This is enforced at the database level via `idx_enrollments_one_per_block`. External activities (external HS courses, some college courses at Kirkwood campus) have `block = NULL` and are not subject to this constraint — they don't occupy a City View block slot. The "away" indicator for these students is derived at query time from the external activity's times and rotation day.
 
 Even for single-student activities (internships, individual online courses), enrollment is stored here rather than via a `student_id` field directly on the activity. This keeps all "who is in what" queries consistent — always join through enrollments.
