@@ -7,4 +7,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Reuse existing client across HMR reloads to prevent duplicate
+// GoTrueClient instances from interfering with each other
+export const supabase = globalThis.__supabase ??= createClient(supabaseUrl, supabaseAnonKey)
