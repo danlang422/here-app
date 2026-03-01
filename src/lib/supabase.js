@@ -1,10 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// DEPRECATED: Supabase client has moved to @/api/supabase.js
+// This re-export exists for backward compatibility during migration.
+// Delete this file once all imports point to @/api/supabase.
+export { supabase } from '../api/supabase'
