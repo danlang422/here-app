@@ -21,7 +21,7 @@ All table and column references match the V2 schema. See [`docs/schema/`](../sch
 | 02 | [Check-In Rules](02-checkin-rules.md) | Check-in/out availability, validation, geofence, freeform tagging flow |
 | 03 | [Attendance Rules](03-attendance-rules.md) | Teacher attendance marking, status transitions, bulk operations |
 | 04 | [Status & Presence](04-status-and-presence.md) | Status update rules, presence waves, streak calculation |
-| 05 | [Scheduling Constraints & Away Detection](05-conflict-resolution.md) | One-enrollment-per-block constraint, external activity "away" indicators, teacher roster filtering |
+| 05 | [Enrollment Validation & Overlap Prevention](05-conflict-resolution.md) | Application-layer overlap detection at enrollment time, scheduling examples, teacher roster logic |
 | 06 | [Notifications & Access](06-notifications-and-access.md) | Notification triggers, deduplication, role-based permissions |
 
 ---
