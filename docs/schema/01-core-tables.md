@@ -25,11 +25,14 @@ CREATE TABLE organizations (
 ```json
 {
   "timezone": "America/Chicago",
+  "block_count": null,
   "uses_rotation_schedule": true,
   "rotation_day_names": ["A", "B"],
   "rotation_mode": "continue"
 }
 ```
+
+`block_count`: Number of blocks in the daily schedule. `null` means the org hasn't defined their block structure yet. Activities can still be created with `block = NULL` in this state. When set (e.g. `6`), the app validates that block assignments stay within `0` to `block_count - 1`.
 
 `rotation_mode`:
 - `"continue"` — cancelled school days are skipped in the rotation count (snow day on A day → next school day is B day)
