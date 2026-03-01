@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
+import AdminLayout from '@/components/layout/AdminLayout'
 
 // Auth pages
 import Login from '@/pages/auth/Login'
@@ -16,6 +17,10 @@ import TeacherDashboard from '@/pages/teacher/Dashboard'
 
 // Admin pages
 import AdminDashboard from '@/pages/admin/Dashboard'
+import CalendarManagement from '@/pages/admin/CalendarManagement'
+import ActivityManagement from '@/pages/admin/ActivityManagement'
+import UserManagement from '@/pages/admin/UserManagement'
+import Reports from '@/pages/admin/Reports'
 
 function App() {
   return (
@@ -46,14 +51,20 @@ function App() {
         </ProtectedRoute>
       } />
 
-      {/* Admin routes */}
+      {/* Admin routes — nested under AdminLayout */}
       <Route path="/admin" element={
         <ProtectedRoute requiredRole="admin">
           <AppLayout>
-            <AdminDashboard />
+            <AdminLayout />
           </AppLayout>
         </ProtectedRoute>
-      } />
+      }>
+        <Route index element={<AdminDashboard />} />
+        <Route path="calendar" element={<CalendarManagement />} />
+        <Route path="activities" element={<ActivityManagement />} />
+        <Route path="users" element={<UserManagement />} />
+        <Route path="reports" element={<Reports />} />
+      </Route>
 
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
