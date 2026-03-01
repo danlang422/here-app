@@ -3,12 +3,19 @@
 All tables have RLS enabled. Key policies:
 
 ```sql
--- Users can view profiles in their org
+-- Users can always read their own profile
+CREATE POLICY "Users read own profile"
+  ON user_profiles FOR SELECT
+  USING (id = auth.uid());
+
+-- Users can view other profiles in their org.
+-- Uses auth.jwt() instead of a subquery on user_profiles to avoid
+-- infinite recursion in RLS policy evaluation.
 CREATE POLICY "Users view org profiles"
   ON user_profiles FOR SELECT
-  USING (organization_id IN (
-    SELECT organization_id FROM user_profiles WHERE id = auth.uid()
-  ));
+  USING (
+    organization_id = ((auth.jwt() -> 'user_metadata' ->> 'organization_id')::uuid)
+  );
 
 -- Students read own enrollments
 CREATE POLICY "Students read own enrollments"
