@@ -78,11 +78,12 @@ CREATE TABLE activities (
 
   -- Scheduling
   block INTEGER,                  -- 0-5; identifies which City View attendance block this activity occupies.
-                                  -- Required for City View-scheduled activities (regular_class, freeform, etc.).
-                                  -- NULL for external activities (external_hs_course, off-campus college courses)
-                                  -- and unscheduled activities (online_course with is_not_scheduled = true).
-                                  -- The block value is denormalized onto enrollments to enforce one-per-block.
-                                  -- NULL until assigned is also valid for not-yet-scheduled activities.
+                                  -- Required for any activity that occupies a time slot in the daily schedule,
+                                  -- including external activities (external_hs_course, internships, college courses)
+                                  -- that overlap with a City View block's time.
+                                  -- NULL for unscheduled activities (online_course with is_not_scheduled = true)
+                                  -- and not-yet-scheduled activities (block not yet assigned).
+                                  -- The block value is denormalized onto enrollments for efficient schedule queries.
   days_of_week INTEGER[],         -- Values per EXTRACT(DOW): 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
                                   -- e.g. [1,2,3,4,5] for Mon-Fri
                                   -- NULL for online_course (is_not_scheduled) and external_hs_course
@@ -158,14 +159,16 @@ CREATE INDEX idx_activities_term ON activities(term_id) WHERE term_id IS NOT NUL
 
 **Scheduling rules by type:**
 
-| Type | days_of_week | rotation_day_type | default_start/end_time |
-|------|-------------|-------------------|----------------------|
-| regular_class | Required | NULL (or 'A'/'B' if opposite an external HS course) | Required |
-| college_course | Required (e.g. [1,3,5] or [2,4] pattern) | NULL | Required |
-| external_hs_course | NULL | Required ('A' or 'B') | Required |
-| online_course | NULL | NULL | NULL — set is_not_scheduled |
-| freeform | Required | NULL | Required |
-| internship | Required | NULL | Required |
+| Type | block | days_of_week | rotation_day_type | default_start/end_time |
+|------|-------|-------------|-------------------|----------------------|
+| regular_class | Required | Required (or NULL if rotation-only) | NULL (or set if rotation-only) | Required |
+| college_course | Required | Required (e.g. [1,3,5] or [2,4] pattern) | NULL | Required |
+| external_hs_course | Required | NULL | Required ('A' or 'B') | Required |
+| online_course | NULL | NULL | NULL | NULL — set is_not_scheduled |
+| freeform | Required | Required | NULL | Required |
+| internship | Required | Required | NULL | Required |
+
+All activity types that occupy a time slot in the schedule get a block number, including external activities. The only activities without a block are those with `is_not_scheduled = true` (online courses) or activities whose block has not yet been assigned.
 
 Any activity type can carry `rotation_day_type` if it only occurs on one rotation day. This is most common for `external_hs_course`, but a `regular_class` or any other type that is scheduled opposite an external HS course would also use it.
 
@@ -204,8 +207,8 @@ CREATE TABLE enrollments (
   activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
   block INTEGER,
   -- Denormalized from activities.block at enrollment time.
-  -- Enables the one-enrollment-per-block constraint below.
-  -- NULL when the parent activity has no block (external_hs_course, online_course, etc.).
+  -- Used for efficient schedule queries ("what does this student have in Block 3?").
+  -- NULL when the parent activity has no block (online_course with is_not_scheduled, etc.).
   -- Must be updated if the activity's block changes (application responsibility).
   notes TEXT, -- "Enrolled mid-semester", "Kirkwood campus on Tue/Thu"
   is_active BOOLEAN DEFAULT true,
@@ -216,19 +219,17 @@ CREATE TABLE enrollments (
   CONSTRAINT valid_block CHECK (block IS NULL OR (block >= 0 AND block <= 5))
 );
 
--- A student can have at most one active enrollment per numbered block.
--- Activities without a block (external courses, online courses) are exempt — NULL values
--- are treated as distinct in PostgreSQL unique indexes, so multiple block-NULL enrollments
--- are always allowed.
-CREATE UNIQUE INDEX idx_enrollments_one_per_block
-  ON enrollments(student_id, block)
-  WHERE is_active = true AND block IS NOT NULL;
-
 CREATE INDEX idx_enrollments_student ON enrollments(student_id);
 CREATE INDEX idx_enrollments_activity ON enrollments(activity_id);
 CREATE INDEX idx_enrollments_active ON enrollments(activity_id, is_active) WHERE is_active = true;
+CREATE INDEX idx_enrollments_student_block ON enrollments(student_id, block)
+  WHERE is_active = true AND block IS NOT NULL;
 ```
 
-**One enrollment per block:** A student cannot be actively enrolled in two activities that share the same block number. This is enforced at the database level via `idx_enrollments_one_per_block`. External activities (external HS courses, some college courses at Kirkwood campus) have `block = NULL` and are not subject to this constraint — they don't occupy a City View block slot. The "away" indicator for these students is derived at query time from the external activity's times and rotation day.
+**Scheduling overlap prevention:** A student should not be enrolled in two activities that actually overlap in time. This is enforced at the **application layer** during enrollment, not by a database constraint. The application checks the new activity's `block`, `days_of_week`, and `rotation_day_type` against the student's existing enrollments to determine whether there is a genuine scheduling overlap. See [business-logic/05-conflict-resolution.md](../business-logic/05-conflict-resolution.md) for the full validation algorithm.
+
+This approach allows legitimate scheduling patterns that a simple unique constraint would reject — for example, two activities in the same block on alternating rotation days (Block 0 on A days and Block 0 on B days), or two activities in the same block on non-overlapping weekdays (Block 2 MWF and Block 2 TuTh).
+
+The denormalized `block` on enrollments exists for query convenience, not constraint enforcement. The `idx_enrollments_student_block` index accelerates schedule lookups but is not unique.
 
 Even for single-student activities (internships, individual online courses), enrollment is stored here rather than via a `student_id` field directly on the activity. This keeps all "who is in what" queries consistent — always join through enrollments.

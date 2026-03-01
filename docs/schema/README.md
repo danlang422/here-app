@@ -15,7 +15,7 @@ Other key changes:
 - `attendance_records`, `check_ins`, `presence_waves`, `posts`, and `status_updates` all reference `activity_instance_id` instead of carrying `activity_id + date` themselves
 - `checkin_activity_tags` junction table added for freeform block tagging
 - `posts`, `post_responses`, and `comments` tables added — replaces the old `interactions` table
-- `conflict_priority` integer removed — scheduling conflicts prevented by one-enrollment-per-block constraint on `enrollments`; external activities (no block) produce "away" indicators via time overlap
+- `conflict_priority` integer removed — scheduling conflicts prevented at enrollment time by application-layer validation that checks for actual day/time overlaps before allowing enrollment
 - `teacher_id`, `monitor_id`, `instructor_name`, `mentor_name` as separate nullable fields on activities
 - `days_of_week` stored as `INTEGER[]` using `EXTRACT(DOW)` values (0=Sun through 6=Sat), not text abbreviations — eliminates locale dependency
 - `comments` and `notifications` tables use nullable FK columns instead of polymorphic `parent_type`/`parent_id` — gives us real foreign keys and cascading deletes

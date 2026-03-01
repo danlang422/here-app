@@ -182,7 +182,7 @@ The `src/api/` directory reflects the unified activity model. There is no `sessi
 
 In `src/components/`, the teacher directory has `ActivityCard` instead of `SessionCard`, and includes `PostComposer` for the new social layer. The student directory adds `FreeformTagPicker` for the freeform block tagging flow. The admin directory has `ActivityForm` (unified form for all activity types) and `EnrollmentManager` instead of separate session/student-activity forms.
 
-In `src/lib/business-logic/`, the old `conflicts.js` is replaced by `scheduling.js`, which handles the "does this activity meet today?" resolution logic using `days_of_week`, `rotation_day_type`, and the school day calendar. Scheduling conflicts between City View activities are prevented at the database level by a one-enrollment-per-block constraint. External activity "away" detection is a simple time-overlap check in `scheduling.js`.
+In `src/lib/business-logic/`, the old `conflicts.js` is replaced by `scheduling.js`, which handles the "does this activity meet today?" resolution logic using `days_of_week`, `rotation_day_type`, and the school day calendar. Scheduling overlaps are prevented at the application layer during enrollment by checking whether the new activity's block, days of week, and rotation day type overlap with any of the student's existing enrollments. There is no runtime conflict resolution — if a student's schedule has no overlaps at enrollment time, it has no overlaps at display time.
 
 ---
 

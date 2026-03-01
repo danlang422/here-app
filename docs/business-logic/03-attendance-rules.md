@@ -86,8 +86,7 @@ function canMarkAttendance(teacher, activity, student, date, organizationId):
 
 **Rules:**
 1. Only applies to enrolled students whose enrollment is active
-2. Skips students who are away at external activities (see [05-conflict-resolution.md](05-conflict-resolution.md#external-activities-and-away-detection))
-3. Skips students already marked present (does not overwrite other statuses)
+2. Skips students already marked present (does not overwrite other statuses)
 4. Creates individual `attendance_records` for each student
 
 **Algorithm:**
@@ -96,12 +95,13 @@ function canMarkAttendance(teacher, activity, student, date, organizationId):
 function markAllPresent(activity, date, teacher, organizationId):
   instance = getOrCreateInstance(activity.id, date, organizationId)
 
-  // Get the roster for this activity today (filters out away students)
-  roster = getTeacherRosterForDate(activity, date, organizationId)
+  // Get all enrolled students for this activity
+  enrollments = getActiveEnrollments(activityId: activity.id)
 
   results = { marked: [], skipped: [], errors: [] }
 
-  for student in roster.present:
+  for enrollment in enrollments:
+    student = getStudent(enrollment.student_id)
     existing = getAttendanceRecord(student.id, instance.id)
 
     if existing and existing.status == 'present':
@@ -133,13 +133,11 @@ function markAllPresent(activity, date, teacher, organizationId):
 
 ## Teacher Roster and Attendance View
 
-The teacher's attendance view for a block on a given date shows:
+The teacher's attendance view for a block on a given date shows all enrolled students for activities they own or monitor that meet today. Each row shows the student name, their activity (relevant when the teacher owns/monitors multiple activities in the same block), and attendance status.
 
-1. **Present students** — enrolled students whose activities meet today. Each row shows the student name, their activity (relevant when the teacher owns/monitors multiple activities in the same block), and attendance status.
+Because scheduling overlaps are prevented at enrollment time, every student on the roster belongs there — there is no "away" filtering or priority-based hiding. A teacher who monitors multiple activities in the same block (e.g., different students doing internships, online courses, or Kirkwood classes) sees all students grouped by activity.
 
-2. **Away students** — enrolled students who have an external activity (no block number, `requires_attendance = false`) whose times overlap with this block today. Shown in a collapsed "Away today" section with the reason (e.g., "At Kennedy — Band"). These students do **not** get attendance records for this activity.
-
-The roster query is documented in `schema/09-queries.md`. The away detection logic is in [05-conflict-resolution.md](05-conflict-resolution.md#external-activities-and-away-detection).
+The roster query is documented in `schema/09-queries.md`.
 
 ---
 
@@ -175,4 +173,4 @@ A student added mid-semester only appears on rosters from their `enrollment.enro
 If an admin marks an `activity_instance` as `cancelled = true` (e.g., fire drill, field trip), attendance for that instance becomes optional. Existing records remain valid. The teacher can still mark attendance at their discretion.
 
 **Student shows up unexpectedly:**
-If a student who should be at an external school shows up at City View (e.g., the external class was cancelled), the teacher can manually mark them present. The student still appears in the "Away today" section of the roster — the teacher taps through to mark attendance despite the away indicator. This is intentionally a manual override, not an automated feature, because these situations are rare and best handled with teacher judgment.
+If a student who should be at an external school shows up at City View (e.g., the external class was cancelled), they won't appear on any City View teacher's roster for that block since they're not enrolled in a City View activity for that time. The teacher can manually create an attendance record if desired. This is a rare situation best handled with teacher judgment rather than automated logic.

@@ -124,14 +124,23 @@ CREATE TABLE enrollments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+  block INTEGER,
+  -- Denormalized from activities.block at enrollment time.
+  -- Used for efficient schedule queries ("what does this student have in Block 3?").
+  -- NULL when the parent activity has no block (online_course with is_not_scheduled, etc.).
+  -- Must be updated if the activity's block changes (application responsibility).
   notes TEXT,
   is_active BOOLEAN DEFAULT true,
   enrolled_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
 
-  CONSTRAINT unique_student_activity UNIQUE (student_id, activity_id)
+  CONSTRAINT unique_student_activity UNIQUE (student_id, activity_id),
+  CONSTRAINT valid_block CHECK (block IS NULL OR (block >= 0 AND block <= 5))
 );
 
 CREATE INDEX idx_enrollments_student ON enrollments(student_id);
 CREATE INDEX idx_enrollments_activity ON enrollments(activity_id);
 CREATE INDEX idx_enrollments_active ON enrollments(activity_id, is_active) WHERE is_active = true;
+-- Non-unique index for schedule lookups. Overlap prevention is application-layer.
+CREATE INDEX idx_enrollments_student_block ON enrollments(student_id, block)
+  WHERE is_active = true AND block IS NOT NULL;

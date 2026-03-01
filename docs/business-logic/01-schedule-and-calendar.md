@@ -189,16 +189,18 @@ function activityMeetsToday(activity, date, organizationId):
 
 | Type | days_of_week | rotation_day_type | What determines "meets today" |
 |------|-------------|-------------------|-------------------------------|
-| regular_class | `[1,2,3,4,5]` (Mon–Fri) | NULL (or set if opposite external course) | Day of week match |
+| regular_class | Set (or NULL if rotation-only) | NULL (or set if rotation-only) | Day of week or rotation day match |
 | college_course | e.g. `[1,3,5]` (MWF) | NULL | Day of week match |
 | external_hs_course | NULL | `'A'` or `'B'` | Rotation day match only |
 | online_course | NULL | NULL | `is_not_scheduled = true` — never "meets" |
 | freeform | `[1,2,3,4,5]` | NULL | Day of week match |
 | internship | e.g. `[1,3]` (Mon/Wed) | NULL | Day of week match |
 
+An activity uses **either** `days_of_week` **or** `rotation_day_type`, never both. Activities with `days_of_week` meet on specific weekdays regardless of rotation. Activities with `rotation_day_type` meet on whichever weekday happens to be that rotation day.
+
 **Example — external HS course:**
 
-Allison has Band at Kennedy with `rotation_day_type = 'A'`, `days_of_week = NULL`.
+Allison has Band at Kennedy with `rotation_day_type = 'A'`, `days_of_week = NULL`, `block = 0`.
 
 - Monday, rotation A: Band **meets** (rotation matches, no day-of-week constraint)
 - Tuesday, rotation B: Band does **not** meet (rotation mismatch)
