@@ -28,17 +28,22 @@ export const ACTIVITY_TYPE_DEFAULTS = {
   internship:        { requires_attendance: true,  requires_checkin: true,  allows_presence_wave: false, allows_freeform: false, requires_geofence: false },
 }
 
-// Block numbers used at City View (0-5)
-export const BLOCKS = [0, 1, 2, 3, 4, 5]
+// Block utilities — block count is org-defined, not hardcoded.
+// Use getBlocks(blockCount) to generate the array for a given org.
+// blockCount comes from organization.settings.block_count (nullable = not yet decided).
 
-// Block labels for display
-export const BLOCK_LABELS = {
-  0: 'Block 0',
-  1: 'Block 1',
-  2: 'Block 2',
-  3: 'Block 3',
-  4: 'Block 4',
-  5: 'Block 5',
+export function getBlocks(blockCount) {
+  if (!blockCount || blockCount < 1) return []
+  return Array.from({ length: blockCount }, (_, i) => i)
+}
+
+export function getBlockLabel(blockNum) {
+  return `Block ${blockNum}`
+}
+
+export function getBlockLabels(blockCount) {
+  const blocks = getBlocks(blockCount)
+  return Object.fromEntries(blocks.map(b => [b, getBlockLabel(b)]))
 }
 
 // Days of week per EXTRACT(DOW): 0=Sun, 1=Mon, ..., 6=Sat
