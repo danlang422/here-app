@@ -134,7 +134,8 @@ CREATE TABLE activities (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
 
-  CONSTRAINT valid_block CHECK (block IS NULL OR (block >= 0 AND block <= 5)),
+  CONSTRAINT valid_block CHECK (block IS NULL OR block >= 0),
+  -- Upper bound enforced at app layer against organization.settings.block_count
   CONSTRAINT valid_days_of_week CHECK (
     days_of_week IS NULL OR (
       array_length(days_of_week, 1) > 0
@@ -216,7 +217,8 @@ CREATE TABLE enrollments (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
 
   CONSTRAINT unique_student_activity UNIQUE (student_id, activity_id),
-  CONSTRAINT valid_block CHECK (block IS NULL OR (block >= 0 AND block <= 5))
+  CONSTRAINT valid_block CHECK (block IS NULL OR block >= 0)
+  -- Upper bound enforced at app layer against organization.settings.block_count
 );
 
 CREATE INDEX idx_enrollments_student ON enrollments(student_id);
