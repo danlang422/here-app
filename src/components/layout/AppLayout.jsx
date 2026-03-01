@@ -1,12 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { FaUser, FaChalkboardTeacher, FaCog, FaSignOutAlt } from 'react-icons/fa'
-import { signOut } from '../../hooks/useAuth'
-import useAuthStore from '../../store/authStore'
+import { signOut } from '@/api/auth'
+import useAuthStore from '@/store/authStore'
+import { getDisplayName, getInitials } from '@/lib/utils'
 
 function AppLayout({ children }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { profile } = useAuthStore()
+  const { profile, currentRole, availableRoles, setCurrentRole } = useAuthStore()
 
   const roleRoutes = {
     student: '/student',
@@ -14,25 +15,31 @@ function AppLayout({ children }) {
     admin: '/admin',
   }
 
-  const isActive = (path) => location.pathname.startsWith(path)
+  const roleIcons = {
+    student: FaUser,
+    teacher: FaChalkboardTeacher,
+    admin: FaCog,
+  }
 
-  // Determine which role views to show based on the user's roles
-  const roles = profile?.roles ?? []
-  const isTeacher = roles.includes('teacher')
-  const isAdmin = roles.includes('admin')
-  const isStudent = roles.includes('student')
+  const roleLabels = {
+    student: 'Student',
+    teacher: 'Teacher',
+    admin: 'Admin',
+  }
+
+  function handleRoleSwitch(role) {
+    setCurrentRole(role)
+    navigate(roleRoutes[role], { replace: true })
+  }
 
   async function handleLogout() {
     await signOut()
     navigate('/login', { replace: true })
   }
 
-  // Display name: preferred_name or first name
-  const displayName = profile?.preferred_name ?? profile?.first_name ?? 'User'
-  const initials = [profile?.first_name?.[0], profile?.last_name?.[0]]
-    .filter(Boolean)
-    .join('')
-    .toUpperCase() || 'U'
+  const displayName = getDisplayName(profile)
+  const initials = getInitials(profile)
+  const CurrentRoleIcon = roleIcons[currentRole] || FaUser
 
   return (
     <div className="min-h-screen bg-base-200">
@@ -45,43 +52,27 @@ function AppLayout({ children }) {
         </div>
 
         <div className="flex-none gap-2">
-          {/* Role switcher — only show roles the user actually has */}
-          {(isTeacher || isAdmin || isStudent) && (
+          {/* Role switcher — only show if user has multiple roles */}
+          {availableRoles.length > 1 && (
             <div className="dropdown dropdown-end">
               <label tabIndex={0} className="btn btn-ghost gap-2">
-                {isActive('/teacher') && <FaChalkboardTeacher className="w-4 h-4" />}
-                {isActive('/admin') && <FaCog className="w-4 h-4" />}
-                {isActive('/student') && <FaUser className="w-4 h-4" />}
-                {isActive('/dashboard') && <FaUser className="w-4 h-4" />}
-                <span>
-                  {isActive('/teacher') ? 'Teacher'
-                    : isActive('/admin') ? 'Admin'
-                    : isActive('/student') ? 'Student'
-                    : 'Menu'}
-                </span>
+                <CurrentRoleIcon className="w-4 h-4" />
+                <span>{roleLabels[currentRole] || 'Menu'}</span>
               </label>
               <ul tabIndex={0} className="mt-3 p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 z-50">
-                {isStudent && (
-                  <li>
-                    <Link to={roleRoutes.student}>
-                      <FaUser className="w-4 h-4" /> Student View
-                    </Link>
-                  </li>
-                )}
-                {isTeacher && (
-                  <li>
-                    <Link to={roleRoutes.teacher}>
-                      <FaChalkboardTeacher className="w-4 h-4" /> Teacher View
-                    </Link>
-                  </li>
-                )}
-                {isAdmin && (
-                  <li>
-                    <Link to={roleRoutes.admin}>
-                      <FaCog className="w-4 h-4" /> Admin View
-                    </Link>
-                  </li>
-                )}
+                {availableRoles.map(role => {
+                  const Icon = roleIcons[role]
+                  return (
+                    <li key={role}>
+                      <button
+                        onClick={() => handleRoleSwitch(role)}
+                        className={role === currentRole ? 'active' : ''}
+                      >
+                        <Icon className="w-4 h-4" /> {roleLabels[role]} View
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}
@@ -97,7 +88,6 @@ function AppLayout({ children }) {
               <li className="menu-title px-2 py-1">
                 <span className="text-xs font-normal text-base-content/60">{displayName}</span>
               </li>
-              <li><a>Profile</a></li>
               <li>
                 <button onClick={handleLogout}>
                   <FaSignOutAlt className="w-4 h-4" /> Logout
