@@ -1,5 +1,5 @@
-import { useAuthListener } from '../../hooks/useAuth'
-import useAuthStore from '../../store/authStore'
+import { useAuthListener } from '@/hooks/useAuth'
+import useAuthStore from '@/store/authStore'
 
 // Initializes the auth listener and shows a loading screen while the
 // initial session check is in flight. This prevents a flash of the
