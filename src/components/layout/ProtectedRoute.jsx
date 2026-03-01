@@ -1,14 +1,19 @@
 import { Navigate, useLocation } from 'react-router-dom'
-import useAuthStore from '../../store/authStore'
+import useAuthStore from '@/store/authStore'
 
-// Wraps protected routes. Redirects to /login if there's no active session,
-// preserving the intended destination so we can redirect back after login.
-function ProtectedRoute({ children }) {
-  const { user } = useAuthStore()
+// Wraps protected routes. Redirects to /login if not authenticated.
+// If requiredRole is specified, redirects to /unauthorized if the
+// user's current role doesn't match.
+function ProtectedRoute({ children, requiredRole }) {
+  const { user, currentRole } = useAuthStore()
   const location = useLocation()
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (requiredRole && currentRole !== requiredRole) {
+    return <Navigate to="/dashboard" replace />
   }
 
   return children

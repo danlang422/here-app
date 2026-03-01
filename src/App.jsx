@@ -1,33 +1,58 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import ProtectedRoute from '@/components/layout/ProtectedRoute'
+import AppLayout from '@/components/layout/AppLayout'
 
-// Auth
-import ProtectedRoute from './components/layout/ProtectedRoute'
+// Auth pages
+import Login from '@/pages/auth/Login'
 
-// Pages
-import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import StudentDashboard from './pages/StudentDashboard'
-import TeacherDashboard from './pages/TeacherDashboard'
-import AdminDashboard from './pages/AdminDashboard'
+// Role-redirect hub
+import DashboardRedirect from '@/pages/DashboardRedirect'
+
+// Student pages
+import StudentTodayView from '@/pages/student/TodayView'
+
+// Teacher pages
+import TeacherDashboard from '@/pages/teacher/Dashboard'
+
+// Admin pages
+import AdminDashboard from '@/pages/admin/Dashboard'
 
 function App() {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={<Login />} />
 
-      {/* Protected routes */}
+      {/* Dashboard redirect — sends to role-appropriate view */}
       <Route path="/dashboard" element={
-        <ProtectedRoute><DashboardPage /></ProtectedRoute>
+        <ProtectedRoute><DashboardRedirect /></ProtectedRoute>
       } />
+
+      {/* Student routes */}
       <Route path="/student" element={
-        <ProtectedRoute><StudentDashboard /></ProtectedRoute>
+        <ProtectedRoute requiredRole="student">
+          <AppLayout>
+            <StudentTodayView />
+          </AppLayout>
+        </ProtectedRoute>
       } />
+
+      {/* Teacher routes */}
       <Route path="/teacher" element={
-        <ProtectedRoute><TeacherDashboard /></ProtectedRoute>
+        <ProtectedRoute requiredRole="teacher">
+          <AppLayout>
+            <TeacherDashboard />
+          </AppLayout>
+        </ProtectedRoute>
       } />
+
+      {/* Admin routes */}
       <Route path="/admin" element={
-        <ProtectedRoute><AdminDashboard /></ProtectedRoute>
+        <ProtectedRoute requiredRole="admin">
+          <AppLayout>
+            <AdminDashboard />
+          </AppLayout>
+        </ProtectedRoute>
       } />
 
       {/* Default redirect */}
