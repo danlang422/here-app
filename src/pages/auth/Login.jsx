@@ -1,17 +1,24 @@
 import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { signIn } from '@/api/auth'
+import useAuthStore from '@/store/authStore'
 
 function Login() {
-  const navigate = useNavigate()
   const location = useLocation()
+  const user = useAuthStore((state) => state.user)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  // Redirect back to where the user was trying to go, or dashboard
+  // Where to send the user after login
   const from = location.state?.from?.pathname ?? '/dashboard'
+
+  // If the user is already authenticated (or just became authenticated
+  // via the auth listener), redirect them out of the login page
+  if (user) {
+    return <Navigate to={from} replace />
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -20,7 +27,8 @@ function Login() {
 
     try {
       await signIn(email, password)
-      navigate(from, { replace: true })
+      // No navigate here — the auth listener updates the store,
+      // which triggers a re-render, and the redirect above fires
     } catch (err) {
       setError(err.message ?? 'Sign in failed. Please try again.')
     } finally {
