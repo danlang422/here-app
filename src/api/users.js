@@ -45,11 +45,26 @@ export async function getUser(userId) {
 
 // Create a new user via Edge Function (requires service role)
 export async function createUser(userData) {
+  const { data: { session } } = await supabase.auth.getSession()
+
   const { data, error } = await supabase.functions.invoke('create-user', {
     body: userData,
+    headers: {
+      Authorization: `Bearer ${session?.access_token}`,
+    },
   })
 
-  if (error) throw error
+  if (error) {
+    // functions.invoke() swallows the response body on non-2xx status.
+    // error.context is a Response object — read the JSON body for the real message.
+    try {
+      const body = await error.context.json()
+      if (body?.error) throw new Error(body.error)
+    } catch (parseErr) {
+      if (parseErr.message && parseErr.message !== error.message) throw parseErr
+    }
+    throw error
+  }
   if (data?.error) throw new Error(data.error)
   return data.user
 }
