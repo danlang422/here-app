@@ -25,7 +25,7 @@ export const ACTIVITY_TYPE_DEFAULTS = {
   external_hs_course:{ requires_attendance: false, requires_checkin: false, allows_presence_wave: false, allows_freeform: false, requires_geofence: false },
   online_course:     { requires_attendance: true,  requires_checkin: true,  allows_presence_wave: false, allows_freeform: false, requires_geofence: false },
   freeform:          { requires_attendance: true,  requires_checkin: true,  allows_presence_wave: false, allows_freeform: true,  requires_geofence: false },
-  internship:        { requires_attendance: true,  requires_checkin: true,  allows_presence_wave: false, allows_freeform: false, requires_geofence: false },
+  internship:        { requires_attendance: true,  requires_checkin: true,  allows_presence_wave: false, allows_freeform: false, requires_geofence: true },
 }
 
 // Block utilities — block count is org-defined, not hardcoded.
