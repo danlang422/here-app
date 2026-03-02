@@ -1,84 +1,98 @@
 # Here App — Project Status
 
-**Last updated:** March 1, 2026 (evening)
+**Last updated:** March 1, 2026 (late evening — Session 3)
 
 ---
 
 ## Current State
 
-**Documentation:** Complete and internally consistent. Schema, business logic, architecture, and migration files all reflect the same unified model. RLS policy docs updated to reflect recursion fix.
+**Documentation:** Up to date. Schema docs updated to reflect dynamic block count changes (org settings, loosened constraints on activities/enrollments).
 
-**Database:** V2 schema deployed to Supabase. All four migration phases plus RLS fix migration have been run. Seed data bootstrapped: City View org and admin account (Daniel Lang, admin+teacher roles) created via `scripts/seed.js`.
+**Database:** V2 schema deployed with three additional migrations since phase 4: RLS fix, dynamic block count, and admin RLS policies. City View org has `block_count: 6` in settings. Seed data: City View org and admin account (Daniel Lang, admin+teacher roles).
 
-**Application code:** Auth flow fully working — login, redirect, session persistence across refresh. Admin section has sub-routing with tabbed navigation and placeholder pages for Calendar, Activities, Users, and Reports. No feature code yet.
+**Application code:** Auth flow working. Activity Management page is functional — activity form with type-driven field visibility, activity table with filtering, full CRUD via Supabase. Staff dropdowns wired up (currently returning Daniel as the only staff user). All other admin pages (Calendar, Users, Reports) are still placeholders.
 
-**User flows:** Still in the old monolithic `docs/USER_FLOWS.md` format. Lower priority — will evolve as we build.
+**Key architectural decisions from this session:** The app is being designed as a schedule-building tool, not just a schedule-entry form. Settings, blocks, terms, etc. are all optional/progressive — admins can enter activities before defining blocks or terms.
 
 ---
 
-## What Was Accomplished (March 1, 2026 — Session 2)
+## What Was Accomplished (March 1, 2026 — Session 3)
 
-### Seed Data
-- Ran `scripts/seed.js` to bootstrap City View org and admin account
-- Decision: keep seed data minimal (org + admin only); let admin UI be the path for creating terms, schedules, activities, etc.
-- Student test accounts will be added to seed script later when enrollment features are ready
+### Dynamic Block Count
+- Block count is now org-defined (`organization.settings.block_count`), not hardcoded to 0-5
+- Loosened `valid_block` DB constraints on `activities` and `enrollments` — removed `<= 5` ceiling, upper bound enforced at app layer
+- Replaced hardcoded `BLOCKS`/`BLOCK_LABELS` constants with `getBlocks(blockCount)`, `getBlockLabel(blockNum)`, `getBlockLabels(blockCount)` utilities
+- City View seeded with `block_count: 6`
+- Migration: `20260301000001_dynamic_block_count.sql`
 
-### Auth Fixes
-- **Login redirect:** Replaced imperative `navigate()` with reactive `<Navigate>` driven by auth store state. Login page now detects authenticated user and redirects automatically.
-- **Supabase client deadlock:** Discovered that supabase-js v2.95 deadlocks when client methods (like `getSession()` or `from().select()`) are called from within `onAuthStateChange` callbacks. Fixed `fetchProfile` to use raw `fetch` with the session's access token passed as a parameter instead of calling back into the Supabase client.
-- **HMR guard:** Added `globalThis` singleton pattern to `supabase.js` to prevent duplicate GoTrueClient instances during Vite hot reload.
-- **Mounted guard:** Added `mounted` flag to `useAuthListener` effect to prevent state updates after cleanup. Empty dependency array since Zustand store functions are stable references.
-- **INITIAL_SESSION skip:** `onAuthStateChange` now skips the `INITIAL_SESSION` event since `getSession()` already handles the initial load.
+### Activity Management (Layer 1 — CRUD Basics)
+- **ActivityForm component** (`src/components/activities/ActivityForm.jsx`): Reusable, self-contained form designed for future use in modals/slide-overs. Type dropdown drives field visibility in real time. Staff section shows contextually by type with "+ Add staff" for extras. Block dropdown populated from org settings (shows "Blocks not yet defined" if null). Behavior flags in collapsible Advanced section, auto-populated by type defaults. All fields optional except name and type.
+- **ActivityTable component** (`src/components/activities/ActivityTable.jsx`): Table with type badges, block labels, day abbreviations, 12-hour time display, edit buttons. Empty and loading states.
+- **ActivityManagement page** (`src/pages/admin/ActivityManagement.jsx`): Wires form and table together. Create/edit flow, type filter, error handling.
 
-### RLS Fix
-- **user_profiles infinite recursion:** The original "Users view org profiles" policy used a self-referential subquery (`SELECT organization_id FROM user_profiles WHERE id = auth.uid()`), causing PostgreSQL to detect infinite recursion. Split into two policies: "Users read own profile" (`id = auth.uid()`) and "Users view org profiles" (reads org_id from `auth.jwt() -> 'user_metadata'` instead of subquerying the same table).
-- Migration: `20260301000000_fix_user_profiles_rls.sql`
+### API Layer Additions
+- `src/api/organizations.js` — `getOrganization`, `updateOrgSettings`, `getOrgSettings`
+- `src/api/users.js` — `getUsers` (with role filtering), `getStaffUsers`, `getStudents`, `getUser`, `formatUserName`
 
-### Admin Sub-Routing
-- Created `AdminLayout` component with tabbed navigation (Dashboard, Calendar, Activities, Users, Reports) using `NavLink` + `<Outlet />`
-- Admin routes nested under `/admin` with child routes: `/admin/calendar`, `/admin/activities`, `/admin/users`, `/admin/reports`
-- Admin Dashboard updated with clickable cards linking to sub-sections
-- Placeholder pages created for all admin sub-sections
+### Admin RLS Policies
+- Added missing RLS policies for admin page functionality
+- `organizations`: SELECT for org members (via JWT), UPDATE for admins
+- `academic_terms`, `schedule_templates`, `school_days`: SELECT for org members, ALL for admins
+- `enrollments`: ALL for admins (scoped to org activities)
+- `user_profiles`: UPDATE for admins in their org
+- `internship_opportunities`: SELECT for org members, ALL for admins
+- All use JWT-based org_id pattern to avoid self-referential subquery issues
+- Migration: `20260301000002_admin_rls_policies.sql`
+
+### Schema Doc Updates
+- `docs/schema/01-core-tables.md` — Added `block_count` to settings schema with documentation
+- `docs/schema/03-activities.md` — Updated constraint notation for dynamic blocks
 
 ---
 
 ## Recent Decisions
 
-**Minimal seed data (March 2026):**
-Only seed the org and admin account. All other data (terms, schedules, activities, students) should be created through admin UI features as they're built. This ensures the admin workflows are actually tested.
+**Dynamic block count (March 2026):**
+Block count is org-defined, not hardcoded. Schedule templates will have rows matching the org's block count. Alternative schedules can mark individual blocks as inactive/skipped rather than having a different block count. This supports orgs that change block count between semesters (City View used 5 last semester, 6 this semester).
 
-**Admin features first (March 2026):**
-Building admin features before student/teacher views. Admin tools create the data (terms, school days, activities, enrollments) that other views consume — no point building a student schedule view with no data to display.
+**Progressive/optional setup (March 2026):**
+The app should never force admins to define X before entering Y. Blocks, terms, schedule templates, and other org settings are all optional. Activities can be created with times but no block assignment. The system gets smarter as more information is filled in. This supports a schedule-building workflow where structure (blocks, templates) emerges from data (activities with real times) rather than being a prerequisite.
 
-**Enrollment validation over conflict resolution (March 2026):**
-The system prevents scheduling overlaps at enrollment time rather than resolving them at runtime. No priority system, no "away" detection, no hidden/shown logic. See `docs/business-logic/05-conflict-resolution.md`.
+**Activity form as reusable component (March 2026):**
+The activity form is designed to be container-agnostic — it works in a full page, modal, or slide-over panel. Same for future user management form. This supports the vision of an admin schedule overview where you can add/edit activities in-place via floating modals.
 
-**External activities get block numbers (March 2026):**
-All scheduled activities — including external HS courses, internships, and college courses — receive a block number. The only activities without blocks are unscheduled ones (`is_not_scheduled = true`).
+**Build order revised (March 2026):**
+Activity Management before Calendar Management, because admins may want to enter immovable schedule items (college courses, external HS courses) before defining blocks or terms. Calendar/template features build on top of existing activity data.
 
-**Unified activities table (February 2026):**
-V1's separate `sessions` and `student_activities` tables collapsed into a single `activities` table.
+**Internship requires geofence by default (March 2026):**
+Updated `ACTIVITY_TYPE_DEFAULTS` so internships default to `requires_geofence: true`.
+
+**React Query / React Hook Form deferred (March 2026):**
+Both libraries are installed but not yet used. Current manual useState patterns work fine. Will do a dedicated refactor session when the pattern repetition across 3-4 pages makes it painful.
 
 ---
 
 ## Known Issues / Tech Debt
 
-- **Raw fetch in useAuthListener:** `fetchProfile` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 when calling client methods inside `onAuthStateChange`. This should be revisited when upgrading supabase-js — the bug may be fixed in a future version.
-- **Other RLS policies may have similar patterns:** Policies on other tables (activities, attendance_records) use subqueries against `user_profiles`, which is fine (not self-referential), but worth auditing if performance issues arise.
+- **Raw fetch in useAuthListener:** `fetchProfile` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 when calling client methods inside `onAuthStateChange`. Revisit on supabase-js upgrade.
+- **RLS policies are starter-level:** Policies exist for core admin workflows but will need expansion as features grow (e.g., teacher-scoped writes, student check-in policies). Some existing phase 4 policies (teachers manage attendance) aren't org-scoped yet.
+- **React Query / React Hook Form not used:** Installed but manual patterns in use. Refactor when it becomes painful.
 
 ---
 
 ## Next Steps
 
-1. **Admin: Calendar management** — Term CRUD, school day calendar generation, schedule template editor. This is the foundation everything else depends on. Discuss with Daniel what the admin UI should look like before building.
+1. **Admin: User management** — List page with table, user creation form (reusable component, modal-ready). Need a Supabase Edge Function for creating new auth accounts. This unblocks populating staff dropdowns in the activity form and enables enrollment workflows.
 
-2. **Admin: Activity management** — Unified activity form (type-driven field visibility), activity list with filtering, needs-scheduling view.
+2. **Admin: Test with real data** — Create some activities (college courses, external HS courses) to verify the form saves correctly and the table displays properly. Verify type-switching, staff fields, and block assignment.
 
-3. **Admin: Enrollment management** — Enroll/unenroll students, overlap validation, bulk enrollment.
+3. **Admin: Agenda/week view (Layer 2)** — Visual timeline showing placed activities by time across a week, with rolled-up cards (e.g. "3 Activities, 15 students"). This is where the schedule-building experience comes alive. Design is still TBD — will be iterative.
 
-4. **Admin: User management** — View/edit user profiles, role assignment. Will need a Supabase Edge Function for creating new auth accounts.
+4. **Admin: Conflict detection (Layer 3)** — Select unscheduled activities, highlight conflicts based on shared students. Builds on the agenda view. Also TBD/iterative.
 
-5. **Teacher/Student views** — After admin tools exist and data is populated.
+5. **Admin: Calendar management** — Term CRUD, school day generation, schedule template editor, "assign blocks" step that maps existing activities to newly-defined block boundaries.
+
+6. **Rotation day display** — Need to figure out how A/B day activities display in the week view alongside fixed-day activities. Current thinking: semi-transparent/striped cards spanning all weekdays, with conflict logic aware of rotation day matching.
 
 ---
 
@@ -90,4 +104,4 @@ V1's separate `sessions` and `student_activities` tables collapsed into a single
 | `docs/business-logic/` | Schedule logic, check-in rules, attendance rules, enrollment validation, notifications |
 | `docs/architecture/` | Tech stack, data flow, auth, realtime, UI patterns |
 | `docs/USER_FLOWS.md` | **Outdated** — needs chunked rewrite |
-| `supabase/migrations/` | SQL migration files (four phases + reset + RLS fix) |
+| `supabase/migrations/` | SQL migration files (four phases + reset + RLS fix + dynamic blocks + admin RLS) |
