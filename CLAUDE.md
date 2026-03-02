@@ -53,6 +53,14 @@ src/
 └── main.jsx        # Entry point
 ```
 
+## Coding Conventions
+
+- **API layer:** One file per domain in `src/api/`. Functions use the shared Supabase client, throw on error, and return `data`. Query-building functions accept filter objects as a second parameter (see `getActivities` pattern).
+- **State:** Zustand stores in `src/store/` with `persist` middleware where needed (auth persists role selection only). No Redux.
+- **Components:** DaisyUI component classes as the baseline, extended with Tailwind utilities. Form components designed to be container-agnostic (work in pages, modals, or panels).
+- **Path aliases:** Use `@/` for `src/` imports (e.g., `import { supabase } from '@/api/supabase'`).
+- **React Query / React Hook Form:** Installed but not yet integrated. Current pages use manual `useState` + `useEffect` patterns. A dedicated refactor session is planned when the repetition across pages becomes painful — don't convert individual pages piecemeal.
+
 ## Key Architectural Decisions
 
 **Everything is an activity.** Regular classes, college courses, internships, freeform blocks — all in one `activities` table. `type` is a UI hint, not a behavioral switch.
@@ -88,4 +96,12 @@ Schema docs are in `docs/schema/` — these are the authoritative source for tab
 | `docs/schema/` | DB tables, constraints, indexes, queries, RLS, migration strategy |
 | `docs/business-logic/` | Schedule logic, check-in rules, attendance rules, enrollment validation |
 | `docs/architecture/` | Tech stack, data flow, auth, realtime, UI patterns |
-| `docs/USER_FLOWS.md` | **Outdated — do not rely on schema references here.** Written in February 2026 before V2 schema was finalized. References old conflict resolution model (priority-based / enrollment_overrides) and old V1 "sessions" terminology. Use `docs/schema/` and `docs/business-logic/` for accurate data model details. |
+| `docs/USER_FLOWS.md` | **Outdated — do not rely on schema or data model references.** Describes V1 concepts (priority-based conflict resolution, enrollment_overrides, "sessions" terminology). Being replaced by per-feature docs in `docs/user-flows/` Use `docs/schema/` and `docs/business-logic/` for accurate data model details. |
+
+## Workflow
+
+Design decisions and feature planning happen in conversation with Daniel before implementation. This project follows a discuss-then-build pattern — by the time a task reaches Claude Code, the "what" and "why" should be documented.
+
+- Check `STATUS.md` for current priorities and next steps
+- Look for user flow docs in `docs/user-flows/` for feature-specific behavior specs (this directory is being built out incrementally, feature by feature)
+- The app is designed as a **schedule-building tool** — structure (blocks, templates) emerges from data (activities with real times), not the other way around. UI decisions should reflect this: don't gate features behind setup steps that haven't been completed yet.
