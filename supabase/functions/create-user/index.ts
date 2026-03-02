@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY");
+    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
 
     if (!serviceRoleKey || !supabaseUrl) {
@@ -86,11 +86,19 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Create auth user
+    // Create auth user — pass metadata so the on_auth_user_created trigger
+    // can automatically create the user_profiles row.
     const { data: authData, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
+      user_metadata: {
+        organization_id,
+        first_name,
+        last_name,
+        preferred_name: preferred_name || null,
+        roles,
+      },
     });
 
     if (createError) {
@@ -100,27 +108,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Insert user profile
-    const { data: profile, error: insertError } = await adminClient
+    // The trigger created the profile — now update grade_level if provided,
+    // since the trigger doesn't handle it.
+    if (grade_level) {
+      await adminClient
+        .from("user_profiles")
+        .update({ grade_level })
+        .eq("id", authData.user.id);
+    }
+
+    // Fetch the created profile to return it
+    const { data: profile, error: fetchError } = await adminClient
       .from("user_profiles")
-      .insert({
-        id: authData.user.id,
-        organization_id,
-        email,
-        first_name,
-        last_name,
-        preferred_name: preferred_name || null,
-        roles,
-        grade_level: grade_level || null,
-      })
-      .select()
+      .select("*")
+      .eq("id", authData.user.id)
       .single();
 
-    if (insertError) {
-      // Clean up auth user if profile insert fails
-      await adminClient.auth.admin.deleteUser(authData.user.id);
+    if (fetchError) {
       return new Response(
-        JSON.stringify({ error: `Profile creation failed: ${insertError.message}` }),
+        JSON.stringify({ error: `User created but failed to fetch profile: ${fetchError.message}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

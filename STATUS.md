@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 1, 2026 (late evening — Session 3)
+**Last updated:** March 2, 2026 (Session 4)
 
 ---
 
@@ -8,11 +8,33 @@
 
 **Documentation:** Up to date. Schema docs updated to reflect dynamic block count changes (org settings, loosened constraints on activities/enrollments).
 
-**Database:** V2 schema deployed with three additional migrations since phase 4: RLS fix, dynamic block count, and admin RLS policies. City View org has `block_count: 6` in settings. Seed data: City View org and admin account (Daniel Lang, admin+teacher roles).
+**Database:** V2 schema deployed with three additional migrations since phase 4: RLS fix, dynamic block count, and admin RLS policies. City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activity types.
 
-**Application code:** Auth flow working. Activity Management page is functional — activity form with type-driven field visibility, activity table with filtering, full CRUD via Supabase. Staff dropdowns wired up (currently returning Daniel as the only staff user). All other admin pages (Calendar, Users, Reports) are still placeholders.
+**Application code:** Auth flow working. Activity Management and User Management pages are both functional with full CRUD. Activity form has type-driven field visibility, activity table with filtering. User management uses a modal-based create/edit flow with a Supabase Edge Function for account creation. Staff dropdowns in the activity form are wired up. Remaining admin pages (Calendar, Reports) are still placeholders.
 
-**Key architectural decisions from this session:** The app is being designed as a schedule-building tool, not just a schedule-entry form. Settings, blocks, terms, etc. are all optional/progressive — admins can enter activities before defining blocks or terms.
+**Key architectural decisions:** The app is being designed as a schedule-building tool, not just a schedule-entry form. Settings, blocks, terms, etc. are all optional/progressive — admins can enter activities before defining blocks or terms. User management follows the same reusable-component pattern as activities — form works in modal or full page.
+
+---
+
+## What Was Accomplished (March 2, 2026 — Session 4)
+
+### User Management
+- **UserForm component** (`src/components/users/UserForm.jsx`): Reusable, container-agnostic form (modal-ready, like ActivityForm). Create mode shows email + password fields; edit mode hides them. Role selection via checkboxes (admin, teacher, student — at least one required). Optional preferred name and grade level.
+- **UserTable component** (`src/components/users/UserTable.jsx`): Table with name, email, color-coded role badges, grade level, edit buttons. Loading and empty states.
+- **UserManagement page** (`src/pages/admin/UserManagement.jsx`): Modal-based create/edit flow, role filter dropdown, error handling. Wired up at `/admin/users`.
+- **Supabase Edge Function** (`supabase/functions/create-user/index.ts`): Deno-based function using service role key to create auth accounts. Verifies caller is an authenticated admin in the same org. Passes user data via `user_metadata` so the existing `on_auth_user_created` trigger creates the profile row. Deployed with `--no-verify-jwt` (function handles its own auth verification). CORS handled via shared module.
+- **API additions to `src/api/users.js`**: `createUser` (invokes Edge Function with explicit auth header and error extraction from Response context), `updateUser` (direct profile update). Query functions (`getUsers`, `getStaffUsers`, etc.) and `formatUserName` were already in place from Session 3.
+- No new migration needed — existing schema and RLS policies already supported user management.
+
+### Edge Function Fixes (Session 4 troubleshooting)
+- Gateway was rejecting requests with 401 before function code ran — fixed by deploying with `--no-verify-jwt` (the publishable key auth flow doesn't pass the JWT in a way the gateway's built-in verification expects).
+- `auth.admin.createUser()` was failing with "Database error creating new user" because the `on_auth_user_created` trigger requires `organization_id` in `user_metadata` — fixed by passing all profile fields through `user_metadata` and letting the trigger handle profile creation.
+- `supabase.functions.invoke()` swallows response bodies on non-2xx status — added error extraction via `error.context.json()` in the client-side `createUser` to surface real error messages.
+- Service role key: function now checks both `SERVICE_ROLE_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (Supabase auto-provides the latter as a reserved secret).
+
+### Verified with Real Data
+- Created multiple users (staff, students) via the User Management form — confirmed Edge Function, trigger, and profile creation all work end to end.
+- Created multiple activities of different types — confirmed type-driven field visibility, save, and table display all work correctly.
 
 ---
 
@@ -58,8 +80,8 @@ Block count is org-defined, not hardcoded. Schedule templates will have rows mat
 **Progressive/optional setup (March 2026):**
 The app should never force admins to define X before entering Y. Blocks, terms, schedule templates, and other org settings are all optional. Activities can be created with times but no block assignment. The system gets smarter as more information is filled in. This supports a schedule-building workflow where structure (blocks, templates) emerges from data (activities with real times) rather than being a prerequisite.
 
-**Activity form as reusable component (March 2026):**
-The activity form is designed to be container-agnostic — it works in a full page, modal, or slide-over panel. Same for future user management form. This supports the vision of an admin schedule overview where you can add/edit activities in-place via floating modals.
+**Reusable form components (March 2026):**
+Both the activity form and user form are designed to be container-agnostic — they work in full page, modal, or slide-over panel. This supports the vision of an admin schedule overview where you can add/edit items in-place via floating modals.
 
 **Build order revised (March 2026):**
 Activity Management before Calendar Management, because admins may want to enter immovable schedule items (college courses, external HS courses) before defining blocks or terms. Calendar/template features build on top of existing activity data.
@@ -82,17 +104,13 @@ Both libraries are installed but not yet used. Current manual useState patterns 
 
 ## Next Steps
 
-1. **Admin: User management** — List page with table, user creation form (reusable component, modal-ready). Need a Supabase Edge Function for creating new auth accounts. This unblocks populating staff dropdowns in the activity form and enables enrollment workflows.
+1. **Admin: Agenda/week view (Layer 2)** — Visual timeline showing placed activities by time across a week, with rolled-up cards (e.g. "3 Activities, 15 students"). This is where the schedule-building experience comes alive. Design is still TBD — will be iterative.
 
-2. **Admin: Test with real data** — Create some activities (college courses, external HS courses) to verify the form saves correctly and the table displays properly. Verify type-switching, staff fields, and block assignment.
+2. **Admin: Conflict detection (Layer 3)** — Select unscheduled activities, highlight conflicts based on shared students. Builds on the agenda view. Also TBD/iterative.
 
-3. **Admin: Agenda/week view (Layer 2)** — Visual timeline showing placed activities by time across a week, with rolled-up cards (e.g. "3 Activities, 15 students"). This is where the schedule-building experience comes alive. Design is still TBD — will be iterative.
+3. **Admin: Calendar management** — Term CRUD, school day generation, schedule template editor, "assign blocks" step that maps existing activities to newly-defined block boundaries.
 
-4. **Admin: Conflict detection (Layer 3)** — Select unscheduled activities, highlight conflicts based on shared students. Builds on the agenda view. Also TBD/iterative.
-
-5. **Admin: Calendar management** — Term CRUD, school day generation, schedule template editor, "assign blocks" step that maps existing activities to newly-defined block boundaries.
-
-6. **Rotation day display** — Need to figure out how A/B day activities display in the week view alongside fixed-day activities. Current thinking: semi-transparent/striped cards spanning all weekdays, with conflict logic aware of rotation day matching.
+4. **Rotation day display** — Need to figure out how A/B day activities display in the week view alongside fixed-day activities. Current thinking: semi-transparent/striped cards spanning all weekdays, with conflict logic aware of rotation day matching.
 
 ---
 
