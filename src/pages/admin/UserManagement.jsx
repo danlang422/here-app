@@ -21,6 +21,7 @@ function UserManagement() {
 
   // UI state
   const [editingUser, setEditingUser] = useState(null)
+  const [formKey, setFormKey] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const modalRef = useRef(null)
@@ -47,6 +48,7 @@ function UserManagement() {
 
   function openModal(user = null) {
     setEditingUser(user)
+    setFormKey((k) => k + 1)
     modalRef.current?.showModal()
   }
 
@@ -129,7 +131,7 @@ function UserManagement() {
             {editingUser ? 'Edit User' : 'New User'}
           </h3>
           <UserForm
-            key={editingUser?.id || 'new'}
+            key={formKey}
             user={editingUser}
             onSave={handleSave}
             onCancel={closeModal}
