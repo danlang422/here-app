@@ -43,6 +43,30 @@ export async function getUser(userId) {
   return data
 }
 
+// Create a new user via Edge Function (requires service role)
+export async function createUser(userData) {
+  const { data, error } = await supabase.functions.invoke('create-user', {
+    body: userData,
+  })
+
+  if (error) throw error
+  if (data?.error) throw new Error(data.error)
+  return data.user
+}
+
+// Update a user profile
+export async function updateUser(userId, updates) {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .update(updates)
+    .eq('id', userId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 // Format a user's display name
 export function formatUserName(user) {
   if (!user) return ''
