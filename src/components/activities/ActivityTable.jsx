@@ -1,0 +1,125 @@
+import { ACTIVITY_TYPE_LABELS, getBlockLabel } from '@/lib/constants'
+
+/**
+ * ActivityTable — displays a filterable list of activities.
+ *
+ * Props:
+ *   activities  - array of activity objects
+ *   loading     - boolean, show loading state
+ *   onEdit      - called with activity object when edit is clicked
+ *   orgSettings - organization.settings (for block_count context)
+ */
+export default function ActivityTable({ activities = [], loading = false, onEdit }) {
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <span className="loading loading-spinner loading-lg" />
+      </div>
+    )
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div className="text-center py-12 text-base-content/50">
+        <p className="text-lg mb-1">No activities yet</p>
+        <p className="text-sm">Create your first activity to get started.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="table table-sm">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Block</th>
+            <th>Days / Rotation</th>
+            <th>Time</th>
+            <th>Location</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {activities.map((activity) => (
+            <tr key={activity.id} className="hover">
+              <td className="font-medium">{activity.name}</td>
+              <td>
+                <span className="badge badge-ghost badge-sm">
+                  {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
+                </span>
+              </td>
+              <td>
+                {activity.block != null
+                  ? getBlockLabel(activity.block)
+                  : <span className="text-base-content/40">—</span>
+                }
+              </td>
+              <td>
+                <DaysDisplay activity={activity} />
+              </td>
+              <td>
+                <TimeDisplay activity={activity} />
+              </td>
+              <td className="text-base-content/60">
+                {activity.location || <span className="text-base-content/30">—</span>}
+              </td>
+              <td>
+                {onEdit && (
+                  <button
+                    className="btn btn-ghost btn-xs"
+                    onClick={() => onEdit(activity)}
+                  >
+                    Edit
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** Compact display of days_of_week or rotation_day_type */
+function DaysDisplay({ activity }) {
+  if (activity.is_not_scheduled) {
+    return <span className="text-base-content/40 italic text-xs">Not scheduled</span>
+  }
+
+  if (activity.rotation_day_type) {
+    return <span className="badge badge-outline badge-xs">{activity.rotation_day_type} Day</span>
+  }
+
+  if (activity.days_of_week && activity.days_of_week.length > 0) {
+    const dayLabels = { 1: 'M', 2: 'Tu', 3: 'W', 4: 'Th', 5: 'F', 0: 'Su', 6: 'Sa' }
+    const display = activity.days_of_week.map((d) => dayLabels[d] || d).join('')
+    return <span className="text-sm">{display}</span>
+  }
+
+  return <span className="text-base-content/40">—</span>
+}
+
+/** Compact time range display */
+function TimeDisplay({ activity }) {
+  if (activity.is_not_scheduled || (!activity.default_start_time && !activity.default_end_time)) {
+    return <span className="text-base-content/40">—</span>
+  }
+
+  const formatTime = (t) => {
+    if (!t) return ''
+    // t is "HH:MM" or "HH:MM:SS" — convert to 12hr
+    const [h, m] = t.split(':').map(Number)
+    const period = h >= 12 ? 'p' : 'a'
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+    return `${hour12}:${String(m).padStart(2, '0')}${period}`
+  }
+
+  return (
+    <span className="text-sm">
+      {formatTime(activity.default_start_time)}–{formatTime(activity.default_end_time)}
+    </span>
+  )
+}
