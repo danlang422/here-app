@@ -2,6 +2,18 @@
 
 ## Tailwind + DaisyUI Configuration
 
+> **Configuration status (March 2026):** The project uses Tailwind CSS v4 (`@tailwindcss/postcss` 4.x) and DaisyUI v5 (5.x). The CSS entry point uses the v4 syntax (`@import "tailwindcss"` / `@plugin "daisyui"`), but a v3-style `tailwind.config.js` also exists. Tailwind v4 reads this for backwards compatibility, so everything works, but this is a hybrid state. A cleanup to move theme/plugin config fully into CSS (the v4 way) is planned.
+
+### CSS Entry Point (Tailwind v4 style)
+
+```css
+/* src/index.css */
+@import "tailwindcss";
+@plugin "daisyui";
+```
+
+### Legacy JS Config (still present, read by Tailwind v4 for backwards compatibility)
+
 ```js
 // tailwind.config.js
 export default {
@@ -33,19 +45,7 @@ export default {
 }
 ```
 
-### Global Styles
-
-```css
-/* src/styles/index.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  html { @apply h-full; }
-  body { @apply h-full bg-base-200 text-base-content; }
-}
-```
+The DaisyUI cityview theme defines the color palette. Once the config is migrated to CSS-only, this will move into `src/index.css` using Tailwind v4's `@theme` directive.
 
 ---
 

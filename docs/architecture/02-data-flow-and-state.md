@@ -1,5 +1,7 @@
 # Data Flow & State Management
 
+> **Implementation status (March 2026):** React Query (TanStack Query v5) and React Hook Form are both installed but **not yet integrated**. Current pages (ActivityManagement, UserManagement, auth) use manual `useState` + `useEffect` fetch patterns. The patterns described below are the planned architecture — a dedicated refactor session to adopt them across existing pages is upcoming. Zustand is in use for auth and UI state.
+
 ## High-Level Data Flow
 
 ```

@@ -216,6 +216,73 @@ Application shows error explaining the overlap and suggesting the admin convert 
 
 ---
 
+## Time-Based Conflict Detection (Scheduling Visibility)
+
+Separate from block-based enrollment gating, the system provides **time-based conflict detection** for scheduling visibility. This is informational only — it never blocks enrollment. Its purpose is to help admins see whether activities overlap in actual clock time, and by how much.
+
+This distinction exists because block assignment is organizational (admin judgment), not a strict time boundary. An activity assigned to Block 0 may not span Block 0's full time range — for example, Kennedy Band is "Block 0" but runs 8:00–8:45 while Block 0's template time is 7:30–9:00. Two activities can share a block on different days without conflicting, yet their actual times might overlap with activities in adjacent blocks.
+
+### Shared Day Detection
+
+Both block-based and time-based conflict checks share a common predicate: `couldMeetOnSameDay(activityA, activityB)`. This encapsulates the four-case day/rotation logic:
+
+1. **Both use `days_of_week`** — conflict if any shared day
+2. **Both use `rotation_day_type`** — conflict only if same rotation day
+3. **One uses `days_of_week`, the other uses `rotation_day_type`** — always conflicts (the fixed-day activity meets on both rotation days)
+4. **Neither has scheduling info** — assumes conflict as a conservative default
+
+Case 4 is a safety measure for progressive setup. When activities haven't had their scheduling filled in yet, the system assumes the worst rather than silently permitting what might be a conflict. This may create some friction if admins create many activities before filling in scheduling details — if it does, we may revisit to distinguish "not yet entered" from "intentionally unset."
+
+### Time Overlap Calculation
+
+```
+function wouldConflictByTime(activityA, activityB):
+  // Activities with no times can't be compared — return no conflict
+  if either activity is missing start/end times:
+    return { overlaps: false, details: "no scheduled times" }
+
+  // Check whether they could meet on the same day
+  if not couldMeetOnSameDay(activityA, activityB):
+    return { overlaps: false }
+
+  // They share days — check time overlap
+  overlapStart = max(startA, startB)
+  overlapEnd = min(endA, endB)
+
+  if overlapStart < overlapEnd:
+    return {
+      overlaps: true,
+      overlapMinutes: overlapEnd - overlapStart,
+      gapMinutes: 0
+    }
+  else:
+    return {
+      overlaps: false,
+      overlapMinutes: 0,
+      gapMinutes: overlapStart - overlapEnd
+    }
+```
+
+The return shape always includes `overlapMinutes` and `gapMinutes` so the admin knows *how much* overlap or gap exists, not just yes/no. A 5-minute overlap is different from a 45-minute overlap, and a 2-minute gap between activities is worth knowing about even though it's not a conflict.
+
+Note: time-based checks use `default_start_time` and `default_end_time` from the activity record. These are the activity's own stored times, not the block template times. For block-linked activities on non-default schedule days (2-hour delay, etc.), the actual times would shift — time-based conflict detection does not account for template-driven time shifts. This is acceptable because time-based detection is informational, and template-driven shifts are a future concern for the agenda/week view.
+
+### Schedule Analysis Utilities
+
+Two higher-level functions build on the core conflict checks:
+
+**`findAvailableBlocks(studentEnrollments, orgSettings)`** — Returns per-block availability for a student. For each block (0 through `block_count - 1`), reports whether the block is open and lists any activities already enrolled. Used by the enrollment flow to show which blocks have room.
+
+**`findTimeConflicts(activity, otherActivities)`** — Returns all time-based overlaps between a given activity and a list of others, with overlap minutes. Used for scheduling visibility: "if I place this activity here, what does it overlap with?" Only returns pairs that actually overlap — non-overlapping activities are filtered out.
+
+Group-level variants of these utilities (`findAvailableBlocksForGroup`, etc.) are deferred until the schedule/agenda view needs them. The core comparison logic is identical; only the loop and result shape changes.
+
+### Implementation
+
+All conflict detection functions live in `src/lib/enrollmentValidation.js`. They are pure functions — they take activity/enrollment objects, not IDs. The calling code is responsible for loading data and passing it in. This keeps the module testable and free of API or UI dependencies.
+
+---
+
 ## Edge Cases
 
 **Release activities:**
