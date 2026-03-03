@@ -9,7 +9,7 @@
 
 ### Routing
 
-- **React Router v6** — Client-side routing. Declarative routing configuration, nested routes, URL parameter handling, programmatic navigation.
+- **React Router v7** — Client-side routing. Declarative routing configuration, nested routes, URL parameter handling, programmatic navigation.
 
 ### Backend & Database
 
@@ -43,6 +43,8 @@
 ---
 
 ## Project Structure
+
+> **Note (March 2026):** The structure below is the planned layout. Many files listed here don't exist yet — particularly in `src/hooks/`, `src/components/ui/`, `src/components/student/`, `src/components/teacher/`, and `src/components/shared/`. What currently exists: `src/hooks/useAuth.js`, `src/components/activities/`, `src/components/users/`, `src/components/layout/`, `src/api/` (activities, auth, calendar, enrollments, instances, organizations, supabase, users), `src/store/` (authStore, uiStore), and `src/lib/` (constants, date, utils, enrollmentValidation, business-logic/rotation.js, business-logic/scheduling.js). The structure also omits `src/lib/enrollmentValidation.js` which lives at the `lib/` level rather than inside `business-logic/`. Treat this as a target, not a directory listing.
 
 ```
 here-app/
