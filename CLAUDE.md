@@ -24,9 +24,9 @@ No test suite yet (Vitest/RTL/Playwright planned for later).
 - **React 19** + **Vite** — frontend framework and build tool
 - **React Router v7** — client-side routing
 - **Supabase** — PostgreSQL + Auth + RLS + Realtime
-- **TanStack Query v5** — server state (installed, not yet used — manual `useState` patterns in place)
+- **TanStack Query v5** — server state management (caching, background refetch, mutations)
 - **Zustand** — client state (auth, UI)
-- **React Hook Form** — forms (installed, not yet used)
+- **React Hook Form** — form state and validation
 - **Tailwind CSS v4** + **DaisyUI v5** — styling
 - **React Icons** + **DiceBear** — icons, avatars
 
@@ -45,7 +45,7 @@ Copy `.env.example` to `.env.local` and fill in Supabase credentials.
 src/
 ├── api/            # Supabase query functions, one file per domain
 ├── components/     # Reusable components (activities/, layout/)
-├── hooks/          # Custom React hooks (useAuth.js)
+├── hooks/          # Custom React hooks (useAuth, useActivities, useUsers, useOrgSettings)
 ├── lib/            # Utilities and constants
 ├── pages/          # Route-level components (admin/, auth/, student/, teacher/)
 ├── store/          # Zustand stores (authStore.js, uiStore.js)
@@ -59,7 +59,7 @@ src/
 - **State:** Zustand stores in `src/store/` with `persist` middleware where needed (auth persists role selection only). No Redux.
 - **Components:** DaisyUI component classes as the baseline, extended with Tailwind utilities. Form components designed to be container-agnostic (work in pages, modals, or panels).
 - **Path aliases:** Use `@/` for `src/` imports (e.g., `import { supabase } from '@/api/supabase'`).
-- **React Query / React Hook Form:** Installed but not yet integrated. Current pages use manual `useState` + `useEffect` patterns. A dedicated refactor session is the next planned task — don't convert individual pages piecemeal, do them all at once.
+- **React Query / React Hook Form:** Custom hooks in `src/hooks/` wrap API functions with TanStack Query (`useActivities`, `useUsers`, `useStaffUsers`, `useOrgSettings`). Pages use these hooks for server state. Forms use `useForm()` from React Hook Form with `register`, `watch`, and `setValue`. Mutations invalidate parent list queries on success.
 
 ## Key Architectural Decisions
 

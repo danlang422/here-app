@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
 import { signIn } from '@/api/auth'
 import useAuthStore from '@/store/authStore'
 
 function Login() {
   const location = useLocation()
   const user = useAuthStore((state) => state.user)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
+
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm({
+    defaultValues: { email: '', password: '' },
+  })
 
   // Where to send the user after login
   const from = location.state?.from?.pathname ?? '/dashboard'
@@ -20,19 +22,14 @@ function Login() {
     return <Navigate to={from} replace />
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault()
+  async function onFormSubmit({ email, password }) {
     setError(null)
-    setLoading(true)
-
     try {
       await signIn(email, password)
       // No navigate here — the auth listener updates the store,
       // which triggers a re-render, and the redirect above fires
     } catch (err) {
       setError(err.message ?? 'Sign in failed. Please try again.')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -48,7 +45,7 @@ function Login() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
             <div className="form-control">
               <label className="label">
                 <span className="label-text">Email</span>
@@ -57,9 +54,7 @@ function Login() {
                 type="email"
                 placeholder="email@example.com"
                 className="input input-bordered"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                {...register('email', { required: true })}
                 autoComplete="email"
               />
             </div>
@@ -72,9 +67,7 @@ function Login() {
                 type="password"
                 placeholder="••••••••"
                 className="input input-bordered"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                {...register('password', { required: true })}
                 autoComplete="current-password"
               />
             </div>
@@ -83,9 +76,9 @@ function Login() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={loading}
+                disabled={isSubmitting}
               >
-                {loading
+                {isSubmitting
                   ? <span className="loading loading-spinner loading-sm"></span>
                   : 'Sign In'
                 }

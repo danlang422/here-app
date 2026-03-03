@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
 import {
   ACTIVITY_TYPES,
   ACTIVITY_TYPE_LABELS,
@@ -7,7 +8,8 @@ import {
   getBlocks,
   getBlockLabel,
 } from '@/lib/constants'
-import { getStaffUsers, formatUserName } from '@/api/users'
+import { formatUserName } from '@/api/users'
+import { useStaffUsers } from '@/hooks/useUsers'
 import useAuthStore from '@/store/authStore'
 
 // Which fields are visible by default for each activity type
@@ -101,9 +103,11 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
   const profile = useAuthStore((s) => s.profile)
   const orgId = profile?.organization_id
 
-  const [form, setForm] = useState(() => buildInitialForm(activity))
-  const [staffUsers, setStaffUsers] = useState([])
-  const [staffLoading, setStaffLoading] = useState(true)
+  const { register, handleSubmit, watch, setValue, getValues } = useForm({
+    defaultValues: buildInitialForm(activity),
+  })
+
+  const { data: staffUsers = [], isLoading: staffLoading } = useStaffUsers(orgId)
   const [showAddStaff, setShowAddStaff] = useState(false)
   const [extraStaffFields, setExtraStaffFields] = useState(new Set())
 
@@ -113,48 +117,39 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
   const usesRotation = orgSettings?.uses_rotation_schedule || false
   const rotationDayNames = orgSettings?.rotation_day_names || ['A', 'B']
 
-  useEffect(() => {
-    if (!orgId) return
-    let cancelled = false
-    setStaffLoading(true)
-    getStaffUsers(orgId)
-      .then((users) => { if (!cancelled) setStaffUsers(users) })
-      .catch((err) => console.error('Failed to load staff:', err))
-      .finally(() => { if (!cancelled) setStaffLoading(false) })
-    return () => { cancelled = true }
-  }, [orgId])
+  const watchedType = watch('type')
+  const watchedIsNotScheduled = watch('is_not_scheduled')
+  const watchedDaysOfWeek = watch('days_of_week')
+  const watchedName = watch('name')
 
-  const typeVisibility = TYPE_FIELD_VISIBILITY[form.type] || TYPE_FIELD_VISIBILITY.regular_class
+  const typeVisibility = TYPE_FIELD_VISIBILITY[watchedType] || TYPE_FIELD_VISIBILITY.regular_class
+  const showScheduling = !watchedIsNotScheduled
 
   function handleTypeChange(newType) {
     const defaults = ACTIVITY_TYPE_DEFAULTS[newType] || {}
     const visibility = TYPE_FIELD_VISIBILITY[newType] || {}
-    setForm((prev) => ({
-      ...prev,
-      type: newType,
-      ...defaults,
-      teacher_id: (visibility.teacher || extraStaffFields.has('teacher')) ? prev.teacher_id : '',
-      monitor_id: (visibility.monitor || extraStaffFields.has('monitor')) ? prev.monitor_id : '',
-      instructor_name: (visibility.instructor || extraStaffFields.has('instructor')) ? prev.instructor_name : '',
-      mentor_name: (visibility.mentor || extraStaffFields.has('mentor')) ? prev.mentor_name : '',
-      rotation_day_type: visibility.rotation ? prev.rotation_day_type : '',
-      is_not_scheduled: visibility.notScheduled ? true : false,
-    }))
+
+    setValue('type', newType)
+    for (const [key, val] of Object.entries(defaults)) {
+      setValue(key, val)
+    }
+
+    if (!visibility.teacher && !extraStaffFields.has('teacher')) setValue('teacher_id', '')
+    if (!visibility.monitor && !extraStaffFields.has('monitor')) setValue('monitor_id', '')
+    if (!visibility.instructor && !extraStaffFields.has('instructor')) setValue('instructor_name', '')
+    if (!visibility.mentor && !extraStaffFields.has('mentor')) setValue('mentor_name', '')
+    if (!visibility.rotation) setValue('rotation_day_type', '')
+    setValue('is_not_scheduled', !!visibility.notScheduled)
+
     setExtraStaffFields(new Set())
   }
 
-  function handleChange(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }))
-  }
-
   function handleDayToggle(dayValue) {
-    setForm((prev) => {
-      const current = prev.days_of_week
-      const next = current.includes(dayValue)
-        ? current.filter((d) => d !== dayValue)
-        : [...current, dayValue].sort((a, b) => a - b)
-      return { ...prev, days_of_week: next }
-    })
+    const current = getValues('days_of_week')
+    const next = current.includes(dayValue)
+      ? current.filter((d) => d !== dayValue)
+      : [...current, dayValue].sort((a, b) => a - b)
+    setValue('days_of_week', next)
   }
 
   function handleAddStaffField(staffKey) {
@@ -168,59 +163,52 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
 
   const addableStaffFields = STAFF_FIELDS.filter((sf) => !isStaffFieldVisible(sf.key))
 
-  function handleSubmit(e) {
-    e.preventDefault()
-    if (!form.name.trim()) return
-
+  function onFormSubmit(formValues) {
     const data = {
-      name: form.name.trim(),
-      type: form.type,
-      description: form.description.trim() || null,
-      teacher_id: form.teacher_id || null,
-      monitor_id: form.monitor_id || null,
-      instructor_name: form.instructor_name.trim() || null,
-      mentor_name: form.mentor_name.trim() || null,
-      block: form.block !== '' ? parseInt(form.block, 10) : null,
-      days_of_week: form.days_of_week.length > 0 ? form.days_of_week : null,
-      rotation_day_type: form.rotation_day_type || null,
-      default_start_time: form.default_start_time || null,
-      default_end_time: form.default_end_time || null,
-      start_date: form.start_date || null,
-      end_date: form.end_date || null,
-      is_not_scheduled: form.is_not_scheduled,
-      is_release: form.is_release,
-      location: form.location.trim() || null,
-      requires_attendance: form.requires_attendance,
-      requires_checkin: form.requires_checkin,
-      allows_presence_wave: form.allows_presence_wave,
-      allows_freeform: form.allows_freeform,
-      requires_geofence: form.requires_geofence,
+      name: formValues.name.trim(),
+      type: formValues.type,
+      description: formValues.description.trim() || null,
+      teacher_id: formValues.teacher_id || null,
+      monitor_id: formValues.monitor_id || null,
+      instructor_name: formValues.instructor_name.trim() || null,
+      mentor_name: formValues.mentor_name.trim() || null,
+      block: formValues.block !== '' ? parseInt(formValues.block, 10) : null,
+      days_of_week: formValues.days_of_week.length > 0 ? formValues.days_of_week : null,
+      rotation_day_type: formValues.rotation_day_type || null,
+      default_start_time: formValues.default_start_time || null,
+      default_end_time: formValues.default_end_time || null,
+      start_date: formValues.start_date || null,
+      end_date: formValues.end_date || null,
+      is_not_scheduled: formValues.is_not_scheduled,
+      is_release: formValues.is_release,
+      location: formValues.location.trim() || null,
+      requires_attendance: formValues.requires_attendance,
+      requires_checkin: formValues.requires_checkin,
+      allows_presence_wave: formValues.allows_presence_wave,
+      allows_freeform: formValues.allows_freeform,
+      requires_geofence: formValues.requires_geofence,
     }
 
     onSave(data)
   }
 
-  const showScheduling = !form.is_not_scheduled
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
       {/* ── Name & Type ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Activity Name *">
           <input
             type="text"
             className="input input-bordered w-full"
-            value={form.name}
-            onChange={(e) => handleChange('name', e.target.value)}
+            {...register('name', { required: true })}
             placeholder="e.g. Kirkwood English 101"
-            required
           />
         </Field>
 
         <Field label="Type *">
           <select
             className="select select-bordered w-full"
-            value={form.type}
+            value={watchedType}
             onChange={(e) => handleTypeChange(e.target.value)}
           >
             {ACTIVITY_TYPES.map((t) => (
@@ -234,8 +222,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
         <textarea
           className="textarea textarea-bordered w-full"
           rows={2}
-          value={form.description}
-          onChange={(e) => handleChange('description', e.target.value)}
+          {...register('description')}
           placeholder="Optional description or notes"
         />
       </Field>
@@ -247,8 +234,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
           {isStaffFieldVisible('teacher') && (
             <StaffDropdown
               label="Teacher"
-              value={form.teacher_id}
-              onChange={(v) => handleChange('teacher_id', v)}
+              registerProps={register('teacher_id')}
               staffUsers={staffUsers}
               loading={staffLoading}
             />
@@ -257,8 +243,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
           {isStaffFieldVisible('monitor') && (
             <StaffDropdown
               label="Monitor"
-              value={form.monitor_id}
-              onChange={(v) => handleChange('monitor_id', v)}
+              registerProps={register('monitor_id')}
               staffUsers={staffUsers}
               loading={staffLoading}
             />
@@ -269,8 +254,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
               <input
                 type="text"
                 className="input input-bordered input-sm w-full"
-                value={form.instructor_name}
-                onChange={(e) => handleChange('instructor_name', e.target.value)}
+                {...register('instructor_name')}
                 placeholder="External instructor (not a system user)"
               />
             </Field>
@@ -281,8 +265,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
               <input
                 type="text"
                 className="input input-bordered input-sm w-full"
-                value={form.mentor_name}
-                onChange={(e) => handleChange('mentor_name', e.target.value)}
+                {...register('mentor_name')}
                 placeholder="Internship mentor (not a system user)"
               />
             </Field>
@@ -324,8 +307,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
               <input
                 type="checkbox"
                 className="checkbox checkbox-sm"
-                checked={form.is_not_scheduled}
-                onChange={(e) => handleChange('is_not_scheduled', e.target.checked)}
+                {...register('is_not_scheduled')}
               />
               <span className="text-sm">Not scheduled (no fixed time/place)</span>
             </label>
@@ -334,9 +316,8 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
             <input
               type="checkbox"
               className="checkbox checkbox-sm"
-              checked={form.is_release}
-              onChange={(e) => handleChange('is_release', e.target.checked)}
-              disabled={form.is_not_scheduled}
+              {...register('is_release')}
+              disabled={watchedIsNotScheduled}
             />
             <span className="text-sm">Release (no attendance required)</span>
           </label>
@@ -349,8 +330,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
                 {blocks.length > 0 ? (
                   <select
                     className="select select-bordered select-sm w-full"
-                    value={form.block}
-                    onChange={(e) => handleChange('block', e.target.value)}
+                    {...register('block')}
                   >
                     <option value="">Not assigned</option>
                     {blocks.map((b) => (
@@ -368,8 +348,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
                 <input
                   type="time"
                   className="input input-bordered input-sm w-full"
-                  value={form.default_start_time}
-                  onChange={(e) => handleChange('default_start_time', e.target.value)}
+                  {...register('default_start_time')}
                 />
               </Field>
 
@@ -377,8 +356,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
                 <input
                   type="time"
                   className="input input-bordered input-sm w-full"
-                  value={form.default_end_time}
-                  onChange={(e) => handleChange('default_end_time', e.target.value)}
+                  {...register('default_end_time')}
                 />
               </Field>
             </div>
@@ -388,8 +366,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
               <Field label="Rotation Day">
                 <select
                   className="select select-bordered select-sm w-32"
-                  value={form.rotation_day_type}
-                  onChange={(e) => handleChange('rotation_day_type', e.target.value)}
+                  {...register('rotation_day_type')}
                 >
                   <option value="">Not set</option>
                   {rotationDayNames.map((name) => (
@@ -405,7 +382,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
                       key={day.value}
                       type="button"
                       className={`btn btn-sm min-w-10 ${
-                        form.days_of_week.includes(day.value)
+                        watchedDaysOfWeek.includes(day.value)
                           ? 'btn-primary'
                           : 'btn-outline'
                       }`}
@@ -424,16 +401,14 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
                 <input
                   type="date"
                   className="input input-bordered input-sm w-full"
-                  value={form.start_date}
-                  onChange={(e) => handleChange('start_date', e.target.value)}
+                  {...register('start_date')}
                 />
               </Field>
               <Field label="End Date">
                 <input
                   type="date"
                   className="input input-bordered input-sm w-full"
-                  value={form.end_date}
-                  onChange={(e) => handleChange('end_date', e.target.value)}
+                  {...register('end_date')}
                 />
               </Field>
             </div>
@@ -446,8 +421,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
         <input
           type="text"
           className="input input-bordered input-sm w-full max-w-md"
-          value={form.location}
-          onChange={(e) => handleChange('location', e.target.value)}
+          {...register('location')}
           placeholder="Room number, building, or address"
         />
       </Field>
@@ -471,8 +445,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
                 <input
                   type="checkbox"
                   className="checkbox checkbox-sm"
-                  checked={form[field]}
-                  onChange={(e) => handleChange(field, e.target.checked)}
+                  {...register(field)}
                 />
                 <span className="text-sm">{label}</span>
               </label>
@@ -488,7 +461,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
             Cancel
           </button>
         )}
-        <button type="submit" className="btn btn-primary" disabled={saving || !form.name.trim()}>
+        <button type="submit" className="btn btn-primary" disabled={saving || !watchedName?.trim()}>
           {saving ? <span className="loading loading-spinner loading-sm" /> : null}
           {isEdit ? 'Save Changes' : 'Create Activity'}
         </button>
@@ -498,13 +471,12 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
 }
 
 /** Staff dropdown with consistent Field wrapper */
-function StaffDropdown({ label, value, onChange, staffUsers, loading }) {
+function StaffDropdown({ label, registerProps, staffUsers, loading }) {
   return (
     <Field label={label}>
       <select
         className="select select-bordered select-sm w-full max-w-xs"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        {...registerProps}
         disabled={loading}
       >
         <option value="">

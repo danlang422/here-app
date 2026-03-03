@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect } from 'react'
+import { useForm } from 'react-hook-form'
 
 const ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
@@ -51,61 +52,55 @@ function Field({ label, children }) {
  *   saving   - boolean, disables submit button while saving
  */
 export default function UserForm({ user = null, onSave, onCancel, saving = false }) {
-  const [form, setForm] = useState(() => buildInitialForm(user))
   const isEdit = !!user
 
-  function handleChange(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }))
-  }
+  const { register, handleSubmit, watch, setValue, getValues, reset, formState: { isValid } } = useForm({
+    defaultValues: buildInitialForm(user),
+    mode: 'onChange',
+  })
+
+  // Reset form when user prop changes (switching between edit targets or create mode)
+  useEffect(() => {
+    reset(buildInitialForm(user))
+  }, [user, reset])
+
+  const watchedRoles = watch('roles')
 
   function handleRoleToggle(role) {
-    setForm((prev) => {
-      const current = prev.roles
-      const next = current.includes(role)
-        ? current.filter((r) => r !== role)
-        : [...current, role]
-      return { ...prev, roles: next }
-    })
+    const current = getValues('roles')
+    const next = current.includes(role)
+      ? current.filter((r) => r !== role)
+      : [...current, role]
+    setValue('roles', next, { shouldValidate: true })
   }
 
-  function handleSubmit(e) {
-    e.preventDefault()
-    if (!form.first_name.trim() || !form.last_name.trim()) return
-    if (form.roles.length === 0) return
-    if (!isEdit && (!form.email.trim() || !form.password)) return
-
+  function onFormSubmit(formValues) {
     const data = {
-      first_name: form.first_name.trim(),
-      last_name: form.last_name.trim(),
-      preferred_name: form.preferred_name.trim() || null,
-      roles: form.roles,
-      grade_level: form.grade_level || null,
+      first_name: formValues.first_name.trim(),
+      last_name: formValues.last_name.trim(),
+      preferred_name: formValues.preferred_name.trim() || null,
+      roles: formValues.roles,
+      grade_level: formValues.grade_level || null,
     }
 
     if (!isEdit) {
-      data.email = form.email.trim()
-      data.password = form.password
+      data.email = formValues.email.trim()
+      data.password = formValues.password
     }
 
     onSave(data)
   }
 
-  const canSubmit =
-    form.first_name.trim() &&
-    form.last_name.trim() &&
-    form.roles.length > 0 &&
-    (isEdit || (form.email.trim() && form.password))
+  const canSubmit = isValid && watchedRoles.length > 0
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="First Name *">
           <input
             type="text"
             className="input input-bordered w-full"
-            value={form.first_name}
-            onChange={(e) => handleChange('first_name', e.target.value)}
-            required
+            {...register('first_name', { required: true })}
           />
         </Field>
 
@@ -113,9 +108,7 @@ export default function UserForm({ user = null, onSave, onCancel, saving = false
           <input
             type="text"
             className="input input-bordered w-full"
-            value={form.last_name}
-            onChange={(e) => handleChange('last_name', e.target.value)}
-            required
+            {...register('last_name', { required: true })}
           />
         </Field>
       </div>
@@ -124,8 +117,7 @@ export default function UserForm({ user = null, onSave, onCancel, saving = false
         <input
           type="text"
           className="input input-bordered w-full"
-          value={form.preferred_name}
-          onChange={(e) => handleChange('preferred_name', e.target.value)}
+          {...register('preferred_name')}
           placeholder="Display name (optional)"
         />
       </Field>
@@ -136,9 +128,7 @@ export default function UserForm({ user = null, onSave, onCancel, saving = false
             <input
               type="email"
               className="input input-bordered w-full"
-              value={form.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              required
+              {...register('email', { required: !isEdit })}
             />
           </Field>
 
@@ -146,10 +136,8 @@ export default function UserForm({ user = null, onSave, onCancel, saving = false
             <input
               type="text"
               className="input input-bordered w-full"
-              value={form.password}
-              onChange={(e) => handleChange('password', e.target.value)}
+              {...register('password', { required: !isEdit })}
               placeholder="Initial password"
-              required
             />
           </Field>
         </div>
@@ -162,14 +150,14 @@ export default function UserForm({ user = null, onSave, onCancel, saving = false
               <input
                 type="checkbox"
                 className="checkbox checkbox-sm"
-                checked={form.roles.includes(opt.value)}
+                checked={watchedRoles.includes(opt.value)}
                 onChange={() => handleRoleToggle(opt.value)}
               />
               <span className="text-sm">{opt.label}</span>
             </label>
           ))}
         </div>
-        {form.roles.length === 0 && (
+        {watchedRoles.length === 0 && (
           <p className="text-xs text-error mt-1">At least one role is required</p>
         )}
       </Field>
@@ -177,8 +165,7 @@ export default function UserForm({ user = null, onSave, onCancel, saving = false
       <Field label="Grade Level">
         <select
           className="select select-bordered w-full max-w-xs"
-          value={form.grade_level}
-          onChange={(e) => handleChange('grade_level', e.target.value)}
+          {...register('grade_level')}
         >
           <option value="">No grade level</option>
           {GRADE_OPTIONS.map((g) => (
