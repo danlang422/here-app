@@ -1,2 +1,16 @@
 @import "tailwindcss";
 @plugin "daisyui";
+@plugin "daisyui/theme" {
+  name: "cityview";
+  default: true;
+  color-scheme: light;
+  --color-primary: oklch(62.31% 0.1881 259.82);
+  --color-secondary: oklch(60.56% 0.2190 292.72);
+  --color-accent: oklch(69.59% 0.1491 162.51);
+  --color-neutral: oklch(27.81% 0.0296 256.86);
+  --color-base-100: oklch(100.00% 0.0001 263.28);
+  --color-info: oklch(68.47% 0.1479 237.34);
+  --color-success: oklch(72.27% 0.1920 149.60);
+  --color-warning: oklch(76.86% 0.1646 70.08);
+  --color-error: oklch(63.69% 0.2078 25.32);
+}

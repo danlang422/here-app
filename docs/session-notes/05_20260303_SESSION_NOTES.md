@@ -18,3 +18,21 @@
 - Group-level scheduling utilities (findAvailableBlocksForGroup, etc.) deferred until the schedule view needs them. Core comparison logic is identical; only the loop and result shape changes.
 - Auto-scheduling explicitly deferred. The tool's job is to make constraints *visible* so the admin can solve the puzzle with context the system doesn't have (room availability, teacher preferences, etc.).
 - Incomplete scheduling data (no days_of_week or rotation_day_type on either activity) defaults to "assume conflict" as a conservative safety measure. May revisit if this creates friction with progressive setup workflow.
+
+### React Query / React Hook Form Refactor (completed this session)
+- RQ and RHF are now fully integrated across all active pages: ActivityManagement, UserManagement, ActivityForm, UserForm, and Login.
+- Custom hooks in `src/hooks/` (`useActivities`, `useUsers`, `useStaffUsers`, `useOrgSettings`) wrap all API calls with TanStack Query — caching, background refetch, and mutation invalidation all in place.
+- Forms use `useForm()` with `register`, `watch`, and `setValue`. Mutations invalidate parent list queries on success.
+- This was listed as tech debt in Known Issues; now resolved.
+
+### Tailwind v4 / DaisyUI v5 Config Cleanup (completed this session)
+- Migrated from hybrid config (v4 CSS entry point + v3-style `tailwind.config.js`) to CSS-only v4 config.
+- `tailwind.config.js` deleted. All configuration — including the custom `cityview` theme — now lives in `src/index.css`.
+- Theme colors updated in the process; new values are correct (previous ones were overly saturated, likely an artifact of the hybrid config).
+- `postcss.config.js` unchanged — was already correct for v4.
+- Verified: `npm run dev` and `npm run build` both pass cleanly.
+
+### Edge Function `--no-verify-jwt` Review
+- Reviewed the `create-user` Edge Function and confirmed `--no-verify-jwt` is not a security concern.
+- The function implements its own full auth chain: validates the `Authorization` header, calls `callerClient.auth.getUser()`, checks the caller has the `admin` role, and verifies `organization_id` matches. This is more thorough than Supabase's built-in JWT gate.
+- Decision: leave as-is. The flag is harmless given the internal auth checks. A full security audit is planned if/when the app is offered to other schools — this can be revisited then.

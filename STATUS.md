@@ -24,9 +24,6 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 ## Known Issues / Tech Debt
 
-- **React Query / React Hook Form refactor complete:** RQ and RHF are now integrated across ActivityManagement, UserManagement, ActivityForm, UserForm, and Login. Custom hooks in `src/hooks/` wrap API calls; forms use `useForm()` with `register`, `watch`, and `setValue`.
-- **Tailwind v4 / DaisyUI v5 hybrid config:** CSS entry point uses v4 syntax (`@import "tailwindcss"` / `@plugin "daisyui"`), but a v3-style `tailwind.config.js` also exists. Works via backwards compatibility, but should be cleaned up to use CSS-only config.
-- **Edge Function `--no-verify-jwt` deployment:** The `create-user` Edge Function was deployed with `--no-verify-jwt` during a convoluted debugging session. It's unclear whether this was actually necessary or a side effect of other issues at the time. Should be tested without the flag to see if standard JWT verification works.
 - **Raw fetch in useAuthListener:** `fetchProfile` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 when calling client methods inside `onAuthStateChange`. Revisit on supabase-js upgrade.
 - **RLS policies are starter-level:** Policies exist for core admin workflows but will need expansion as features grow (e.g., teacher-scoped writes, student check-in policies). Some existing phase 4 policies (teachers manage attendance) aren't org-scoped yet.
 - **Architecture docs mostly current:** `docs/architecture/02-data-flow-and-state.md` React Query/RHF patterns are now implemented for existing pages (activities, users, auth). Example hooks for future features (useCheckIn, useMarkAttendance) are still aspirational and should follow the same patterns.
@@ -36,17 +33,13 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 ## Next Steps
 
-1. **Tailwind v4 config cleanup** — Migrate from hybrid v3 JS config + v4 CSS entry point to CSS-only config. Low risk, small scope.
+1. **Enrollment UI (Layer 1.5)** — Build the composable enrollment workflow: StudentSelector, ActivitySelector, EnrollmentFlow orchestrator. Wire into ActivityManagement with "Enroll Students" action per activity. Write user flow doc before building.
 
-2. **Edge Function `--no-verify-jwt` test** — Redeploy `create-user` without the flag to see if standard verification works now.
+2. **Admin: Agenda/week view (Layer 2)** — Visual timeline showing placed activities by time across a week, with rolled-up cards. Schedule-building experience with conflict visibility. Will need group-level scheduling utilities built on top of existing validation module.
 
-3. **Enrollment UI (Layer 1.5)** — Build the composable enrollment workflow: StudentSelector, ActivitySelector, EnrollmentFlow orchestrator. Wire into ActivityManagement with "Enroll Students" action per activity. Write user flow doc before building.
+3. **Admin: Calendar management** — Term CRUD, school day generation, schedule template editor, "assign blocks" step that maps existing activities to newly-defined block boundaries.
 
-4. **Admin: Agenda/week view (Layer 2)** — Visual timeline showing placed activities by time across a week, with rolled-up cards. Schedule-building experience with conflict visibility. Will need group-level scheduling utilities built on top of existing validation module.
-
-5. **Admin: Calendar management** — Term CRUD, school day generation, schedule template editor, "assign blocks" step that maps existing activities to newly-defined block boundaries.
-
-6. **Rotation day display** — How A/B day activities display in the week view alongside fixed-day activities. Current thinking: semi-transparent/striped cards spanning all weekdays, with conflict logic aware of rotation day matching.
+4. **Rotation day display** — How A/B day activities display in the week view alongside fixed-day activities. Current thinking: semi-transparent/striped cards spanning all weekdays, with conflict logic aware of rotation day matching.
 
 ---
 
