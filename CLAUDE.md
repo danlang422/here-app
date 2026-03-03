@@ -75,6 +75,10 @@ src/
 
 **Activity form is container-agnostic.** `ActivityForm` works in full-page, modal, or slide-over — designed for future reuse across admin views.
 
+**Two modes of conflict detection.** Block-based (`wouldConflictByBlock`) is the enrollment gatekeeper — it prevents double-booking within a block and is a hard gate. Time-based (`wouldConflictByTime`) is for scheduling visibility — it shows whether activities overlap in actual time, returns overlap/gap in minutes, and is informational only. These are separate because activity times don't always match block boundaries (e.g. an external course assigned to Block 0 may not span Block 0's full time range). Block assignment is organizational (admin judgment), not validated against time. See `src/lib/enrollmentValidation.js`.
+
+**Enrollment is a workflow, not a page.** The enrollment UI is built from composable pieces (StudentSelector, ActivitySelector, EnrollmentFlow) that can be initiated from multiple contexts — activity management, schedule overview, etc. The two-panel flow is: select students → pick activity target → validate → enroll.
+
 **Raw fetch in useAuthListener.** `fetchProfile` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 inside `onAuthStateChange`. Don't change this pattern until supabase-js is upgraded.
 
 ## Database
