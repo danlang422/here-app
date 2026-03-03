@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 2, 2026 (Session 4)
+**Last updated:** March 3, 2026 (Session 5)
 
 ---
 
@@ -10,9 +10,32 @@
 
 **Database:** V2 schema deployed with three additional migrations since phase 4: RLS fix, dynamic block count, and admin RLS policies. City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activity types.
 
-**Application code:** Auth flow working. Activity Management and User Management pages are both functional with full CRUD. Activity form has type-driven field visibility, activity table with filtering. User management uses a modal-based create/edit flow with a Supabase Edge Function for account creation. Staff dropdowns in the activity form are wired up. Remaining admin pages (Calendar, Reports) are still placeholders.
+**Application code:** Auth flow working. Activity Management and User Management pages are both functional with full CRUD. Activity form has type-driven field visibility, activity table with filtering. User management uses a modal-based create/edit flow with a Supabase Edge Function for account creation. Staff dropdowns in the activity form are wired up. Enrollment validation utilities are in place (`src/lib/enrollmentValidation.js`) — block-based and time-based conflict detection, enrollment gatekeeper, and scheduling visibility helpers. No enrollment UI yet. Remaining admin pages (Calendar, Reports) are still placeholders.
 
 **Key architectural decisions:** The app is being designed as a schedule-building tool, not just a schedule-entry form. Settings, blocks, terms, etc. are all optional/progressive — admins can enter activities before defining blocks or terms. User management follows the same reusable-component pattern as activities — form works in modal or full page.
+
+---
+
+## What Was Accomplished (March 3, 2026 — Session 5)
+
+### Enrollment Validation Utilities
+- **`src/lib/enrollmentValidation.js`**: Pure-function module with no API or UI dependencies. Two modes of conflict detection:
+  - **Block-based** (`wouldConflictByBlock`): Enrollment gatekeeper. Checks block + days_of_week + rotation_day_type overlap. Hard gate — if this says conflict, enrollment is rejected.
+  - **Time-based** (`wouldConflictByTime`): Scheduling visibility. Checks actual time range overlap on shared days. Returns overlap/gap in minutes. Informational only — never blocks enrollment.
+- **`validateEnrollment(newActivity, existingEnrollments)`**: Public function for the enrollment flow. Checks a new activity against all of a student's existing enrollments. Collects all conflicts (doesn't short-circuit) so UI can show full details.
+- **`findAvailableBlocks(studentEnrollments, orgSettings)`**: Returns per-block availability for a student — which blocks are open, which have activities.
+- **`findTimeConflicts(activity, otherActivities)`**: Returns all time-based overlaps between an activity and a list of others, with overlap minutes.
+- Shared helper `couldMeetOnSameDay` encapsulates the four-case day/rotation logic used by both conflict checkers.
+- All functions take objects, not IDs — callers load data and pass it in. Keeps the module pure and testable.
+
+### Design Decisions (Session 5 — enrollment and scheduling direction)
+- Enrollment is a workflow, not a page. The UI will be composable pieces (StudentSelector, ActivitySelector) that can be initiated from multiple places — activity management now, schedule overview later.
+- Two-panel enrollment flow: select students → pick activity target → validate → enroll. Activity target can be pre-filled (from activity table) or open (from schedule view). Shell activities can be created on the fly (progressive setup).
+- Block-based and time-based conflict detection are separate because activity times don't always match block boundaries (e.g. Kennedy Band is "Block 0" but runs 8:00–8:45 while Block 0 is 7:30–9:00). Block assignment is organizational (admin judgment), not validated against time boundaries.
+- Time-based conflicts return overlap/gap in minutes — the admin needs to know *how much* overlap, not just yes/no.
+- Group-level scheduling utilities (findAvailableBlocksForGroup, etc.) deferred until the schedule view needs them. Core comparison logic is identical; only the loop and result shape changes.
+- Auto-scheduling explicitly deferred. The tool's job is to make constraints *visible* so the admin can solve the puzzle with context the system doesn't have (room availability, teacher preferences, etc.).
+- Incomplete scheduling data (no days_of_week or rotation_day_type on either activity) defaults to "assume conflict" as a conservative safety measure. May revisit if this creates friction with progressive setup workflow.
 
 ---
 
@@ -104,13 +127,19 @@ Both libraries are installed but not yet used. Current manual useState patterns 
 
 ## Next Steps
 
-1. **Admin: Agenda/week view (Layer 2)** — Visual timeline showing placed activities by time across a week, with rolled-up cards (e.g. "3 Activities, 15 students"). This is where the schedule-building experience comes alive. Design is still TBD — will be iterative.
+1. **Enrollment UI (Layer 1.5)** — Build the composable enrollment workflow:
+   - `StudentSelector` component: searchable, filterable (by grade), multi-select student list. Reusable across activity management and future schedule view.
+   - `ActivitySelector` component: searchable activity list for picking enrollment target. Can be pre-filled or open.
+   - `EnrollmentFlow` orchestrator: two-panel flow (select students → pick target → validate → enroll). Wires validation, API calls, error display.
+   - Wire into ActivityManagement: "Enroll Students" action per activity, opens flow with activity pre-filled.
 
-2. **Admin: Conflict detection (Layer 3)** — Select unscheduled activities, highlight conflicts based on shared students. Builds on the agenda view. Also TBD/iterative.
+2. **Admin: Agenda/week view (Layer 2)** — Visual timeline showing placed activities by time across a week, with rolled-up cards (e.g. "3 Activities, 15 students"). Schedule-building experience with conflict visibility — selecting an unscheduled activity highlights where its enrolled students have conflicts. Design is TBD/iterative. Will need group-level scheduling utilities (`findAvailableBlocksForGroup`) built on top of existing validation module.
 
-3. **Admin: Calendar management** — Term CRUD, school day generation, schedule template editor, "assign blocks" step that maps existing activities to newly-defined block boundaries.
+3. **Admin: Conflict detection (Layer 3)** — Deeper conflict analysis integrated into the agenda view. Time-based overlap indicators showing overlap/gap in minutes. Drag-to-enroll from student selector onto activities in the agenda.
 
-4. **Rotation day display** — Need to figure out how A/B day activities display in the week view alongside fixed-day activities. Current thinking: semi-transparent/striped cards spanning all weekdays, with conflict logic aware of rotation day matching.
+4. **Admin: Calendar management** — Term CRUD, school day generation, schedule template editor, "assign blocks" step that maps existing activities to newly-defined block boundaries.
+
+5. **Rotation day display** — Need to figure out how A/B day activities display in the week view alongside fixed-day activities. Current thinking: semi-transparent/striped cards spanning all weekdays, with conflict logic aware of rotation day matching.
 
 ---
 
