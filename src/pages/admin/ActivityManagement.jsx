@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import ActivityForm from '@/components/activities/ActivityForm'
 import ActivityTable from '@/components/activities/ActivityTable'
-import { getActivities, createActivity, updateActivity } from '@/api/activities'
-import { getOrgSettings } from '@/api/organizations'
+import { useActivities, useCreateActivity, useUpdateActivity } from '@/hooks/useActivities'
+import { useOrgSettings } from '@/hooks/useOrgSettings'
 import useAuthStore from '@/store/authStore'
 import { ACTIVITY_TYPES, ACTIVITY_TYPE_LABELS } from '@/lib/constants'
 
@@ -10,40 +10,19 @@ function ActivityManagement() {
   const profile = useAuthStore((s) => s.profile)
   const orgId = profile?.organization_id
 
-  // Data state
-  const [activities, setActivities] = useState([])
-  const [orgSettings, setOrgSettings] = useState({})
-  const [loading, setLoading] = useState(true)
+  // Server state
+  const { data: activities = [], isLoading, error: loadError } = useActivities(orgId)
+  const { data: orgSettings = {} } = useOrgSettings(orgId)
+  const createMutation = useCreateActivity(orgId)
+  const updateMutation = useUpdateActivity(orgId)
 
   // UI state
   const [showForm, setShowForm] = useState(false)
   const [editingActivity, setEditingActivity] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
-
-  // Filters
   const [typeFilter, setTypeFilter] = useState('')
 
-  const loadData = useCallback(async () => {
-    if (!orgId) return
-    setLoading(true)
-    setError(null)
-    try {
-      const [activitiesData, settings] = await Promise.all([
-        getActivities(orgId),
-        getOrgSettings(orgId),
-      ])
-      setActivities(activitiesData)
-      setOrgSettings(settings)
-    } catch (err) {
-      console.error('Failed to load data:', err)
-      setError('Failed to load activities. Please try refreshing.')
-    } finally {
-      setLoading(false)
-    }
-  }, [orgId])
-
-  useEffect(() => { loadData() }, [loadData])
+  const saving = createMutation.isPending || updateMutation.isPending
+  const mutationError = createMutation.error || updateMutation.error
 
   function handleCreate() {
     setEditingActivity(null)
@@ -58,25 +37,20 @@ function ActivityManagement() {
   function handleCancel() {
     setShowForm(false)
     setEditingActivity(null)
+    createMutation.reset()
+    updateMutation.reset()
   }
 
-  async function handleSave(formData) {
-    setSaving(true)
-    setError(null)
-    try {
-      if (editingActivity) {
-        await updateActivity(editingActivity.id, formData)
-      } else {
-        await createActivity({ ...formData, organization_id: orgId })
-      }
+  function handleSave(formData) {
+    const onSuccess = () => {
       setShowForm(false)
       setEditingActivity(null)
-      await loadData()
-    } catch (err) {
-      console.error('Failed to save activity:', err)
-      setError(err.message || 'Failed to save activity.')
-    } finally {
-      setSaving(false)
+    }
+
+    if (editingActivity) {
+      updateMutation.mutate({ id: editingActivity.id, updates: formData }, { onSuccess })
+    } else {
+      createMutation.mutate(formData, { onSuccess })
     }
   }
 
@@ -85,6 +59,8 @@ function ActivityManagement() {
     if (typeFilter && a.type !== typeFilter) return false
     return true
   })
+
+  const error = loadError?.message || mutationError?.message
 
   return (
     <div>
@@ -105,7 +81,7 @@ function ActivityManagement() {
       {error && (
         <div className="alert alert-error mb-4">
           <span>{error}</span>
-          <button className="btn btn-ghost btn-sm" onClick={() => setError(null)}>✕</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => { createMutation.reset(); updateMutation.reset() }}>✕</button>
         </div>
       )}
 
@@ -144,7 +120,7 @@ function ActivityManagement() {
 
       <ActivityTable
         activities={filteredActivities}
-        loading={loading}
+        loading={isLoading}
         onEdit={handleEdit}
         orgSettings={orgSettings}
       />
