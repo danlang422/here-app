@@ -16,7 +16,7 @@ export async function getActivity(activityId) {
 export async function getActivities(organizationId, { termId, type, isActive = true } = {}) {
   let query = supabase
     .from('activities')
-    .select('*')
+    .select('*, teacher:user_profiles!teacher_id(first_name, last_name), monitor:user_profiles!monitor_id(first_name, last_name)')
     .eq('organization_id', organizationId)
     .eq('is_active', isActive)
     .order('block', { ascending: true, nullsFirst: false })

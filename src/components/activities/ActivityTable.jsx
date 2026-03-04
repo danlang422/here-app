@@ -1,4 +1,4 @@
-import { ACTIVITY_TYPE_LABELS, getBlockLabel } from '@/lib/constants'
+import { getBlockLabel } from '@/lib/constants'
 
 /**
  * ActivityTable — displays a filterable list of activities.
@@ -33,7 +33,7 @@ export default function ActivityTable({ activities = [], loading = false, onEdit
         <thead>
           <tr>
             <th>Name</th>
-            <th>Type</th>
+            <th>Staff</th>
             <th>Block</th>
             <th>Days / Rotation</th>
             <th>Time</th>
@@ -46,9 +46,7 @@ export default function ActivityTable({ activities = [], loading = false, onEdit
             <tr key={activity.id} className="hover">
               <td className="font-medium">{activity.name}</td>
               <td>
-                <span className="badge badge-ghost badge-sm">
-                  {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
-                </span>
+                <StaffDisplay activity={activity} />
               </td>
               <td>
                 {activity.block != null
@@ -100,6 +98,40 @@ function DaysDisplay({ activity }) {
   }
 
   return <span className="text-base-content/40">—</span>
+}
+
+/** Compact staff display — shows primary staff member with +N for additional */
+function StaffDisplay({ activity }) {
+  // Build ordered list of staff: Teacher > Monitor > Instructor > Mentor
+  const staffList = []
+
+  if (activity.teacher) {
+    staffList.push(`${activity.teacher.last_name}, ${activity.teacher.first_name?.charAt(0)}.`)
+  }
+  if (activity.monitor) {
+    staffList.push(`${activity.monitor.last_name}, ${activity.monitor.first_name?.charAt(0)}.`)
+  }
+  if (activity.instructor_name) {
+    staffList.push(activity.instructor_name)
+  }
+  if (activity.mentor_name) {
+    staffList.push(activity.mentor_name)
+  }
+
+  if (staffList.length === 0) {
+    return <span className="text-base-content/40">—</span>
+  }
+
+  const extra = staffList.length - 1
+
+  return (
+    <span className="text-sm">
+      {staffList[0]}
+      {extra > 0 && (
+        <span className="text-base-content/50 ml-1">+{extra}</span>
+      )}
+    </span>
+  )
 }
 
 /** Compact time range display */
