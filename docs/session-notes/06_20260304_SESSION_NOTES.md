@@ -58,3 +58,40 @@ Extensive planning session working through the enrollment UI, floating panel sys
 - Archive/deactivate lifecycle — `is_active = false` works short-term but needs term-based archival design for multi-year data
 - Keyboard accessibility for floating panels — needs design thinking around focus management without trapping
 - Mobile/tablet adaptation of floating panels
+
+---
+
+## 6.3 — Enrollment Panel Build Spec (afternoon)
+
+Follow-up session that refined the enrollment UI design from 6.2 into a concrete, implementation-ready build spec. Several key simplifications and clarifications emerged.
+
+### Key Design Refinements (changes from 6.2)
+
+**Floating panel opens center-screen, not near trigger.** Pages are still evolving — "open near the thing you clicked" is a nice concept but premature when layouts aren't finalized. Center-open is simple and always works.
+
+**Single-panel enrollment model replaces two-panel flow.** The original design envisioned separate student-selection and activity-selection panels. Consolidated into one panel with an activity dropdown at top and a two-zone student list. Simpler, more flexible, and supports two entry points (from activity row with activity pre-selected, or standalone with no activity context) using the same component.
+
+**Two-zone student list interaction.** No checkboxes. Students move between an "available" zone (below divider) and a "staged" zone (above divider) by clicking. Already-enrolled students start in the staged zone. Moving an enrolled student below the divider stages them for unenrollment with a visual marker (⛔ / red highlight). Un-staging a never-enrolled student has no visual residue — they just go back to normal.
+
+**Progressive conflict disclosure.** Conflict indicators appear only when the selected activity has a schedule. Below the divider: subtle dot/icon only (avoids overwhelming the list when many students conflict for a given block). Above the divider (staged): full inline detail — "Conflicts with [Activity Name] — Block 3, MWF." Rationale: the useful moment is when you've committed to looking at a student by staging them, not when you're browsing a long list.
+
+**Hover on conflict indicators skipped.** Click-to-stage already reveals the detail. Hover adds implementation complexity without new information.
+
+**Submit flow stays in-panel.** Footer area (always visible, below scrollable list) shows count → expands to confirmation summary on click → button changes to "Confirm" → commits → shows past-tense results. Panel stays open after commit.
+
+**"Create activity with these students" is in scope.** Appears in post-commit summary when students were skipped due to conflicts. Creates "[Activity Title] - Enrollment Conflict" as an unplaced bucket with those students pre-enrolled. Background action — text changes to "[Title] created. Click here to view all activities." linking to Activity Management page.
+
+**API naming:** `getOrgEnrollments` replaces `getStudentEnrollments` from the original doc. Since the cache loads all org enrollments for client-side conflict checking, the function name should reflect the actual query scope. Per-student filtering happens client-side.
+
+### Documentation Created
+- `docs/user-flows/enrollment-panel-build-spec.md` — consolidated implementation spec covering FloatingPanel shell, EnrollmentPanel component, data layer, integration points, and build order. Supersedes the original doc for implementation details.
+
+### Deferred
+- Scenario B (placement check when editing activity schedule) — separate build phase
+- Roster / Details tabs on the panel
+- Activity creation from within the panel dropdown
+- Student-centric enrollment trigger (Entry B)
+- Mobile/tablet panel adaptation
+
+### Next Up
+- Review build spec in a fresh conversation to prep Claude Code prompts for FloatingPanel shell, enrollment API layer, and EnrollmentPanel component.
