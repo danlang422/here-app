@@ -47,6 +47,7 @@ const EMPTY_FORM = {
   end_date: '',
   is_not_scheduled: false,
   is_release: false,
+  duration_minutes: '',
   location: '',
   requires_attendance: true,
   requires_checkin: false,
@@ -69,6 +70,7 @@ function buildInitialForm(activity, type) {
       rotation_day_type: activity.rotation_day_type || '',
       default_start_time: activity.default_start_time || '',
       default_end_time: activity.default_end_time || '',
+      duration_minutes: activity.duration_minutes != null ? String(activity.duration_minutes) : '',
       start_date: activity.start_date || '',
       end_date: activity.end_date || '',
       location: activity.location || '',
@@ -187,6 +189,7 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
       allows_presence_wave: formValues.allows_presence_wave,
       allows_freeform: formValues.allows_freeform,
       requires_geofence: formValues.requires_geofence,
+      duration_minutes: formValues.duration_minutes !== '' ? parseInt(formValues.duration_minutes, 10) : null,
     }
 
     onSave(data)
@@ -357,6 +360,16 @@ export default function ActivityForm({ activity = null, onSave, onCancel, saving
                   type="time"
                   className="input input-bordered input-sm w-full"
                   {...register('default_end_time')}
+                />
+              </Field>
+
+              <Field label="Duration (min)">
+                <input
+                  type="number"
+                  className="input input-bordered input-sm w-full"
+                  {...register('duration_minutes', { min: 1 })}
+                  placeholder="e.g. 50"
+                  min="1"
                 />
               </Field>
             </div>
