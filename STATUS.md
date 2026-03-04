@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** March 4, 2026 (morning — pre-enrollment session)
+**Last updated:** March 4, 2026 (morning — post enrollment/schedule-building design session)
 
 ---
 
 ## Current State
 
-**Documentation:** Mostly current. Schema docs and business logic docs are up to date (including time-based conflict detection added Session 5). Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes reorganized into `docs/session-notes/`. First user flow doc created: `docs/user-flows/admin-dashboard.md` captures the dashboard vision, agenda view design, and enrollment interaction patterns.
+**Documentation:** Mostly current. Schema docs and business logic docs are up to date (including time-based conflict detection added Session 5). Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes reorganized into `docs/session-notes/`. User flow docs now cover three areas: `admin-dashboard.md` (dashboard vision, agenda view), `enrollment-and-floating-panels.md` (enrollment workflow, floating panel system), and `schedule-action-map.md` (comprehensive map of all admin actions affecting student-activity-schedule relationships, with shared patterns and build order).
 
 **Database:** V2 schema deployed with four additional migrations since phase 4: RLS fix, dynamic block count, admin RLS policies, and `duration_minutes` on activities. City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activity types.
 
@@ -18,7 +18,7 @@
 
 Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeated here. This section is for decisions that are still evolving or that affect near-term work:
 
-**Build order:** Activity Management → Enrollment UI → Agenda/week view → Dashboard → Calendar management. Each layer builds on the previous. Enrollment UI components are designed as composable pieces that work standalone (in Activity Management) and later plug into the dashboard.
+**Build order:** Activity Management → Enrollment UI → Agenda/week view → Dashboard → Calendar management. Each layer builds on the previous. Enrollment UI components are designed as composable pieces that work standalone (in Activity Management) and later plug into the dashboard. Detailed phased build order in `docs/user-flows/schedule-action-map.md`.
 
 **Dashboard direction:** The admin dashboard is a schedule-building workspace, not a summary page. Key decisions captured in `docs/user-flows/admin-dashboard.md`: time-based agenda axis with block overlay, adaptive card density driven by filters, two complementary enrollment patterns (drag-to-enroll + two-panel modal), quick-create as collapsed versions of existing forms, grade-level derived from enrollment rather than activity properties. Many layout and interaction details still open — see the doc's Open Questions section.
 
@@ -35,7 +35,7 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 ## Next Steps
 
-1. **Enrollment UI (Layer 1.5)** — Build the composable enrollment workflow: StudentSelector, ActivitySelector, EnrollmentFlow orchestrator. Wire into ActivityManagement with "Enroll Students" action per activity. Write enrollment-specific user flow doc (or expand dashboard doc) before building.
+1. **Enrollment UI (Layer 1.5)** — FloatingPanel shell component + enrollment API functions (`getOrgStudents`, `getStudentEnrollments`, `getActivityEnrollments`, `createEnrollments`) + EnrollmentPanel content (student list with search/filter, per-student conflict indicators for scheduled activities, pre-summary pattern, batch enroll). Wire into ActivityManagement with "Enroll" action per activity row. Design documented in `docs/user-flows/enrollment-and-floating-panels.md`. Then: placement check utility wired into activity form (Scenario B — conditional confirmation when schedule changes affect enrolled students).
 
 2. **Admin: Agenda/week view (Layer 2)** — Time-based visual timeline showing placed activities across a week, with block boundaries as overlay bands. Adaptive card density. Will need group-level scheduling utilities built on top of existing validation module. Design direction documented in `docs/user-flows/admin-dashboard.md`.
 
