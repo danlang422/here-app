@@ -95,3 +95,61 @@ Follow-up session that refined the enrollment UI design from 6.2 into a concrete
 
 ### Next Up
 - Review build spec in a fresh conversation to prep Claude Code prompts for FloatingPanel shell, enrollment API layer, and EnrollmentPanel component.
+
+---
+
+## 6.4 — Enrollment Panel Implementation (evening)
+
+First Craft Agent session. Built the full enrollment panel per the build spec from 6.3, implemented in five phases.
+
+### What Was Built
+
+**FloatingPanel shell** (`src/components/panels/FloatingPanel.jsx`):
+- Reusable, content-agnostic floating container — opens center-screen, draggable via title bar, minimize/restore, close, click-to-front z-index management, viewport clamping.
+- Pointer event–based drag with `setPointerCapture` for smooth tracking. Buttons excluded from drag initiation via `e.target.closest('button')` check (initial version had a bug where `e.preventDefault()` in `handlePointerDown` suppressed button click events — fixed same session).
+- Uses Heroicons v2 (`react-icons/hi2`) for minimize/restore/close icons; rest of codebase uses Font Awesome (`react-icons/fa`). Both available via react-icons v5.
+
+**Enrollment data layer:**
+- `src/api/enrollments.js` — added `getOrgEnrollments(organizationId)` and `bulkUnenrollStudents(enrollmentIds)`. The org query filters through `activity.organization_id` via Supabase `!inner` join since the enrollments table has no direct `organization_id` column. `bulkUnenrollStudents` follows the existing `unenrollStudent` soft-delete pattern (`is_active: false, updated_at: now`) but uses `.in('id', enrollmentIds)` for batch processing.
+- `src/hooks/useUsers.js` — added `useStudents(orgId)` wrapping the existing `getStudents` API function. Added alongside `useStaffUsers`.
+- `src/hooks/useEnrollments.js` — new file, 4 hooks: `useOrgEnrollments`, `useActivityEnrollments` (queries), `useBulkEnrollStudents`, `useBulkUnenrollStudents` (mutations). Mutation hooks invalidate with `queryKey: ['enrollments']` prefix match so both org-level and activity-level caches refresh.
+
+**EnrollmentPanel component** (`src/components/enrollment/EnrollmentPanel.jsx`):
+- Activity dropdown populated from `useActivities`, pre-selected via `initialActivityId` prop.
+- Search-by-name and grade filter.
+- Two-zone student list: staged zone (enrolled + newly staged) above divider, available zone below. Click-to-toggle between zones.
+- Progressive conflict indicators: subtle warning dot in available zone, full inline conflict detail in staged zone showing conflicting activity name and block.
+- Pending unenroll state: enrolled students moved below divider get red highlight + "will be unenrolled" label, clickable to undo.
+- Three-phase submit flow: ready (counts + button) → confirm (summary with skip/unenroll counts) → done (past-tense results).
+- Conflict checking via existing `validateEnrollment()` from `enrollmentValidation.js` — org-wide enrollments cached via `useOrgEnrollments`, per-student filtering done client-side in `useMemo`.
+
+**Activity Management integration:**
+- `ActivityTable.jsx` — added `onEnroll` prop and "Enroll" button per activity row.
+- `ActivityManagement.jsx` — `enrollingActivity` state, renders `FloatingPanel` + `EnrollmentPanel` when set.
+
+**Post-conflict action** (Phase 5):
+- `CreateConflictActivity` sub-component in the done summary. Creates "[Activity Name] - Enrollment Conflict" as an unplaced bucket and enrolls skipped students. Uses `useCreateActivity` + `useBulkEnrollStudents` mutations.
+
+### Implementation Notes
+
+- **Audited existing hooks/API before creating new ones.** Only 2 new API functions and 5 new hooks were needed; `getStudents`, `getActivityEnrollments`, `bulkEnrollStudents`, `useActivities`, `useStaffUsers`, etc. all existed.
+- **No new validation logic.** Conflict checking reuses `validateEnrollment()` entirely — the panel just wires it to the org enrollment cache.
+- **Soft deletes throughout.** `bulkUnenrollStudents` matches the `unenrollStudent` convention: `is_active: false` + `updated_at` timestamp.
+- **Build and lint pass clean.** All pre-existing lint errors unchanged; no new warnings or errors from our code.
+
+### Bug Fixed
+
+- **FloatingPanel buttons not responding.** `e.preventDefault()` in the title bar's `onPointerDown` handler was suppressing the synthesized `click` event on minimize/close buttons. Fixed by adding `if (e.target.closest('button')) return` to skip drag initiation when clicking buttons.
+
+### Deferred (same as 6.3)
+
+- Scenario B (placement check on activity schedule edit)
+- Roster / Details tabs on the panel
+- Activity creation from within the panel dropdown
+- Student-centric enrollment trigger (Entry B)
+- Mobile/tablet panel adaptation
+
+### Next Up
+
+- Test enrollment panel with real student/activity data to validate UX and edge cases.
+- Begin planning Agenda/week view (Layer 2).

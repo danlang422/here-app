@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getUsers, getStaffUsers, createUser, updateUser } from '@/api/users'
+import { getUsers, getStaffUsers, getStudents, createUser, updateUser } from '@/api/users'
 
 export function useUsers(orgId) {
   return useQuery({
@@ -13,6 +13,14 @@ export function useStaffUsers(orgId) {
   return useQuery({
     queryKey: ['staff-users', orgId],
     queryFn: () => getStaffUsers(orgId),
+    enabled: !!orgId,
+  })
+}
+
+export function useStudents(orgId) {
+  return useQuery({
+    queryKey: ['students', orgId],
+    queryFn: () => getStudents(orgId),
     enabled: !!orgId,
   })
 }

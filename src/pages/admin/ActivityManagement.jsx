@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import ActivityForm from '@/components/activities/ActivityForm'
 import ActivityTable from '@/components/activities/ActivityTable'
+import FloatingPanel from '@/components/panels/FloatingPanel'
+import EnrollmentPanel from '@/components/enrollment/EnrollmentPanel'
 import { useActivities, useCreateActivity, useUpdateActivity } from '@/hooks/useActivities'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import useAuthStore from '@/store/authStore'
@@ -20,6 +22,7 @@ function ActivityManagement() {
   const [showForm, setShowForm] = useState(false)
   const [editingActivity, setEditingActivity] = useState(null)
   const [typeFilter, setTypeFilter] = useState('')
+  const [enrollingActivity, setEnrollingActivity] = useState(null)
 
   const saving = createMutation.isPending || updateMutation.isPending
   const mutationError = createMutation.error || updateMutation.error
@@ -122,8 +125,20 @@ function ActivityManagement() {
         activities={filteredActivities}
         loading={isLoading}
         onEdit={handleEdit}
+        onEnroll={(activity) => setEnrollingActivity(activity)}
         orgSettings={orgSettings}
       />
+      {enrollingActivity && (
+        <FloatingPanel
+          title={`Enrollment — ${enrollingActivity.name}`}
+          onClose={() => setEnrollingActivity(null)}
+        >
+          <EnrollmentPanel
+            orgId={orgId}
+            initialActivityId={enrollingActivity.id}
+          />
+        </FloatingPanel>
+      )}
     </div>
   )
 }
