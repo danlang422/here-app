@@ -9,7 +9,7 @@ import { getBlockLabel } from '@/lib/constants'
  *   onEdit      - called with activity object when edit is clicked
  *   orgSettings - organization.settings (for block_count context)
  */
-export default function ActivityTable({ activities = [], loading = false, onEdit }) {
+export default function ActivityTable({ activities = [], loading = false, onEdit, onEnroll }) {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -64,14 +64,24 @@ export default function ActivityTable({ activities = [], loading = false, onEdit
                 {activity.location || <span className="text-base-content/30">—</span>}
               </td>
               <td>
-                {onEdit && (
-                  <button
-                    className="btn btn-ghost btn-xs"
-                    onClick={() => onEdit(activity)}
-                  >
-                    Edit
-                  </button>
-                )}
+                <div className="flex gap-1">
+                  {onEnroll && (
+                    <button
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => onEnroll(activity)}
+                    >
+                      Enroll
+                    </button>
+                  )}
+                  {onEdit && (
+                    <button
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => onEdit(activity)}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}

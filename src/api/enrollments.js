@@ -69,6 +69,38 @@ export async function unenrollStudent(enrollmentId) {
   return data
 }
 
+// Get all active enrollments for an org with joined activity schedule data
+// Used as the client-side cache for conflict checking.
+// Filters through activity.organization_id since enrollments don't have org_id directly.
+export async function getOrgEnrollments(organizationId) {
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select(`
+      *,
+      activity:activities!inner(
+        id, name, block, days_of_week, rotation_day_type,
+        default_start_time, default_end_time
+      )
+    `)
+    .eq('activity.organization_id', organizationId)
+    .eq('is_active', true)
+
+  if (error) throw error
+  return data
+}
+
+// Bulk unenroll students (soft delete — sets is_active = false)
+export async function bulkUnenrollStudents(enrollmentIds) {
+  const { data, error } = await supabase
+    .from('enrollments')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .in('id', enrollmentIds)
+    .select()
+
+  if (error) throw error
+  return data
+}
+
 // Update an enrollment
 export async function updateEnrollment(enrollmentId, updates) {
   const { data, error } = await supabase

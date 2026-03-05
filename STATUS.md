@@ -1,16 +1,16 @@
 # Here App — Project Status
 
-**Last updated:** March 4, 2026 (afternoon — post enrollment panel build spec session)
+**Last updated:** March 4, 2026 (evening — enrollment panel implemented)
 
 ---
 
 ## Current State
 
-**Documentation:** Up to date. Schema docs and business logic docs are current. Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes through 6.3 (today). User flow docs now cover four areas: `admin-dashboard.md` (dashboard vision, agenda view), `enrollment-and-floating-panels.md` (original enrollment/panel design exploration), `schedule-action-map.md` (comprehensive map of all admin actions affecting student-activity-schedule relationships), and `enrollment-panel-build-spec.md` (implementation-ready spec for the enrollment panel — **the handoff doc for Claude Code**).
+**Documentation:** Up to date. Schema docs and business logic docs are current. Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes through 6.4 (today). User flow docs now cover four areas: `admin-dashboard.md` (dashboard vision, agenda view), `enrollment-and-floating-panels.md` (original enrollment/panel design exploration), `schedule-action-map.md` (comprehensive map of all admin actions affecting student-activity-schedule relationships), and `enrollment-panel-build-spec.md` (implementation spec for the enrollment panel — now implemented).
 
 **Database:** V2 schema deployed with five additional migrations since phase 4: RLS fix, dynamic block count, admin RLS policies, and `duration_minutes` on activities. City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activity types.
 
-**Application code:** Auth flow working. Activity Management and User Management pages are both functional with full CRUD, now using React Query for server state and React Hook Form for form management. Custom hooks in `src/hooks/` (useActivities, useUsers, useOrgSettings) wrap API functions with TanStack Query. Activity form has type-driven field visibility and duration field; activity table shows staff (joined from user_profiles) instead of type, with primary+N display pattern. User management uses a modal-based create/edit flow with a Supabase Edge Function for account creation. Staff dropdowns in the activity form are wired up via `useStaffUsers`. Enrollment validation utilities are in place (`src/lib/enrollmentValidation.js`) — block-based and time-based conflict detection, enrollment gatekeeper, and scheduling visibility helpers. No enrollment UI yet. Remaining admin pages (Calendar, Reports) are still placeholders.
+**Application code:** Auth flow working. Activity Management and User Management pages are both functional with full CRUD, now using React Query for server state and React Hook Form for form management. Custom hooks in `src/hooks/` (useActivities, useUsers, useStudents, useOrgSettings, useEnrollments) wrap API functions with TanStack Query. Activity form has type-driven field visibility and duration field; activity table shows staff (joined from user_profiles) instead of type, with primary+N display pattern and "Enroll" action per row. User management uses a modal-based create/edit flow with a Supabase Edge Function for account creation. Staff dropdowns in the activity form are wired up via `useStaffUsers`. Enrollment validation utilities are in place (`src/lib/enrollmentValidation.js`) — block-based and time-based conflict detection, enrollment gatekeeper, and scheduling visibility helpers. **Enrollment UI is implemented:** FloatingPanel shell (reusable draggable/minimizable container) + EnrollmentPanel (activity dropdown, two-zone student list, progressive conflict indicators, three-phase submit flow, post-conflict "create activity" action). Launched from "Enroll" button on activity rows. Remaining admin pages (Calendar, Reports) are still placeholders.
 
 **Key architectural decisions:** The app is being designed as a schedule-building tool, not just a schedule-entry form. Settings, blocks, terms, etc. are all optional/progressive — admins can enter activities before defining blocks or terms. User management follows the same reusable-component pattern as activities — form works in modal or full page. The admin dashboard is envisioned as a schedule-building workspace where activities, users, and enrollment converge around a visual agenda. Time is the primary axis on the agenda view; blocks are an overlay (see `docs/user-flows/admin-dashboard.md`).
 
@@ -22,7 +22,7 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 **Dashboard direction:** The admin dashboard is a schedule-building workspace, not a summary page. Key decisions captured in `docs/user-flows/admin-dashboard.md`: time-based agenda axis with block overlay, adaptive card density driven by filters, two complementary enrollment patterns (drag-to-enroll + two-panel modal), quick-create as collapsed versions of existing forms, grade-level derived from enrollment rather than activity properties. Many layout and interaction details still open — see the doc's Open Questions section.
 
-**Enrollment panel design (settled for implementation):** Single-panel model with activity dropdown + two-zone student list (staged/available, click-to-toggle). FloatingPanel shell opens center-screen. Conflict indicators are progressive: subtle dot when browsing, full detail when staged. Submit flow stays in-panel with confirmation step. "Create activity with these students" available post-conflict as a background action. Full spec in `docs/user-flows/enrollment-panel-build-spec.md`.
+**Enrollment panel (implemented):** Single-panel model with activity dropdown + two-zone student list (staged/available, click-to-toggle). FloatingPanel shell opens center-screen. Conflict indicators are progressive: subtle dot when browsing, full detail when staged. Submit flow stays in-panel with confirmation step. "Create activity with these students" available post-conflict as a background action. Scenario B (placement check on activity schedule edit) is designed but deferred. Spec in `docs/user-flows/enrollment-panel-build-spec.md`.
 
 ---
 
@@ -37,11 +37,11 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 ## Next Steps
 
-1. **Enrollment UI (Layer 1.5) — ready for implementation.** Build spec finalized in `docs/user-flows/enrollment-panel-build-spec.md`. Build order: FloatingPanel shell → enrollment API functions + hooks → EnrollmentPanel component → wire into Activity Management → "create activity with these students" post-conflict action. Scenario B (placement check on activity schedule edit) is designed but deferred to a separate build phase.
+1. **Enrollment panel testing and polish.** Core implementation is in place. Needs real-world testing with actual student/activity data to validate UX, conflict indicator clarity, and edge cases (empty states, large student lists, activities with no schedule). Scenario B (placement check on activity schedule edit) is designed but deferred to a separate build phase.
 
 2. **Admin: Agenda/week view (Layer 2)** — Time-based visual timeline showing placed activities across a week, with block boundaries as overlay bands. Adaptive card density. Will need group-level scheduling utilities built on top of existing validation module. Design direction documented in `docs/user-flows/admin-dashboard.md`.
 
-3. **Admin: Dashboard (Layer 2.5)** — Composes agenda view, quick-create forms, enrollment UI, and unplaced activities zone into the schedule-building workspace. Depends on Layers 1.5 and 2.
+3. **Admin: Dashboard (Layer 2.5)** — Composes agenda view, quick-create forms, enrollment UI, and unplaced activities zone into the schedule-building workspace. Depends on Layer 2.
 
 4. **Admin: Calendar management** — Term CRUD, school day generation, schedule template editor, "assign blocks" step that maps existing activities to newly-defined block boundaries.
 
