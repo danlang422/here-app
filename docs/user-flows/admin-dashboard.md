@@ -1,205 +1,250 @@
-# Admin Dashboard — Schedule-Building Workspace
+# Admin Dashboard — Schedule-Building Workspace (v2)
 
-**Created:** March 3, 2026
-**Status:** Planning — capturing vision and design decisions before implementation
+**Created:** March 5, 2026
+**Status:** Design — settled enough to build from, with open questions noted
+**Supersedes:** `admin-dashboard.md` (March 3 — aspirational feature exploration). Delete that file once this one is reviewed.
 
 ---
 
 ## Core Concept
 
-The admin dashboard is a **schedule-building workspace**, not a summary/stats page. It's the control hub where the three primary admin actions — creating activities, managing users, and enrolling students — converge around a visual schedule. The admin should be able to stay on one screen and iteratively build out a school's schedule: create activity buckets, place them in the week, enroll students, spot conflicts, and adjust — all without navigating to separate management pages.
+The admin dashboard is a **schedule-building workspace**. The agenda view is the centerpiece — a time-based weekly visualization of the school schedule. Everything else (activity browsing, enrollment, user lookup, settings) is accessed through **floating panels** summoned from a toolbar without leaving the dashboard.
 
-The Activity Management and User Management pages still exist as full-featured CRUD interfaces. The dashboard surfaces **streamlined versions** of those same components, optimized for speed and context. Because ActivityForm and UserForm were built container-agnostic, they can be restyled and collapsed for dashboard use.
-
----
-
-## Layout Zones
-
-The dashboard has at least two functional zones. Exact layout is TBD — options include sidebar, below-the-agenda panel, or floating/collapsible overlays.
-
-### Zone 1: Week/Agenda View (Primary)
-
-The visual schedule. Shows activities that have been **placed** — meaning they have a block and/or day assignment. This is the centerpiece of the dashboard, likely positioned prominently at the top below a header.
-
-Displays a week grid with **hours on the vertical axis** and days on the horizontal axis. Activities appear as cards positioned by their scheduled time. Once blocks are defined (via Calendar Management), block boundaries appear as labeled horizontal bands overlaying the time grid — but **time is the primary axis, blocks are an overlay**.
-
-This means activity cards are placed based on clock time, not block assignment. A card's vertical position and height reflect when it actually runs. Block bands provide context ("this is Block 0 time") but don't control card placement.
-
-**Open design challenge:** Activities assigned to a block but not fully contained within that block's time range (e.g., Kennedy Band is "Block 0" but runs 8:00–8:45 while Block 0 is 7:30–9:00) need to visually indicate their block association even though their card doesn't fill the block band. The inverse case — an activity spanning block boundaries — also needs consideration. Activities assigned to a block but with no time set yet are another edge case. Deferred to detailed agenda view design.
-
-Card content adapts based on density and active filters (see View Modes below).
-
-### Zone 2: Unplaced Activities
-
-Activities that exist but haven't been assigned a block, days, or times yet — the "buckets." These are activities created via quick-create or full creation that the admin hasn't scheduled. They might also include activities that have some scheduling info but aren't fully placed (e.g., has a block but no days).
-
-**Layout options under consideration:**
-- Sidebar (always visible, scrollable list)
-- Panel below the agenda view
-- Floating/collapsible modal or drawer
-
-The unplaced zone serves as a staging area. Activities here are ready to be scheduled (dragged or assigned to a block/day) and can have students enrolled in them even before placement.
-
-### Quick-Create UI
-
-Both activities and users can be created directly from the dashboard. The creation UI should be a **collapsed/quick version** of the full form — showing only essential fields by default, expandable to the full form if the admin wants to fill in details immediately.
-
-**Quick-create activity (bucket mode):** Name and type are the minimum. Block, days, times, staff assignment, and all other fields are optional — consistent with progressive setup. The created activity lands in the Unplaced zone.
-
-**Quick-create user:** Name and role at minimum. Email/password and other details can be filled in later.
-
-These quick versions are restyled variants of ActivityForm and UserForm, not separate components. The forms already support being rendered in different containers; the dashboard just provides a more compact container with a collapsed default state.
+Full-page Activity Management and User Management views remain accessible as **tabs below the agenda view**, providing the wider, column-dense layouts needed for bulk review and data entry. The dashboard doesn't replace those pages — it layers a contextual, schedule-aware workspace on top of them.
 
 ---
 
-## Agenda View Modes
+## Dashboard Layout
 
-The week/agenda view supports multiple levels of detail. These aren't explicitly toggled modes with buttons — the view **adapts based on what's being displayed**, driven by filters and the density of activities in each cell.
+```
+┌─────────────────────────────────────────────────────┐
+│  Toolbar: [filters] [property toggles] [panel icons]│
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│              Agenda / Week View                     │
+│         (time axis + day columns + block overlay)   │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│  Tabs: [ Activity Management | User Management ]    │
+│  (full-page views rendered inline below the agenda) │
+└─────────────────────────────────────────────────────┘
 
-### Overview Mode (Default)
+  Floating panels appear on top of everything,
+  summoned from toolbar icons.
+```
 
-All activities visible, no filters active. Cards are **aggregated** by cell (block × day). A cell might show: "4 activities · 47 students" rather than individual activity details. Hover or click to expand and see the activity names.
+### Toolbar
 
-This is the "how full is my schedule" view. Useful for getting a big-picture sense of where capacity exists and where things are crowded.
+A horizontal bar above the agenda containing:
 
-### Focus Mode (Filtered)
+- **Filter controls:** A filter icon/button that opens a popover with all agenda filters (grade level, block, placed/unplaced, etc.) stacked vertically. Keeps the toolbar clean — complexity is one click away. A badge on the icon shows active filter count.
+- **Property toggle icons:** Compact icon buttons for filtering by activity properties — attendance required, check-in required, geolocation, presence, freeform. These are preferred over type-based filtering because types are creation-time helpers, while properties reflect actual operational behavior.
+- **Panel icons:** Icon buttons that summon floating panels — Activities, Enrollment, Settings/Calendar. Each icon opens its respective panel (or brings it to front if already open). These same icons appear as action buttons on activity cards elsewhere, providing a consistent visual language.
 
-The admin has narrowed the view — by toggling specific activities on/off, by filtering to a derived group (e.g., "show me what 10th graders are in"), or by selecting a specific activity to place. Now the cells contain fewer activities, so the cards can show more detail: activity name, enrollment count, teacher, maybe a snippet of schedule info.
+### Agenda View
 
-The card content scales with density:
-- **Many activities in a cell** → aggregated summary (count, total students)
-- **A few (2–3) activities** → individual titles and enrollment counts
-- **One activity** → full detail card (name, teacher, enrollment, type badge, times)
+See dedicated section below.
 
-This adaptive density is the key UX principle — the cards aren't fixed templates, they respond to how much room they have and how much context the admin needs.
+### Tabs Below the Agenda
 
-### Conflict Mode (Active Placement)
-
-Triggered when the admin is actively trying to place an activity — dragging from unplaced, or using the enrollment flow and looking for available slots. The view filters to show **only activities that would conflict** with the one being placed, and highlights the overlapping cells.
-
-This may not be a separate mode so much as what Focus mode becomes during a placement action. The point is that conflict highlighting isn't just a color overlay on a busy schedule — it's a **filtered view** that strips away everything irrelevant so the admin can see exactly what's in the way.
-
-Conflict detection here uses both systems:
-- **Block-based conflicts** (hard gate): "This block/day is occupied"
-- **Time-based conflicts** (informational): "This activity overlaps by 15 minutes with the adjacent block"
-
----
-
-## Filtering and Display
-
-### Filter Types
-
-**Activity-level filters:**
-- Show/hide individual activities (toggle switches or checkboxes)
-- Filter by activity type (regular_class, college_course, etc.)
-- Filter by staff/teacher assignment
-
-**Enrollment-derived filters (important design note):**
-- Filter by grade level — derived from enrolled students, not an activity property. "Show 10th grade activities" means "show activities where enrolled students are predominantly/entirely in 10th grade."
-- Potentially filter by student count ranges, enrollment status, etc.
-
-The most useful filters may end up being **enrollment-derived** rather than activity-property-based. This is worth keeping in mind architecturally — these filters require joining through enrollments to student profiles, which is a different query pattern than filtering on activity columns directly.
-
-### Card Content Responds to Filters
-
-The filter state doesn't just hide/show cards — it changes what the visible cards display. In overview (unfiltered), cards are summaries. As filters narrow the view, cards expand to show more detail because there's more room and more reason to show specifics.
-
-This means the card component needs to accept a "density" or "detail level" prop (or compute it from sibling count) and render accordingly.
+The existing Activity Management and User Management pages, rendered as tab content below the agenda. These provide full-featured CRUD with table layouts, bulk editing capability, and all the screen real estate those tasks need. The tabs are always available — the admin can scroll down from the agenda to work in the full views at any time.
 
 ---
 
-## Enrollment on the Dashboard
+## Floating Panels
 
-Enrollment can be initiated from the dashboard in addition to the Activity Management page. Two interaction patterns:
+Panels are contextual tools that float above the dashboard. They use the existing `FloatingPanel` shell (draggable, minimizable, closable, click-to-front z-index, viewport clamped, no backdrop). See `enrollment-panel-build-spec.md` for the shell's implemented behavior.
 
-### Pattern 1: Direct Manipulation (Drag-to-Enroll)
+### Activity Panel
 
-The admin multi-selects students (from a student list/panel, or from an activity's enrollment roster), then drags the selection onto an activity card — either in the week/agenda view (placed activity) or in the unplaced activities zone. The system validates for conflicts and enrolls on drop, or shows conflict details if validation fails.
+A **filtered activity browser** — not a dedicated "unplaced activities" zone. Shows all activities with filters to narrow by status (placed/unplaced), block, and other criteria.
 
-**Open questions for drag-to-enroll:**
-- Where does the student list live? A third zone/panel? A popover from an activity card?
-- How does multi-select work? Checkboxes? Shift-click? Lasso?
-- What's the visual feedback during drag? Ghost cards? Highlight valid drop targets?
-- How do we handle validation failures on drop? Inline error? Toast? Modal with conflict details?
+**Card display:** Each activity card shows a consistent minimal set:
+- Activity name
+- Teacher/staff (last name, abbreviated if needed for space)
+- Enrollment count
 
-### Pattern 2: Two-Panel Flow (Modal/Slide-Over)
+Additional information varies by activity state and is revealed progressively:
+- **Unplaced + has duration:** Duration badge (e.g., "55 min"). No time/day info since it isn't placed.
+- **Unplaced + no duration:** Minimal card — may need teacher shown via tooltip if the card is too narrow (important for distinguishing multiple activities with the same name, like several "Advisory" entries).
+- **Placed:** Time, days, block badge.
 
-When drag-to-enroll isn't practical (no good drag target visible, complex enrollment involving many students, need to see conflict details before committing), the admin falls back to the composable two-panel enrollment flow:
+**Click → expanded detail modal:** Clicking a card opens a larger modal/overlay showing full activity details (all schedule info, properties, enrolled roster preview, etc.) without navigating away from the dashboard. The modal includes a link/button to "open full details" which navigates to the full-page edit view.
 
-1. **Panel 1 — Student Selection:** Multi-select students with search/filter. May be pre-populated if initiated from an activity's roster.
-2. **Panel 2 — Activity Target:** Pick the activity to enroll selected students in. Shows conflict validation results per student. May be pre-filled if initiated from a specific activity.
+**Action buttons on cards:** Small icon buttons for common actions. Notably, the enrollment icon on an activity card opens the Enrollment Panel with that activity pre-selected (or updates the selection if the panel is already open).
 
-This is the same StudentSelector → ActivitySelector → validate → enroll workflow described in CLAUDE.md, surfaced as a slide-over or modal on the dashboard. It's the reliable fallback that works in every context.
+**Filters:** Given the narrow panel width, filters are nested inside a single dropdown/popover rather than laid out as individual dropdowns. Includes: search input, placed/unplaced status, block, property toggles. Filter icon with active-count badge in the panel header.
 
-**The two patterns complement each other:** drag-to-enroll is fast for simple cases (a few students, obvious target). The two-panel flow handles complex cases with full visibility into conflicts.
+**Create button:** Panel header includes a "+" button for quick-create (see Quick-Create section below).
 
----
+### Enrollment Panel
 
-## New Fields to Consider
+The existing `EnrollmentPanel` component, evolved to support **two entry points**:
 
-### `activities.duration_minutes` (nullable integer)
+**Entry A — Activity-centric (implemented):** Triggered from an activity's enroll action (on activity cards, activity table rows, etc.). Panel opens with the activity pre-selected in the dropdown. Admin stages/unstages students, sees conflict indicators, submits.
 
-How long the activity runs, in minutes. Independent of block assignment — a 55-minute Geometry class might be assigned to a 90-minute block, or might not be assigned to a block at all yet.
+**Entry B — Student-centric (not yet built):** Triggered from the toolbar enrollment icon with no activity context. Panel opens with the student list visible and no activity selected. Admin browses/filters students, stages some, then picks an activity target. The activity selector may appear below the staged students once selections are made, or could be always-visible at the top as it is now — exact layout TBD.
 
-**Why:** Enables proportional card sizing in the Unplaced activities zone. If Geometry is 55 minutes and Band is 90 minutes, their unplaced cards can be visually sized to reflect how much schedule space they'll occupy. This helps the admin see at a glance whether an unplaced activity will fit in a gap.
+Both entry points use the same panel and same component. The difference is initial state: whether `initialActivityId` is provided.
 
-**Progressive:** Nullable, never required. Activities without a duration just get a default-sized card.
+**Relationship to user management:** There is no separate "User Management" floating panel. The enrollment panel *is* the student-facing panel on the dashboard. A standalone floating user list without an enrollment action doesn't serve a clear purpose. General user search/lookup can be served by a search bar in the toolbar (if needed) or by the full User Management tab below the agenda.
 
-**Interaction with block times:** When an activity with a known duration is dragged toward the week view, the system could show "this fits" or "this is 15 minutes longer than the block" — using the time-based conflict detection that already exists.
+### Settings / Calendar Panel(s)
 
-### Grade-level as derived data
+Not yet designed in detail. Org-level configuration — block definitions, term dates, schedule templates, rotation days, and other settings — will be accessible via floating panels summoned from toolbar icons. This avoids building dedicated pages for configuration tasks that are infrequent but need to happen in the context of looking at the schedule.
 
-Grade level is **not** a property of activities. It's derived from enrolled students. An activity's "grade" is really "what grade(s) are the students in this activity?"
-
-For filtering purposes, this could be:
-- Computed on the fly (join enrollments → student profiles → aggregate grade)
-- Cached/denormalized as a derived badge on activity cards (updated when enrollment changes)
-
-The caching approach is probably necessary for performance if the agenda view needs to filter by grade without loading all enrollment data on every render. But this is an implementation decision that can be deferred — the important design decision is that grade lives on students, not activities.
+**Deferred** until Calendar Management becomes the active build layer.
 
 ---
 
-## Relationship to Other Pages
+## Agenda View
 
-**Activity Management (`/admin/activities`):** Full CRUD with table view, filters, and the "Enroll Students" action per activity. The enrollment flow here uses the same composable pieces as the dashboard. The dashboard's quick-create is a streamlined version of this page's creation flow.
+### Structure
 
-**User Management (`/admin/users`):** Full CRUD with modal-based create/edit. The dashboard's quick-create user is a streamlined version.
+A week grid with **time on the vertical axis** (hours) and **days of the week on the horizontal axis**. Activities appear as cards positioned by their scheduled clock time. Card height is proportional to activity duration.
 
-**Calendar Management (not yet built):** Term CRUD, school day generation, schedule template editor, "assign blocks" mapping. Interacts heavily with the dashboard — template changes affect block times displayed in the agenda view.
+**Block overlay:** Once blocks are defined (via Calendar Management), block boundaries appear as labeled horizontal bands overlaying the time grid. Blocks provide context ("this is Block 1 time") but don't control card placement — time is the primary axis.
+
+**Block labels along the left margin** serve dual purpose: identification and interaction. Clicking a block label filters/zooms the agenda to show just that block's time range. Clicking again restores the full view.
+
+**Day column headers** work the same way — click a day to focus on a single-day view, click again to restore the full week.
+
+**Per-column totals** at the bottom of each day column show activity count and student count, responsive to active filters.
+
+### Adaptive Card Density
+
+Cards are not fixed templates — they respond to how many activities share a cell (block × day intersection).
+
+- **Many activities:** Aggregated summary card — "5 Activities, 13 Students." Click or hover to expand.
+- **A few (2–3):** Individual card titles with enrollment counts.
+- **One activity:** Full detail — name, teacher, enrollment count, time, type badge.
+
+This density adaptation is the key UX principle. As the admin filters the view down, cards expand because there's more room and more reason to show specifics.
+
+### Fuzzy Time Edges
+
+Activities assigned to a block don't always perfectly match the block's time boundaries (e.g., most Block 1 activities run 7:30–9:00 but one runs 7:00–8:50).
+
+**At the aggregate level:** Ignore it. The aggregated card represents the block slot, not individual times. The block overlay defines the visual container.
+
+**At the detail level** (when zoomed into a block or viewing individual cards): Show actual activity times. The oddball activity's card is positioned/sized by its real clock time, making the discrepancy visible without requiring special notation.
+
+### Filtering
+
+**Filter types:**
+- Grade level (derived from enrolled students, not an activity property)
+- Block
+- Day of week
+- Activity properties (attendance, check-in, geolocation, presence, freeform)
+- Staff/teacher
+- Placed/unplaced status (though unplaced activities don't appear on the agenda itself — this filter is more relevant in the Activity Panel)
+
+**Property-based filtering is preferred over type-based.** Activity types (regular_class, college_course, internship, etc.) are creation-time UI helpers that auto-set properties. The properties themselves (requires attendance, requires check-in, etc.) are what matter operationally and are more useful as filter criteria.
+
+**Grade-level filtering** requires joining through enrollments to student profiles. At City View scale, this can be computed client-side from cached enrollment data. For larger schools, this may need server-side support or denormalization. Not a blocker for initial build.
+
+---
+
+## Quick-Create
+
+Both panels support creating new records without leaving the dashboard.
+
+### Quick-Create Activity
+
+Accessible from the Activity Panel's "+" button. Shows a compact form with essential fields only:
+- Name (required)
+- Type (drives property defaults)
+- Teacher/staff
+
+All other fields (block, days, times, duration, additional staff, properties) are omitted from quick-create. The created activity appears in the Activity Panel as an unplaced/empty activity. The admin can open the expanded detail modal or navigate to the full form to fill in more.
+
+### Quick-Create User
+
+Accessible from wherever user creation is needed (TBD — possibly the Enrollment Panel or the toolbar). Compact form:
+- Name (required)
+- Role (required)
+
+Email/password and other details filled in later via full User Management.
+
+---
+
+## Conflict Visualization on the Agenda
+
+**Not part of the initial build**, but part of the long-term vision.
+
+When the enrollment panel has an activity selected, the agenda view could highlight cells where conflicts exist — showing visually where enrolled (or staged) students already have commitments. This is faster and more intuitive than reading conflict summary text in the enrollment panel.
+
+Similarly, when placing an unplaced activity (future drag-to-place interaction), the agenda could highlight which slots are clear vs. occupied for the students enrolled in that activity.
+
+The existing conflict detection infrastructure (`enrollmentValidation.js` with both block-based and time-based checks) supports this. The implementation challenge is wiring the enrollment panel's state to the agenda view's rendering — they'd need shared awareness of what's selected and what conflicts exist.
+
+**Deferred** until the base agenda view and enrollment panel are both stable and tested.
+
+---
+
+## Drag-and-Drop Interactions
+
+**Not part of the initial build.**
+
+Two drag interactions have been discussed:
+
+1. **Drag-to-place:** Drag an unplaced activity from the Activity Panel onto the agenda to assign it a time slot. The system would show valid/conflicting drop targets based on enrolled students' existing schedules.
+
+2. **Drag-to-enroll:** Drag students onto an activity card (or vice versa) to enroll. Would need a clear source for the student selection (likely the enrollment panel).
+
+Both are powerful but add significant interaction complexity. The initial build uses explicit actions (buttons, dropdowns, the enrollment panel's click-to-stage flow) for all operations. Drag interactions are a future enhancement layer.
+
+---
+
+## Activity States Reference
+
+Carried forward from `schedule-action-map.md` — these states drive card display, validation requirements, and available actions throughout the dashboard.
+
+| State | Has Schedule? | Has Students? | Example |
+|-------|--------------|---------------|---------|
+| **Empty** | No | No | Just created, nothing set yet |
+| **Bucket** | No | Yes | "Geometry" with 20 students, no time/block |
+| **Scheduled** | Yes | No | Block 2, MWF, 9:00–9:50, no students |
+| **Live** | Yes | Yes | Fully placed with enrolled students |
 
 ---
 
 ## Open Questions
 
-1. **Unplaced zone layout:** Sidebar vs. below-agenda vs. floating/collapsible. Each has tradeoffs for screen real estate and drag ergonomics. Sidebar keeps it always visible but narrows the agenda. Below-agenda is spacious but requires scrolling. Floating is flexible but adds UI complexity with multiple draggable surfaces.
+1. **Entry B layout for enrollment panel.** When opened student-first (no activity context), where does the activity selector go? Below staged students? Always at top? Does the panel need to be taller to accommodate both the student list and the activity selector without feeling cramped?
 
-2. **Drag-to-enroll student source:** Where do students "come from" in the drag interaction? An activity's current roster? A global student list panel? A search result? This affects where the student selection UI lives on the dashboard.
+2. **Activity card expanded modal.** What does this look like? Is it a true modal (with backdrop) or another floating panel? How much of the activity form does it expose — read-only detail view with an "edit" button, or the form itself in a compact layout?
 
-3. **Conflict mode trigger:** Is it automatic (entering drag mode filters the view) or manual (admin clicks "show conflicts for this activity")? Automatic is slicker but might be disorienting if the view changes dramatically mid-drag.
+3. **Block overlay visual treatment.** Colored bands (as in the mockup), subtle borders, alternating background shading? Needs visual design exploration — the mockup used colors but wasn't committed to them.
 
-4. **Mobile/tablet dashboard:** The drag-heavy interaction model is desktop-oriented. What does the dashboard look like on a tablet? Likely a simplified version — maybe the two-panel enrollment flow only, no drag-to-enroll. Worth considering but not a blocker for initial implementation.
+4. **Toolbar layout and icon design.** The mockup showed placeholder icons. Need to settle on an icon set and visual pattern for the panel-summoning buttons. The enrollment icon in particular needs to be recognizable both in the toolbar and as an action button on activity cards.
 
-5. **Grade-level computation performance:** How expensive is the enrollment-derived grade filter? If every agenda render needs to join through enrollments, this could be slow with many activities. May need a denormalized `primary_grades` field or a materialized view. Defer until we see real performance.
+5. **Tab behavior below the agenda.** Do tabs load lazily? Does the agenda resize/scroll when a tab is active? Can you see both the agenda and a tab simultaneously (split view), or does the tab content push the agenda up? This affects whether the admin can reference the agenda while working in the full-page views.
 
-6. **"Assign blocks" interaction:** When Calendar Management is built, the dashboard will need a mode for assigning block boundaries to existing activities. This is related to but separate from the enrollment workflow. How does this interact with the existing block assignment on the activity form? Defer until Calendar Management is the active layer.
+6. **Universal search.** Is there a search bar in the toolbar that searches across students, activities, and settings? If so, what does selecting a result do — open the relevant panel? Navigate to the entity? Highlight on the agenda?
 
-7. **Schedule template awareness:** The agenda view should eventually reflect schedule template variations (2-hour delay days, early dismissal). But for initial implementation, showing the default template is fine. Note this for later.
-
-8. **Quick-create expandability:** When the admin expands a quick-create form to the full version, does it transform in-place? Open in a modal? Navigate to the full management page? In-place transformation is smoothest but requires careful layout handling.
+7. **Aggregate card interaction.** When a cell shows "5 Activities, 13 Students," what happens on click? Expand in-place to show the individual activities? Open a popover? Filter the agenda to just that cell? This is an important interaction to get right since it's the primary way the admin drills into the schedule.
 
 ---
 
-## Build Order Considerations
+## Build Sequence (Rough)
 
-The enrollment UI is the next implementation target, designed as composable pieces:
-- **StudentSelector** — multi-select with search/filter, works in modal/panel/page
-- **ActivitySelector** — pick target activity, shows conflict validation
-- **EnrollmentFlow** — orchestrator connecting the two, manages validation and commit
+This is a high-level ordering, not a detailed build spec. Each step will get its own spec doc (like `enrollment-panel-build-spec.md`) before implementation.
 
-These pieces get built and wired into Activity Management first ("Enroll Students" per activity), then adapted for the dashboard context when the dashboard is built. The dashboard itself is a later layer that composes these pieces alongside the agenda view and quick-create forms.
+1. **Agenda view component** — The week grid with time axis, day columns, block overlay bands, and card rendering. Starts with individual activity cards (no aggregation) to get the basics working. Needs real activity data with schedule info to be meaningful.
 
-**Sequence:**
-1. Enrollment UI components (standalone, wired into Activity Management)
-2. Agenda/week view component (standalone, can be tested outside the dashboard)
-3. Dashboard page (composes agenda view, quick-create, enrollment, unplaced zone)
-4. Calendar Management (terms, templates, block assignment — feeds into dashboard)
+2. **Adaptive card density** — Add aggregation logic so cells with many activities collapse to summary cards. Add expand/drill-down interaction for aggregated cells.
+
+3. **Activity Panel** — Floating panel with filtered activity card list. Reuses activity data from existing hooks. Card display with minimal info + click-to-expand.
+
+4. **Dashboard page composition** — Wire the agenda view, activity panel, and enrollment panel together on a single page with the toolbar. Add tabs below the agenda for existing Activity/User Management pages.
+
+5. **Enrollment Panel — Entry B** — Add student-centric entry point to the existing enrollment panel.
+
+6. **Quick-create forms** — Compact activity and user creation forms within their respective panels.
+
+7. **Block label and day header filtering** — Click-to-zoom interaction on the agenda.
+
+8. **Property toggle filters and toolbar refinement** — Icon-based filtering, filter popover, active filter badges.
+
+Steps 1–4 compose the minimum viable dashboard. Steps 5–8 enhance it. Conflict visualization and drag-and-drop are future layers beyond this sequence.
