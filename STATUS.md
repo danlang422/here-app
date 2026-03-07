@@ -34,7 +34,6 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 - **RLS policies are starter-level:** Policies exist for core admin workflows but will need expansion as features grow (e.g., teacher-scoped writes, student check-in policies). Some existing phase 4 policies (teachers manage attendance) aren't org-scoped yet.
 - **Architecture docs mostly current:** `docs/architecture/02-data-flow-and-state.md` React Query/RHF patterns are now implemented for existing pages (activities, users, auth). Example hooks for future features (useCheckIn, useMarkAttendance) are still aspirational and should follow the same patterns.
 - **`docs/USER_FLOWS.md` is outdated:** References V1 concepts (priority-based conflict resolution, enrollment_overrides, "sessions" terminology). Being replaced by per-feature docs in `docs/user-flows/` as features are built.
-- **`admin-dashboard.md` superseded:** The original dashboard design doc is replaced by `admin-dashboard-v2.md`. Delete the original after reviewing v2.
 - **Activity form needs compact/quick-create variant.** The current form is large and handles all activity types in one view. A quick-create mode (name, type, teacher only) is needed for the dashboard Activity Panel. Separate design task.
 
 ---
