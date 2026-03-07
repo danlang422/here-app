@@ -101,7 +101,7 @@ Schema docs are in `docs/schema/` — these are the authoritative source for tab
 | `docs/business-logic/` | Schedule logic, check-in rules, attendance rules, enrollment validation |
 | `docs/architecture/` | Tech stack, data flow, auth, realtime, UI patterns |
 | `docs/session-notes/` | Per-session development logs (what was built, decisions made, issues encountered) |
-| `docs/USER_FLOWS.md` | **Outdated — do not rely on schema or data model references.** Describes V1 concepts (priority-based conflict resolution, enrollment_overrides, "sessions" terminology). Being replaced by per-feature docs in `docs/user-flows/`. Use `docs/schema/` and `docs/business-logic/` for accurate data model details. |
+| `docs/user-flows/` | Per-feature documentation 
 
 ## Workflow
 
