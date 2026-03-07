@@ -1,8 +1,8 @@
 # Admin Dashboard — Schedule-Building Workspace (v2)
 
 **Created:** March 5, 2026
-**Status:** Design — settled enough to build from, with open questions noted
-**Supersedes:** `admin-dashboard.md` (March 3 — aspirational feature exploration). Delete that file once this one is reviewed.
+**Updated:** March 7, 2026 (session 8.1 — tab concept cut, aggregate card interaction settled)
+**Status:** Design — settled. Build from `agenda-view-build-spec.md`.
 
 ---
 
@@ -10,7 +10,7 @@
 
 The admin dashboard is a **schedule-building workspace**. The agenda view is the centerpiece — a time-based weekly visualization of the school schedule. Everything else (activity browsing, enrollment, user lookup, settings) is accessed through **floating panels** summoned from a toolbar without leaving the dashboard.
 
-Full-page Activity Management and User Management views remain accessible as **tabs below the agenda view**, providing the wider, column-dense layouts needed for bulk review and data entry. The dashboard doesn't replace those pages — it layers a contextual, schedule-aware workspace on top of them.
+Activity Management and User Management remain as their own dedicated pages (navigated to from the admin nav). The dashboard does not embed them — floating panels handle the contextual, lightweight work; dedicated pages handle bulk editing and data-dense tasks.
 
 ---
 
@@ -24,13 +24,14 @@ Full-page Activity Management and User Management views remain accessible as **t
 │              Agenda / Week View                     │
 │         (time axis + day columns + block overlay)   │
 │                                                     │
-├─────────────────────────────────────────────────────┤
-│  Tabs: [ Activity Management | User Management ]    │
-│  (full-page views rendered inline below the agenda) │
 └─────────────────────────────────────────────────────┘
 
   Floating panels appear on top of everything,
   summoned from toolbar icons.
+
+  Activity Management and User Management are separate
+  pages, navigated to from the admin nav. Not embedded
+  in the dashboard. (Tabs concept cut — session 8.1)
 ```
 
 ### Toolbar
@@ -45,9 +46,11 @@ A horizontal bar above the agenda containing:
 
 See dedicated section below.
 
-### Tabs Below the Agenda
+### Below the Agenda
 
-The existing Activity Management and User Management pages, rendered as tab content below the agenda. These provide full-featured CRUD with table layouts, bulk editing capability, and all the screen real estate those tasks need. The tabs are always available — the admin can scroll down from the agenda to work in the full views at any time.
+**Cut (session 8.1).** The plan to embed Activity Management and User Management as tabs below the agenda was dropped — the motivation was filling space rather than a clear workflow need. Full-page layouts with bulk-editing needs are better served as dedicated pages.
+
+The space below the agenda is intentionally open. Useful additions (reporting summaries, comparison views, zoomed drill-down displays) will be determined as real usage patterns emerge.
 
 ---
 
@@ -215,36 +218,33 @@ Carried forward from `schedule-action-map.md` — these states drive card displa
 
 2. **Activity card expanded modal.** What does this look like? Is it a true modal (with backdrop) or another floating panel? How much of the activity form does it expose — read-only detail view with an "edit" button, or the form itself in a compact layout?
 
-3. **Block overlay visual treatment.** Colored bands (as in the mockup), subtle borders, alternating background shading? Needs visual design exploration — the mockup used colors but wasn't committed to them.
+3. **Block overlay visual treatment.** Colored bands, subtle borders, alternating background shading? Needs visual design exploration. Deferred until block time data exists (Calendar Management).
 
-4. **Toolbar layout and icon design.** The mockup showed placeholder icons. Need to settle on an icon set and visual pattern for the panel-summoning buttons. The enrollment icon in particular needs to be recognizable both in the toolbar and as an action button on activity cards.
+4. **Toolbar layout and icon design.** The mockup showed placeholder icons. Need to settle on an icon set and visual pattern for the panel-summoning buttons. Deferred to toolbar polish phase.
 
-5. **Tab behavior below the agenda.** Do tabs load lazily? Does the agenda resize/scroll when a tab is active? Can you see both the agenda and a tab simultaneously (split view), or does the tab content push the agenda up? This affects whether the admin can reference the agenda while working in the full-page views.
+5. ~~**Tab behavior below the agenda.**~~ **Resolved (session 8.1) — tabs cut.** Activity Management and User Management stay as dedicated pages. No tabs below the agenda.
 
 6. **Universal search.** Is there a search bar in the toolbar that searches across students, activities, and settings? If so, what does selecting a result do — open the relevant panel? Navigate to the entity? Highlight on the agenda?
 
-7. **Aggregate card interaction.** When a cell shows "5 Activities, 13 Students," what happens on click? Expand in-place to show the individual activities? Open a popover? Filter the agenda to just that cell? This is an important interaction to get right since it's the primary way the admin drills into the schedule.
+7. ~~**Aggregate card interaction.**~~ **Resolved (session 8.1).** Hover → tooltip listing activity names + staff (peek, no navigation). Click → filter to block × day (same as clicking block label + day header simultaneously). Zoomed view shows activities side by side with horizontal scroll at high density. Documented in `agenda-view-build-spec.md`.
 
 ---
 
-## Build Sequence (Rough)
+## Build Sequence
 
-This is a high-level ordering, not a detailed build spec. Each step will get its own spec doc (like `enrollment-panel-build-spec.md`) before implementation.
+Detailed build specs are written per step before implementation. See `agenda-view-build-spec.md` for step 1.
 
-1. **Agenda view component** — The week grid with time axis, day columns, block overlay bands, and card rendering. Starts with individual activity cards (no aggregation) to get the basics working. Needs real activity data with schedule info to be meaningful.
+1. **Agenda view + toolbar stub + dashboard rebuild** ← *spec written, ready to build*
+   Grid with time axis, day columns, adaptive card density, block/day click-to-zoom, rebuilt Dashboard page with toolbar placeholder. Full detail in `agenda-view-build-spec.md`.
 
-2. **Adaptive card density** — Add aggregation logic so cells with many activities collapse to summary cards. Add expand/drill-down interaction for aggregated cells.
+2. **Activity Panel** — Floating panel with filtered activity card list. Reuses activity data from existing hooks. Card display with minimal info + click-to-expand (expanded modal design TBD).
 
-3. **Activity Panel** — Floating panel with filtered activity card list. Reuses activity data from existing hooks. Card display with minimal info + click-to-expand.
+3. **Dashboard composition** — Wire agenda, activity panel, enrollment panel, and toolbar together. Toolbar gets functional panel-summon icons.
 
-4. **Dashboard page composition** — Wire the agenda view, activity panel, and enrollment panel together on a single page with the toolbar. Add tabs below the agenda for existing Activity/User Management pages.
+4. **Enrollment Panel — Entry B** — Student-centric entry point (open from toolbar, no activity pre-selected). Same component, different initial state.
 
-5. **Enrollment Panel — Entry B** — Add student-centric entry point to the existing enrollment panel.
+5. **Quick-create forms** — Compact activity and user creation forms within their respective panels.
 
-6. **Quick-create forms** — Compact activity and user creation forms within their respective panels.
+6. **Toolbar refinement** — Property toggle filters, filter popover, active filter badges, icon polish.
 
-7. **Block label and day header filtering** — Click-to-zoom interaction on the agenda.
-
-8. **Property toggle filters and toolbar refinement** — Icon-based filtering, filter popover, active filter badges.
-
-Steps 1–4 compose the minimum viable dashboard. Steps 5–8 enhance it. Conflict visualization and drag-and-drop are future layers beyond this sequence.
+Steps 1–3 compose the minimum viable dashboard. Steps 4–6 enhance it. Conflict visualization and drag-and-drop are future layers.
