@@ -48,3 +48,33 @@ Evaluated three approaches for bulk user entry:
 - Agenda view styling polish (carried forward from session 8.2)
 - Consider bulk/quick activity creation for schedule entry efficiency
 - Activity Panel spec and build
+
+---
+
+## 9.2 — Agenda View Styling Polish
+
+Three targeted fixes to the agenda grid based on visual review with real activity data.
+
+### What Was Fixed
+
+1. **Aggregate card tooltips.** DaisyUI's CSS tooltip (`data-tip` + `::before` pseudo-element) was implemented but not rendering visibly. Two issues:
+   - `\n`-joined content collapsed to a single line because the pseudo-element lacked `white-space: pre-line`. Fixed with a global CSS override in `index.css`.
+   - The card wrapper div had `overflow-hidden`, which clipped the tooltip pseudo-elements entirely. Removed `overflow-hidden` from aggregate card wrappers (single/few cards retain it since their text can overflow).
+
+2. **Grid bounds expanded to full school day.** The grid was auto-sizing tightly to existing activity times, producing a cramped view. Now the grid always spans at least 7 AM–4 PM (`DEFAULT_GRID_START` / `DEFAULT_GRID_END` constants in `agendaUtils.js`), expanding beyond those bounds only if activities fall outside. The grid body has `max-height: 70vh` with vertical scroll so the taller range doesn't push the page.
+
+3. **Vertical padding at grid edges.** The first/last hour labels (`7a`, `4p`) were clipped at the container boundary because `translateY(-50%)` centering extended above/below the grid. Added `GRID_PAD_Y = 12` constant — all absolute positions (hour labels, grid lines, activity cards) are offset inward by 12px, with the container height increased by 24px to accommodate.
+
+### Files Changed
+
+- `src/index.css` — tooltip CSS override (`white-space: pre-line`, `text-align: left`)
+- `src/components/agenda/agendaUtils.js` — added `GRID_PAD_Y`, `DEFAULT_GRID_START`, `DEFAULT_GRID_END`
+- `src/components/agenda/AgendaView.jsx` — grid bounds logic uses default school-day minimum
+- `src/components/agenda/AgendaGrid.jsx` — vertical scroll, padding offsets for labels/lines
+- `src/components/agenda/AgendaDayColumn.jsx` — padding offsets for card positions, removed `overflow-hidden` on aggregate wrappers
+
+### What's Next
+
+- Card color treatment and density tuning with more activity data
+- Activity Panel spec and build
+- Consider bulk/quick activity creation for schedule entry efficiency

@@ -6,6 +6,7 @@ import {
   minutesToPx,
   TIME_COL_WIDTH,
   DAY_COL_MIN_WIDTH,
+  GRID_PAD_Y,
 } from './agendaUtils'
 
 function AgendaGrid({
@@ -21,7 +22,7 @@ function AgendaGrid({
   const setAgendaFocusedDay = useUIStore((s) => s.setAgendaFocusedDay)
 
   const totalMinutes = gridEndMinutes - gridStartMinutes
-  const gridHeight = minutesToPx(totalMinutes)
+  const gridHeight = minutesToPx(totalMinutes) + GRID_PAD_Y * 2
 
   // Generate hour labels between grid start and end
   const startHour = Math.floor(gridStartMinutes / 60)
@@ -76,7 +77,7 @@ function AgendaGrid({
       </div>
 
       {/* Grid body */}
-      <div className="flex overflow-x-auto border border-base-300 rounded-b-lg bg-base-100">
+      <div className="flex overflow-x-auto overflow-y-auto border border-base-300 rounded-b-lg bg-base-100" style={{ maxHeight: '70vh' }}>
         {/* Time axis + block labels column */}
         <div
           className="flex-shrink-0 border-r border-base-300 relative"
@@ -85,7 +86,7 @@ function AgendaGrid({
           {hours.map((h) => {
             const offsetMin = h * 60 - gridStartMinutes
             if (offsetMin < 0) return null
-            const top = minutesToPx(offsetMin)
+            const top = minutesToPx(offsetMin) + GRID_PAD_Y
             const label = formatHourLabel(h)
             return (
               <div
@@ -109,7 +110,7 @@ function AgendaGrid({
               <div
                 key={`line-${h}`}
                 className="absolute left-0 right-0 border-t border-base-200"
-                style={{ top: `${minutesToPx(offsetMin)}px` }}
+                style={{ top: `${minutesToPx(offsetMin) + GRID_PAD_Y}px` }}
               />
             )
           })}
@@ -133,6 +134,7 @@ function AgendaGrid({
                 gridStartMinutes={gridStartMinutes}
                 focusedBlock={agendaFocusedBlock}
                 dayValue={day.value}
+                gridPadY={GRID_PAD_Y}
               />
             </div>
           ))}

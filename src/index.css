@@ -1,5 +1,11 @@
 @import "tailwindcss";
 @plugin "daisyui";
+/* Multiline DaisyUI tooltips */
+.tooltip::before {
+  white-space: pre-line;
+  text-align: left;
+}
+
 @plugin "daisyui/theme" {
   name: "cityview";
   default: true;

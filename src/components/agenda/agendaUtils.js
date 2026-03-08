@@ -3,6 +3,13 @@ export const PX_PER_HOUR = 80
 export const TIME_COL_WIDTH = 48
 export const DAY_COL_MIN_WIDTH = 140
 
+// Vertical padding so first/last hour labels aren't clipped
+export const GRID_PAD_Y = 12
+
+// Default school-day bounds (grid always shows at least this range)
+export const DEFAULT_GRID_START = '07:00'
+export const DEFAULT_GRID_END = '16:00'
+
 // Density thresholds
 export const DENSITY_FEW_MAX = 3   // 2–3 = "few"
 export const DENSITY_AGG_MIN = 4   // 4+ = aggregate
