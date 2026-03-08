@@ -68,7 +68,6 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 | `docs/architecture/` | Tech stack, data flow, auth, realtime, UI patterns (note: some patterns are aspirational, see status notes in each doc) |
 | `docs/session-notes/` | Per-session development logs (what was built, decisions made, issues encountered) |
 | `docs/user-flows/` | Per-feature UX narratives and build specs (see below) |
-| `docs/USER_FLOWS.md` | **Outdated** — V1 concepts, do not rely on schema or data model references |
 | `supabase/migrations/` | SQL migration files (four phases + reset + RLS fix + dynamic blocks + admin RLS + duration) |
 
 ### User Flow Docs Status
