@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import UserForm from '@/components/users/UserForm'
 import UserTable from '@/components/users/UserTable'
+import BulkUserEntry from '@/components/users/BulkUserEntry'
 import { useUsers, useCreateUser, useUpdateUser } from '@/hooks/useUsers'
 import useAuthStore from '@/store/authStore'
 
@@ -23,6 +24,7 @@ function UserManagement() {
   // UI state
   const [editingUser, setEditingUser] = useState(null)
   const [roleFilter, setRoleFilter] = useState('')
+  const [showBulk, setShowBulk] = useState(false)
   const modalRef = useRef(null)
 
   const saving = createMutation.isPending || updateMutation.isPending
@@ -69,15 +71,33 @@ function UserManagement() {
             {users.length} {users.length === 1 ? 'user' : 'users'}
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => openModal()}>
-          + New User
-        </button>
+        <div className="flex gap-2">
+          <button
+            className={`btn btn-outline btn-sm ${showBulk ? 'btn-active' : ''}`}
+            onClick={() => setShowBulk(!showBulk)}
+          >
+            Bulk Add
+          </button>
+          <button className="btn btn-primary" onClick={() => openModal()}>
+            + New User
+          </button>
+        </div>
       </div>
 
       {error && (
         <div className="alert alert-error mb-4">
           <span>{error}</span>
           <button className="btn btn-ghost btn-sm" onClick={() => { createMutation.reset(); updateMutation.reset() }}>✕</button>
+        </div>
+      )}
+
+      {showBulk && (
+        <div className="mb-4">
+          <BulkUserEntry
+            orgId={orgId}
+            existingUsers={users}
+            onDone={() => setShowBulk(false)}
+          />
         </div>
       )}
 
