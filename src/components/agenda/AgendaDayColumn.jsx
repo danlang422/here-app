@@ -17,6 +17,7 @@ function AgendaDayColumn({
   gridStartMinutes,
   focusedBlock,
   dayValue,
+  gridPadY = 0,
 }) {
   const blockGroups = useMemo(
     () => groupActivitiesByBlock(activities, dayValue),
@@ -38,7 +39,7 @@ function AgendaDayColumn({
       // Single cards or expanded aggregate — each activity gets its own card
       const slotCount = shouldExpand ? groupActivities.length : 1
       groupActivities.forEach((activity, slotIndex) => {
-        const top = activityTop(activity, gridStartMinutes)
+        const top = activityTop(activity, gridStartMinutes) + gridPadY
         const height = activityHeight(activity)
         const enrollCount = enrollmentCountByActivity.get(activity.id) ?? 0
 
@@ -67,7 +68,7 @@ function AgendaDayColumn({
     } else if (count >= 2 && count <= DENSITY_FEW_MAX) {
       // Few — side by side, each with its own positioning
       groupActivities.forEach((activity, slotIndex) => {
-        const top = activityTop(activity, gridStartMinutes)
+        const top = activityTop(activity, gridStartMinutes) + gridPadY
         const height = activityHeight(activity)
         const enrollCount = enrollmentCountByActivity.get(activity.id) ?? 0
 
@@ -100,7 +101,7 @@ function AgendaDayColumn({
       const earliestStart = Math.min(...starts)
       const latestEnd = Math.max(...ends)
 
-      const top = minutesToPx(earliestStart - gridStartMinutes)
+      const top = minutesToPx(earliestStart - gridStartMinutes) + gridPadY
       const rawHeight = minutesToPx(latestEnd - earliestStart)
       const minHeight = PX_PER_HOUR * 1.5
       const height = Math.max(rawHeight, minHeight)
@@ -113,7 +114,7 @@ function AgendaDayColumn({
       cards.push(
         <div
           key={`agg-${blockKey}`}
-          className="absolute card bg-base-200 border border-base-300 shadow-sm cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
+          className="absolute card bg-base-200 border border-base-300 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
           style={{
             top: `${top}px`,
             height: `${height}px`,
