@@ -79,3 +79,55 @@ Review session starting from the current project state. Identified the agenda vi
 
 - Build the agenda view per `agenda-view-build-spec.md`
 - Enrollment panel Entry B can be spec'd and built independently (low-effort, same component different initial state)
+
+---
+
+## 8.2 — Agenda View Build
+
+Implemented the agenda view per `agenda-view-build-spec.md`, following the spec's build sequence exactly. Bottom-up build so each piece was testable before wiring in the next.
+
+### What Was Built
+
+**New files (6) in `src/components/agenda/`:**
+
+1. **`agendaUtils.js`** — Pure utility module. Grid layout constants (`PX_PER_HOUR`, `TIME_COL_WIDTH`, `DAY_COL_MIN_WIDTH`), density thresholds (`DENSITY_FEW_MAX`, `DENSITY_AGG_MIN`), time helpers (`timeToMinutes`, `minutesToPx`, `activityTop`, `activityHeight`), grid bound helpers (`floorToHour`, `ceilToHour`), and grouping/filtering (`groupActivitiesByBlock`, `activityMeetsDay`).
+
+2. **`AgendaCard.jsx`** — Three density variants in a single component:
+   - `single`: name, teacher last name, enrollment count, time range, block badge
+   - `few`: name + enrollment count (compact for side-by-side)
+   - `aggregate`: "N Activities · M Students" with DaisyUI tooltip on hover listing all activities, click sets both `agendaFocusedBlock` and `agendaFocusedDay` in uiStore
+
+3. **`AgendaDayColumn.jsx`** — Groups activities by block via `groupActivitiesByBlock`, applies density logic per group, positions cards absolutely using `activityTop`/`activityHeight`. Few-density cards divide column width equally (Google Calendar simultaneous-event pattern). When a block is focused, aggregates expand to individual side-by-side cards.
+
+4. **`AgendaBlockOverlay.jsx`** — Stub component. Renders `null` but exists in the tree with `blockCount` and `gridStartMinutes` props for future Calendar Management.
+
+5. **`AgendaGrid.jsx`** — Full grid composition: fixed-width time axis with hour labels, flex day columns (each wrapping an `AgendaDayColumn`), hour grid lines, block label buttons below the grid, `AgendaBlockOverlay` in the tree. Day headers and block labels are interactive buttons — clicking toggles focus state in `uiStore`. Handles focused-day column collapse (shows only the focused day's column when `agendaFocusedDay` is set).
+
+6. **`AgendaView.jsx`** — Top-level agenda component. Derives grid bounds from activity data (floors earliest start, ceils latest end, defaults to 07:00–16:00 when empty). Renders empty state when no scheduled activities exist. Passes derived props down to `AgendaGrid`.
+
+**Modified files (2):**
+
+- **`src/store/uiStore.js`** — Added `agendaFocusedBlock` (integer | null), `agendaFocusedDay` (1–5 | null), `setAgendaFocusedBlock`, `setAgendaFocusedDay`, `clearAgendaFocus`. Conflict state comment stub for future enrollment panel integration.
+
+- **`src/pages/admin/Dashboard.jsx`** — Replaced the nav grid entirely. New structure: `DashboardToolbar` stub (title, "Clear filters" button visible when focus active, disabled panel icon buttons for Activities/Enrollment/Settings) + `AgendaView`. Data wired through `useActivities`, `useOrgEnrollments`, `useOrgSettings` with `orgId` from `useAuthStore`. Derives `enrollmentCountByActivity` (Map) and `scheduledActivities` (filtered for `is_active`, `!is_not_scheduled`, has start/end times).
+
+### Implementation Notes
+
+- **No new hooks or queries.** All data sourced from existing `useActivities`, `useOrgEnrollments`, `useOrgSettings`. Enrollment counts derived client-side with `useMemo`.
+- **`orgId` from `useAuthStore((s) => s.profile?.organization_id)`** — matches every other admin page.
+- **`WEEKDAYS`, `getBlocks()`, `getBlockLabel()`** from `src/lib/constants.js` — no hardcoded block numbers or day arrays.
+- **DaisyUI classes as baseline**, extended with Tailwind utilities — consistent with all other components.
+- **Lint clean** — zero new errors (6 pre-existing errors in other files unchanged).
+- **Build clean** — Vite production build succeeds (pre-existing chunk size warning unchanged).
+
+### Stubs (Intentional Placeholders)
+
+- **`DashboardToolbar`**: Title + clear filters + disabled panel icon buttons. No filter popover, no property toggles, no panel launch functionality. These come with Dashboard composition (Layer 2).
+- **`AgendaBlockOverlay`**: Renders `null`. Block band overlays require schedule template data from Calendar Management. Block labels are functional as filter buttons in the grid footer.
+
+### What's Next
+
+- Styling refinement on the agenda (card sizing, spacing, color treatment)
+- Activity Panel spec and build (floating panel for browsing/searching activities)
+- Dashboard composition — wire agenda, activity panel, enrollment panel, and toolbar together
+- Enrollment Panel Entry B (student-centric, independent of agenda)
