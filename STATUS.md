@@ -1,19 +1,19 @@
 # Here App — Project Status
 
-**Last updated:** March 9, 2026 (session 10.1)
+**Last updated:** March 9, 2026 (session 10.2)
 
 ---
 
 ## Current State
 
-**Documentation:** Up to date. Schema docs and business logic docs are current. Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes through 10.1. User flow docs listed at bottom of this file.
+**Documentation:** Up to date. Schema docs and business logic docs are current. Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes through 10.2. User flow docs listed at bottom of this file.
 
 **Database:** V2 schema deployed with migrations through `duration_minutes` on activities. City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activity types.
 
 **Application:**
 
 - **Auth** — Working. Login, role selection, auth listener with raw-fetch workaround (see Known Issues).
-- **Activity Management** — Full CRUD. Type-driven field visibility, duration field, staff display (primary+N pattern), "Enroll" action per row. React Query + React Hook Form.
+- **Activity Management** — Full CRUD. Clickable rows open an activity detail modal with view/edit toggle, behavior flag icon tray, flexible staff rows, enrollment roster. Type selector removed; type silently set to `'regular_class'` on save. Enrollment counts displayed in table. React Query + React Hook Form.
 - **User Management** — Full CRUD via modal-based create/edit flow (Supabase Edge Function for account creation). Bulk user entry: paste-from-spreadsheet with preview, inline editing, per-row validation, sequential creation with progress tracking.
 - **Enrollment Panel (Entry A)** — Activity-centric. FloatingPanel shell (draggable/minimizable), activity dropdown, two-zone student list, progressive conflict indicators, three-phase submit flow, post-conflict "create activity" action. Launched from activity row "Enroll" button. Spec: `enrollment-panel-build-spec.md`.
 - **Admin Dashboard** — Schedule-building workspace. Agenda view as centerpiece with toolbar stub. Time-based week grid with adaptive card density (single/few/aggregate), block grouping, day column headers, block label filters, click-to-zoom. Grid spans 7 AM–4 PM by default with vertical scroll. Aggregate card tooltips render multiline on hover. Spec: `agenda-view-build-spec.md`, design: `admin-dashboard.md`.
@@ -27,11 +27,11 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 **Dashboard architecture:** Agenda view as centerpiece. Toolbar above with filters, property toggle icons, and panel-summoning buttons. Floating panels for Activities, Enrollment, and Settings/Calendar (future). Activity/User Management remain as dedicated pages — not embedded in the dashboard. Details in `admin-dashboard.md`.
 
-**Build order:** Agenda view, toolbar stub, dashboard rebuild, and bulk user entry are done. Next: Activity detail modal + form redesign (spec finalized) → block cascade → org settings UI → Activity Panel → dashboard composition. See `activity-detail-and-form-redesign-spec.md` for the immediate next build.
+**Build order:** Agenda view, toolbar stub, dashboard rebuild, bulk user entry, and activity detail modal + form redesign are done. Next: block cascade → org settings UI → Activity Panel → dashboard composition.
 
-**Activity type removal (decided, not yet built).** The `type` field is being removed from the UI. It was acting as a behavioral switch (hiding fields based on type) despite the architectural principle that type is a UI hint. Behavior flags already capture everything type was doing. The DB column stays for now (silently set to `'regular_class'` on save) — schema migration planned for later.
+**Activity type removal (done in UI).** The `type` field is removed from the UI. The DB column stays with `'regular_class'` set silently on save — schema migration planned for later.
 
-**Activity detail — view-first unified layout (designed, not built).** A single `ActivityDetail` component serves as both read-only view and edit form. Same layout in both modes — labels stay put, values become inputs. Contains a "properties tray" with 7 behavior flag icon toggles (including `is_not_scheduled`), detail fields for scheduling/staff, and an enrollment roster below. Lives in a modal on the Activity Management page with a distinct close button (round, on modal frame) separate from the edit-cancel button (inline in content). Designed to be container-agnostic for future FloatingPanel use on the dashboard. Staff rows use role dropdowns with context-dependent value fields (staff lookup for Teacher/Monitor, text input for Instructor/Mentor). New activity creation saves and switches to view mode of the created activity. Spec: `activity-detail-and-form-redesign-spec.md`.
+**Activity detail — view-first unified layout (built).** `ActivityDetail` component serves as both read-only view and edit form. Same layout in both modes. Properties tray with 7 behavior flag icon toggles, flexible staff rows (role dropdown + context-dependent value field), enrollment roster. Lives in `ActivityDetailModal` on Activity Management. Designed container-agnostic for future FloatingPanel use. Spec: `activity-detail-and-form-redesign-spec.md`.
 
 **Enrollment Panel — Entry B (designed, not built):** Student-centric entry point. Open from toolbar with no activity context, browse/filter students first, then pick activity target. Same component, different initial state (`initialActivityId` null). Activity selector layout within the student-first flow is an open question.
 
@@ -44,12 +44,11 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 - **Architecture docs mostly current:** React Query/RHF patterns are now implemented for existing pages. Example hooks for future features (useCheckIn, useMarkAttendance) are still aspirational.
 - **`docs/USER_FLOWS.md` is outdated:** References V1 concepts. Being replaced by per-feature docs in `docs/user-flows/`.
 - **Activity `type` column is legacy.** No longer used in the UI but still in the DB with a CHECK constraint. Silently set to `'regular_class'` on save. Schema migration to remove it is planned but not prioritized.
-- **Activity form needs rebuild.** Current `ActivityForm.jsx` is being replaced by the unified `ActivityDetail` component per the form redesign spec. The old form should be deleted once the new component is built and verified.
+- **`ActivityForm.jsx` is dead code.** Replaced by `ActivityDetail.jsx`. Safe to delete once confirmed in production.
 
 ## Next Steps
 
-1. **Activity detail modal + form redesign.** Build per spec in `activity-detail-and-form-redesign-spec.md`. Unified view/edit component, clickable table rows, enrollment roster, type removal, behavior flag icon toggles, flexible staff rows.
-2. **Block cascade on activity edit.** When an activity's block changes, update the denormalized `block` on all active enrollments. Small independent task.
+1. **Block cascade on activity edit.** When an activity's block changes, update the denormalized `block` on all active enrollments. Small independent task.
 3. **Agenda view filter/zoom fix.** Investigate and fix the odd behavior in block label filtering and click-to-zoom.
 4. **Agenda view polish (remaining).** Card color treatment, density/spacing tuning with more activity data, responsive behavior.
 5. **Org settings UI.** Admin interface for defining blocks (labels, time ranges), A/B day rotation configuration. Hooks up what's currently generated/hardcoded in the activity form.

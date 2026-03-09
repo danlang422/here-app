@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import ActivityForm from '@/components/activities/ActivityForm'
+import { useState, useMemo } from 'react'
 import ActivityTable from '@/components/activities/ActivityTable'
+import ActivityDetailModal from '@/components/activities/ActivityDetailModal'
 import FloatingPanel from '@/components/panels/FloatingPanel'
 import EnrollmentPanel from '@/components/enrollment/EnrollmentPanel'
 import { useActivities, useCreateActivity, useUpdateActivity } from '@/hooks/useActivities'
+import { useOrgEnrollments, useActivityEnrollments } from '@/hooks/useEnrollments'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import useAuthStore from '@/store/authStore'
-import { ACTIVITY_TYPES, ACTIVITY_TYPE_LABELS } from '@/lib/constants'
 
 function ActivityManagement() {
   const profile = useAuthStore((s) => s.profile)
@@ -15,55 +15,100 @@ function ActivityManagement() {
   // Server state
   const { data: activities = [], isLoading, error: loadError } = useActivities(orgId)
   const { data: orgSettings = {} } = useOrgSettings(orgId)
+  const { data: orgEnrollments = [] } = useOrgEnrollments(orgId)
   const createMutation = useCreateActivity(orgId)
   const updateMutation = useUpdateActivity(orgId)
 
-  // UI state
-  const [showForm, setShowForm] = useState(false)
-  const [editingActivity, setEditingActivity] = useState(null)
-  const [typeFilter, setTypeFilter] = useState('')
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false)
+  const [selectedActivity, setSelectedActivity] = useState(null) // null = new activity
+  const [isEditing, setIsEditing] = useState(false)
+
+  // Enrollment panel state
   const [enrollingActivity, setEnrollingActivity] = useState(null)
+
+  // Enrollment counts for the table (Map<activity_id, count>)
+  const enrollmentCountByActivity = useMemo(() => {
+    const map = new Map()
+    for (const e of orgEnrollments) {
+      map.set(e.activity_id, (map.get(e.activity_id) || 0) + 1)
+    }
+    return map
+  }, [orgEnrollments])
+
+  // Enrollments for the detail modal roster
+  const { data: activityEnrollments = [] } = useActivityEnrollments(selectedActivity?.id)
 
   const saving = createMutation.isPending || updateMutation.isPending
   const mutationError = createMutation.error || updateMutation.error
+  const error = loadError?.message || mutationError?.message
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   function handleCreate() {
-    setEditingActivity(null)
-    setShowForm(true)
+    setSelectedActivity(null)
+    setIsEditing(true)
+    setModalOpen(true)
   }
 
-  function handleEdit(activity) {
-    setEditingActivity(activity)
-    setShowForm(true)
+  function handleSelect(activity) {
+    setSelectedActivity(activity)
+    setIsEditing(false)
+    setModalOpen(true)
   }
 
-  function handleCancel() {
-    setShowForm(false)
-    setEditingActivity(null)
+  function handleCloseModal() {
+    setModalOpen(false)
+    setIsEditing(false)
+    setSelectedActivity(null)
     createMutation.reset()
     updateMutation.reset()
   }
 
-  function handleSave(formData) {
-    const onSuccess = () => {
-      setShowForm(false)
-      setEditingActivity(null)
-    }
+  function handleEditClick() {
+    setIsEditing(true)
+  }
 
-    if (editingActivity) {
-      updateMutation.mutate({ id: editingActivity.id, updates: formData }, { onSuccess })
+  function handleCancel() {
+    if (!selectedActivity) {
+      // Was creating new — close the modal
+      handleCloseModal()
     } else {
-      createMutation.mutate(formData, { onSuccess })
+      // Was editing existing — return to view
+      setIsEditing(false)
+      updateMutation.reset()
     }
   }
 
-  // Apply filters
-  const filteredActivities = activities.filter((a) => {
-    if (typeFilter && a.type !== typeFilter) return false
-    return true
-  })
+  function handleSave(formData) {
+    if (selectedActivity) {
+      updateMutation.mutate(
+        { id: selectedActivity.id, updates: formData },
+        {
+          onSuccess: (updated) => {
+            // Merge updated flat fields while preserving joined teacher/monitor objects.
+            // The joins may be slightly stale if staff changed, but that's acceptable for v1.
+            setSelectedActivity((prev) => ({ ...prev, ...updated }))
+            setIsEditing(false)
+          },
+        }
+      )
+    } else {
+      createMutation.mutate(formData, {
+        onSuccess: (created) => {
+          // Switch to view mode of the newly created activity
+          setSelectedActivity(created)
+          setIsEditing(false)
+        },
+      })
+    }
+  }
 
-  const error = loadError?.message || mutationError?.message
+  function handleEnrollClick() {
+    const target = selectedActivity
+    setModalOpen(false)
+    setEnrollingActivity(target)
+  }
 
   return (
     <div>
@@ -74,60 +119,44 @@ function ActivityManagement() {
             {activities.length} {activities.length === 1 ? 'activity' : 'activities'}
           </p>
         </div>
-        {!showForm && (
-          <button className="btn btn-primary" onClick={handleCreate}>
-            + New Activity
-          </button>
-        )}
+        <button className="btn btn-primary" onClick={handleCreate}>
+          + New Activity
+        </button>
       </div>
 
       {error && (
         <div className="alert alert-error mb-4">
           <span>{error}</span>
-          <button className="btn btn-ghost btn-sm" onClick={() => { createMutation.reset(); updateMutation.reset() }}>✕</button>
-        </div>
-      )}
-
-      {showForm && (
-        <div className="card bg-base-100 shadow-lg mb-6">
-          <div className="card-body">
-            <h3 className="card-title text-lg mb-2">
-              {editingActivity ? 'Edit Activity' : 'New Activity'}
-            </h3>
-            <ActivityForm
-              activity={editingActivity}
-              onSave={handleSave}
-              onCancel={handleCancel}
-              saving={saving}
-              orgSettings={orgSettings}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      {!showForm && activities.length > 0 && (
-        <div className="flex gap-2 mb-4">
-          <select
-            className="select select-bordered select-sm"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => { createMutation.reset(); updateMutation.reset() }}
           >
-            <option value="">All types</option>
-            {ACTIVITY_TYPES.map((t) => (
-              <option key={t} value={t}>{ACTIVITY_TYPE_LABELS[t]}</option>
-            ))}
-          </select>
+            ✕
+          </button>
         </div>
       )}
 
       <ActivityTable
-        activities={filteredActivities}
+        activities={activities}
         loading={isLoading}
-        onEdit={handleEdit}
-        onEnroll={(activity) => setEnrollingActivity(activity)}
-        orgSettings={orgSettings}
+        onSelect={handleSelect}
+        enrollmentCounts={enrollmentCountByActivity}
       />
+
+      <ActivityDetailModal
+        open={modalOpen}
+        activity={selectedActivity}
+        isEditing={isEditing}
+        saving={saving}
+        orgSettings={orgSettings}
+        enrollments={activityEnrollments}
+        onClose={handleCloseModal}
+        onEditClick={handleEditClick}
+        onCancel={handleCancel}
+        onSave={handleSave}
+        onEnrollClick={handleEnrollClick}
+      />
+
       {enrollingActivity && (
         <FloatingPanel
           title={`Enrollment — ${enrollingActivity.name}`}

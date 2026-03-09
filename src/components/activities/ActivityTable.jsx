@@ -1,15 +1,16 @@
 import { getBlockLabel } from '@/lib/constants'
+import { FaChevronRight } from 'react-icons/fa'
 
 /**
- * ActivityTable — displays a filterable list of activities.
+ * ActivityTable — displays a list of activities. Rows are clickable.
  *
  * Props:
- *   activities  - array of activity objects
- *   loading     - boolean, show loading state
- *   onEdit      - called with activity object when edit is clicked
- *   orgSettings - organization.settings (for block_count context)
+ *   activities       - array of activity objects
+ *   loading          - boolean, show loading state
+ *   onSelect         - called with activity object when row is clicked
+ *   enrollmentCounts - Map<activity_id, count> of active enrollment counts
  */
-export default function ActivityTable({ activities = [], loading = false, onEdit, onEnroll }) {
+export default function ActivityTable({ activities = [], loading = false, onSelect, enrollmentCounts = new Map() }) {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -38,53 +39,47 @@ export default function ActivityTable({ activities = [], loading = false, onEdit
             <th>Days / Rotation</th>
             <th>Time</th>
             <th>Location</th>
+            <th className="text-right">Enrolled</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          {activities.map((activity) => (
-            <tr key={activity.id} className="hover">
-              <td className="font-medium">{activity.name}</td>
-              <td>
-                <StaffDisplay activity={activity} />
-              </td>
-              <td>
-                {activity.block != null
-                  ? getBlockLabel(activity.block)
-                  : <span className="text-base-content/40">—</span>
-                }
-              </td>
-              <td>
-                <DaysDisplay activity={activity} />
-              </td>
-              <td>
-                <TimeDisplay activity={activity} />
-              </td>
-              <td className="text-base-content/60">
-                {activity.location || <span className="text-base-content/30">—</span>}
-              </td>
-              <td>
-                <div className="flex gap-1">
-                  {onEnroll && (
-                    <button
-                      className="btn btn-ghost btn-xs"
-                      onClick={() => onEnroll(activity)}
-                    >
-                      Enroll
-                    </button>
-                  )}
-                  {onEdit && (
-                    <button
-                      className="btn btn-ghost btn-xs"
-                      onClick={() => onEdit(activity)}
-                    >
-                      Edit
-                    </button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
+          {activities.map((activity) => {
+            const count = enrollmentCounts.get(activity.id)
+            return (
+              <tr
+                key={activity.id}
+                className="hover cursor-pointer"
+                onClick={() => onSelect?.(activity)}
+              >
+                <td className="font-medium">{activity.name}</td>
+                <td>
+                  <StaffDisplay activity={activity} />
+                </td>
+                <td>
+                  {activity.block != null
+                    ? getBlockLabel(activity.block)
+                    : <span className="text-base-content/40">—</span>
+                  }
+                </td>
+                <td>
+                  <DaysDisplay activity={activity} />
+                </td>
+                <td>
+                  <TimeDisplay activity={activity} />
+                </td>
+                <td className="text-base-content/60">
+                  {activity.location || <span className="text-base-content/30">—</span>}
+                </td>
+                <td className="text-right text-base-content/60 tabular-nums">
+                  {count > 0 ? count : <span className="text-base-content/30">—</span>}
+                </td>
+                <td className="w-4 text-base-content/30">
+                  <FaChevronRight size={10} />
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -103,7 +98,7 @@ function DaysDisplay({ activity }) {
 
   if (activity.days_of_week && activity.days_of_week.length > 0) {
     const dayLabels = { 1: 'M', 2: 'Tu', 3: 'W', 4: 'Th', 5: 'F', 0: 'Su', 6: 'Sa' }
-    const display = activity.days_of_week.map((d) => dayLabels[d] || d).join('')
+    const display = activity.days_of_week.map((d) => dayLabels[d] || d).join(' ')
     return <span className="text-sm">{display}</span>
   }
 
@@ -112,7 +107,6 @@ function DaysDisplay({ activity }) {
 
 /** Compact staff display — shows primary staff member with +N for additional */
 function StaffDisplay({ activity }) {
-  // Build ordered list of staff: Teacher > Monitor > Instructor > Mentor
   const staffList = []
 
   if (activity.teacher) {
@@ -152,7 +146,6 @@ function TimeDisplay({ activity }) {
 
   const formatTime = (t) => {
     if (!t) return ''
-    // t is "HH:MM" or "HH:MM:SS" — convert to 12hr
     const [h, m] = t.split(':').map(Number)
     const period = h >= 12 ? 'p' : 'a'
     const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h

@@ -1,0 +1,151 @@
+import { FaTimes } from 'react-icons/fa'
+import { formatUserName } from '@/api/users'
+
+const ROLES = ['Teacher', 'Monitor', 'Instructor', 'Mentor']
+const LOOKUP_ROLES = new Set(['Teacher', 'Monitor'])
+
+/**
+ * StaffRows — view/edit staff assignment rows.
+ *
+ * View mode: renders formatted staff names from the activity object.
+ * Edit mode: renders role dropdown + value field per row, with "+ Staff" to add.
+ *
+ * Props:
+ *   mode       - 'view' | 'edit'
+ *   activity   - activity object (used in view mode for joined teacher/monitor names)
+ *   staffUsers - array of staff user objects (for Teacher/Monitor lookup in edit mode)
+ *   rows       - [{ role, value }] (edit mode only)
+ *   onChange   - called with updated rows array (edit mode only)
+ */
+export default function StaffRows({ mode, activity, staffUsers = [], rows = [], onChange }) {
+  if (mode === 'view') {
+    return <StaffViewRows activity={activity} />
+  }
+
+  return <StaffEditRows rows={rows} staffUsers={staffUsers} onChange={onChange} />
+}
+
+function StaffViewRows({ activity }) {
+  const entries = []
+
+  if (activity?.teacher) {
+    entries.push({ label: 'Teacher', name: formatUserName(activity.teacher) })
+  }
+  if (activity?.monitor) {
+    entries.push({ label: 'Monitor', name: formatUserName(activity.monitor) })
+  }
+  if (activity?.instructor_name) {
+    entries.push({ label: 'Instructor', name: activity.instructor_name })
+  }
+  if (activity?.mentor_name) {
+    entries.push({ label: 'Mentor', name: activity.mentor_name })
+  }
+
+  if (entries.length === 0) {
+    return <span className="text-base-content/40 text-sm italic">No staff assigned</span>
+  }
+
+  return (
+    <div className="space-y-0.5">
+      {entries.map((e) => (
+        <div key={e.label} className="text-sm">
+          <span className="text-base-content/50">{e.label}:</span> {e.name}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function StaffEditRows({ rows, staffUsers, onChange }) {
+  const usedRoles = new Set(rows.map((r) => r.role))
+  const availableToAdd = ROLES.filter((r) => !usedRoles.has(r))
+
+  function updateRow(index, patch) {
+    const next = rows.map((r, i) => (i === index ? { ...r, ...patch } : r))
+    onChange(next)
+  }
+
+  function removeRow(index) {
+    onChange(rows.filter((_, i) => i !== index))
+  }
+
+  function addRow() {
+    const nextRole = availableToAdd[0]
+    if (!nextRole) return
+    onChange([...rows, { role: nextRole, value: '' }])
+  }
+
+  function handleRoleChange(index, newRole) {
+    // Switching role clears the current value (prevents stale data crossing input types)
+    updateRow(index, { role: newRole, value: '' })
+  }
+
+  return (
+    <div className="space-y-2">
+      {rows.map((row, i) => {
+        const isLookup = LOOKUP_ROLES.has(row.role)
+        return (
+          <div key={i} className="flex gap-2 items-center">
+            <select
+              className="select select-bordered select-sm w-32 shrink-0"
+              value={row.role}
+              onChange={(e) => handleRoleChange(i, e.target.value)}
+            >
+              {ROLES.map((r) => (
+                <option
+                  key={r}
+                  value={r}
+                  disabled={usedRoles.has(r) && r !== row.role}
+                >
+                  {r}
+                </option>
+              ))}
+            </select>
+
+            {isLookup ? (
+              <select
+                className="select select-bordered select-sm flex-1"
+                value={row.value}
+                onChange={(e) => updateRow(i, { value: e.target.value })}
+              >
+                <option value="">Select {row.role.toLowerCase()}</option>
+                {staffUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {formatUserName(u)}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                className="input input-bordered input-sm flex-1"
+                value={row.value}
+                onChange={(e) => updateRow(i, { value: e.target.value })}
+                placeholder={`${row.role} name`}
+              />
+            )}
+
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm btn-circle text-base-content/40 hover:text-error"
+              onClick={() => removeRow(i)}
+              title="Remove"
+            >
+              <FaTimes size={12} />
+            </button>
+          </div>
+        )
+      })}
+
+      {availableToAdd.length > 0 && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-xs gap-1 text-base-content/60"
+          onClick={addRow}
+        >
+          <span className="text-base leading-none">+</span> Staff
+        </button>
+      )}
+    </div>
+  )
+}
