@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 8, 2026 (session 9.2)
+**Last updated:** March 8, 2026 (session 9.3)
 
 ---
 
@@ -27,27 +27,37 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 **Dashboard architecture:** Agenda view as centerpiece. Toolbar above with filters, property toggle icons, and panel-summoning buttons. Floating panels for Activities, Enrollment, and Settings/Calendar (future). Activity/User Management remain as dedicated pages — not embedded in the dashboard. Details in `admin-dashboard.md`.
 
-**Build order:** Agenda view, toolbar stub, dashboard rebuild, and bulk user entry are done. Next: Activity Panel → dashboard composition → Enrollment Entry B → quick-create forms → toolbar refinement. Bulk activity/schedule entry tools are a potential near-term addition.
+**Build order:** Agenda view, toolbar stub, dashboard rebuild, and bulk user entry are done. Next: Activity detail modal + form redesign (spec complete) → block cascade → org settings UI → Activity Panel → dashboard composition. See `activity-detail-and-form-redesign-spec.md` for the immediate next build.
+
+**Activity type removal (decided, not yet built).** The `type` field is being removed from the UI. It was acting as a behavioral switch (hiding fields based on type) despite the architectural principle that type is a UI hint. Behavior flags already capture everything type was doing. The DB column stays for now (silently set to `'regular_class'` on save) — schema migration planned for later.
+
+**Activity detail — view-first unified layout (designed, not built).** A single `ActivityDetail` component serves as both read-only view and edit form. Same layout in both modes — labels stay put, values become inputs. Contains a "properties tray" for behavior flag icon toggles, detail fields for scheduling/staff, and an enrollment roster below. Lives in a modal on the Activity Management page, designed to be container-agnostic for future FloatingPanel use on the dashboard. Spec: `activity-detail-and-form-redesign-spec.md`.
 
 **Enrollment Panel — Entry B (designed, not built):** Student-centric entry point. Open from toolbar with no activity context, browse/filter students first, then pick activity target. Same component, different initial state (`initialActivityId` null). Activity selector layout within the student-first flow is an open question.
 
 ## Known Issues / Tech Debt
 
+- **Block cascade missing on activity edit.** The denormalized `block` on enrollments is copied at enrollment time but not updated when an activity's block changes. Small independent fix needed.
+- **Agenda view filter/zoom oddity.** Block label filter and click-to-zoom behavior reported as working oddly — needs investigation.
 - **Raw fetch in useAuthListener:** `fetchProfile` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 inside `onAuthStateChange`. Revisit on supabase-js upgrade.
 - **RLS policies are starter-level:** Policies exist for core admin workflows but will need expansion (teacher-scoped writes, student check-in policies). Some phase 4 policies aren't org-scoped yet.
 - **Architecture docs mostly current:** React Query/RHF patterns are now implemented for existing pages. Example hooks for future features (useCheckIn, useMarkAttendance) are still aspirational.
 - **`docs/USER_FLOWS.md` is outdated:** References V1 concepts. Being replaced by per-feature docs in `docs/user-flows/`.
-- **Activity form needs compact variant.** A quick-create mode (name, type, teacher only) is needed for the dashboard Activity Panel. Separate design task.
+- **Activity `type` column is legacy.** No longer used in the UI but still in the DB with a CHECK constraint. Silently set to `'regular_class'` on save. Schema migration to remove it is planned but not prioritized.
+- **Activity form needs rebuild.** Current `ActivityForm.jsx` is being replaced by the unified `ActivityDetail` component per the form redesign spec. The old form should be deleted once the new component is built and verified.
 
 ## Next Steps
 
-1. **Agenda view polish (remaining).** Card color treatment, density/spacing tuning with more activity data, responsive behavior.
-2. **Enrollment panel testing.** Real-world testing with actual student/activity data to validate UX, conflict indicators, and edge cases.
-3. **Activity Panel spec and build.** Floating panel for browsing/searching activities on the dashboard. Needs its own spec.
-4. **Dashboard composition.** Wire agenda view, activity panel, enrollment panel, and toolbar together.
-5. **Enrollment Panel Entry B.** Student-centric entry point. Can be spec'd and built independently.
-6. **Quick-create forms.** Compact activity and user creation forms for panel use.
-7. **Calendar management.** Term CRUD, school day generation, schedule template editor, block assignment mapping.
+1. **Activity detail modal + form redesign.** Build per spec in `activity-detail-and-form-redesign-spec.md`. Unified view/edit component, clickable table rows, enrollment roster, type removal, behavior flag icon toggles, flexible staff rows.
+2. **Block cascade on activity edit.** When an activity's block changes, update the denormalized `block` on all active enrollments. Small independent task.
+3. **Agenda view filter/zoom fix.** Investigate and fix the odd behavior in block label filtering and click-to-zoom.
+4. **Agenda view polish (remaining).** Card color treatment, density/spacing tuning with more activity data, responsive behavior.
+5. **Org settings UI.** Admin interface for defining blocks (labels, time ranges), A/B day rotation configuration. Hooks up what's currently generated/hardcoded in the activity form.
+6. **Bulk/quick activity entry.** Bulk paste-from-spreadsheet (similar to bulk user entry) and/or quick-create for rapid schedule building.
+7. **Activity Panel spec and build.** Floating panel for browsing/searching activities on the dashboard. The `ActivityDetail` component is designed to be droppable into a FloatingPanel.
+8. **Dashboard composition.** Wire agenda view, activity panel, enrollment panel, and toolbar together.
+9. **Enrollment Panel Entry B.** Student-centric entry point. Can be spec'd and built independently.
+10. **Calendar management.** Term CRUD, school day generation, schedule template editor, block assignment mapping.
 
 ---
 
@@ -72,3 +82,4 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 | `enrollment-panel-build-spec.md` | **Implemented** | Built in session 6.4. |
 | `schedule-action-map.md` | **Current** | Activity states, action validation, build phasing. |
 | `enrollment-and-floating-panels.md` | **Historical** | Original design exploration, not a build reference. |
+| `activity-detail-and-form-redesign-spec.md` | **Current** | Unified view/edit detail modal, form redesign, table changes. March 8. |
