@@ -192,7 +192,6 @@ export default function ActivityDetail({
       requires_geofence: formValues.requires_geofence,
       is_release: formValues.is_release,
       is_not_scheduled: formValues.is_not_scheduled,
-      type: 'regular_class', // DB constraint workaround — column stays for now
     }
     onSave?.(data)
   }
