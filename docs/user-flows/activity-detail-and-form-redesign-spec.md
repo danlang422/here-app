@@ -1,6 +1,6 @@
 # Activity Detail Modal & Form Redesign — Build Spec
 
-**Date:** March 8, 2026  
+**Date:** March 8, 2026 (revised March 9)  
 **Context:** Activity Management page redesign. Three connected changes: (1) activity detail modal with view/edit toggle and enrollment roster, (2) unified activity layout that serves as both view and form, (3) activity table simplification (clickable rows, enrollment count, no action buttons).
 
 **Design principle:** Design the *view* first. The edit state is the same layout with fields made editable. No layout shift between modes.
@@ -15,7 +15,7 @@
 
 ### New behavior
 - **Remove the action button column entirely.** No Enroll/Edit buttons on the row.
-- **Add an enrollment count column** (after Location or between Name and Staff — TBD based on feel). Display as a simple number, or "—" if zero. Data source: `getOrgEnrollments` aggregated into a `Map<activity_id, count>` (same pattern already used in `Dashboard.jsx`).
+- **Add an enrollment count column after Location** (last data column). Display as a simple number, or "—" if zero. Data source: `getOrgEnrollments` aggregated into a `Map<activity_id, count>` (same pattern already used in `Dashboard.jsx`).
 - **Entire row is clickable.** Click opens the Activity Detail Modal for that activity. Add `cursor-pointer` and a hover state to signal interactivity. Optional: subtle right chevron at the row edge.
 - Component: `ActivityTable.jsx`. Props change: remove `onEdit` and `onEnroll`, add `onSelect(activity)`. Add `enrollmentCounts` prop (Map or object).
 
@@ -36,13 +36,14 @@ This component is container-agnostic. It can live inside a DaisyUI modal today a
 - **Action buttons** — right-aligned, icon buttons. These are *actions on* the activity.
   - **Edit/Save toggle:**
     - View mode: pencil icon → switches to edit mode.
-    - Edit mode: replaced by Save (checkmark) and Cancel (X) icon buttons.
+    - Edit mode: replaced by Save (checkmark) and Cancel (X) icon buttons. The Cancel X discards edits and returns to view mode — it does NOT close the modal.
   - **Enroll:** person-plus icon → opens the Enrollment FloatingPanel. Always visible in both modes.
+- **Modal close button** — a round `btn-circle btn-sm` X positioned on the top-right corner/edge of the modal frame. Always visible. This closes the entire modal. Visually and positionally distinct from the inline Cancel X in the top bar content area.
 
 #### Properties tray
 A visually distinct strip below the top bar — subtle background color (`bg-base-200` or a bordered inset region) that reads as "these are properties OF this activity." Contains the behavior flag icons.
 
-- **Behavior flag icons** — 6 icons in a horizontal row within the tray.
+- **Behavior flag icons** — 7 icons in a horizontal row within the tray.
   - View mode: static. Active flags are filled/colored, inactive are muted/outline.
   - Edit mode: icons become clickable toggles. Same visual treatment, but with hover/click states.
   - The tray's visual container separates these from the action buttons above (actions ON the activity) and the detail fields below (scheduling/configuration data).
@@ -57,27 +58,31 @@ Flags:
 | `allows_freeform` | Tag/shuffle | "Allows freeform tagging" |
 | `requires_geofence` | Map pin / location | "Requires geofence" |
 | `is_release` | Open door / exit arrow | "Release (no attendance)" |
+| `is_not_scheduled` | Calendar-X or clock-off | "Not scheduled" |
 
 Special interactions:
 - `is_release` ON → auto-clears `requires_attendance`. `requires_attendance` ON → auto-clears `is_release`. Mutually exclusive.
-- `is_not_scheduled` is NOT in this tray. It's a scheduling flow control (see detail fields below).
+- `is_not_scheduled` ON → disables all scheduling fields (block, time, duration, days, rotation) in the detail fields below. Analogous to how `is_release` affects `requires_attendance` — a flag that controls other parts of the form.
 
 #### Detail fields
 Below the properties tray. These are the activity's configuration. Laid out as a compact grid — same positions in view and edit mode.
 
 **Staff row(s):**
 - View mode: "Teacher: Trevor Templeman" (or "Monitor: Jane Smith", etc.). Multiple staff shown as stacked lines. If no staff: "No staff assigned" in muted text.
-- Edit mode: Each staff entry becomes a row with a role dropdown (Teacher | Monitor | Instructor | Mentor) and a value field (staff user dropdown for Teacher/Monitor, text input for Instructor/Mentor). "+ Staff" link adds a row. Each role can appear only once (used roles disabled in subsequent dropdowns).
-- Default for new activity: one empty Teacher row.
+- Edit mode: Each staff entry is a row with a **role dropdown** (Teacher | Monitor | Instructor | Mentor) and a **value field**. The value field type depends on the selected role:
+  - **Teacher or Monitor** → staff user lookup dropdown (from `useStaffUsers` data).
+  - **Instructor or Mentor** → freeform text input (for external people not in the system).
+  - Switching the role dropdown clears the current value (prevents stale data crossing input types).
+- "+ Staff" link adds a row. Each role can appear only once (used roles disabled in subsequent dropdowns).
+- Default for new activity: one row with role = Teacher, value = empty.
 
 **Scheduling — Block / Time / Duration (one row):**
-- View mode: "Block 2 · 9:00a–10:30a · 90 min" as formatted text. Missing values omitted naturally.
-- Edit mode: Block dropdown, Start Time input, End Time input, Duration input — all on one row.
-- "Not scheduled" checkbox appears at the start of this row (or just above it). When checked, all scheduling fields in this row AND the days/rotation row below are disabled. Always visible, not gated behind type.
+- View mode: "Block 2 · 9:00a–10:30a · 90 min" as formatted text. Missing values omitted naturally. If `is_not_scheduled` is on, this row shows "Not scheduled" in muted text.
+- Edit mode: Block dropdown, Start Time input, End Time input, Duration input — all on one row. Disabled when `is_not_scheduled` is toggled on in the properties tray.
 
 **Scheduling — Days + Rotation (one row):**
-- View mode: Day pills (M Tu W Th F) as small badges, or rotation badge ("A Day"), or "Not scheduled" if the checkbox is on.
-- Edit mode: Day-of-week toggle buttons on the left, Rotation day dropdown on the right.
+- View mode: Day pills (M Tu W Th F) as small badges, or rotation badge ("A Day"), or "Not scheduled" if `is_not_scheduled` is on.
+- Edit mode: Day-of-week toggle buttons on the left, Rotation day dropdown on the right. Disabled when `is_not_scheduled` is toggled on in the properties tray.
 - **Mutual exclusion:** Selecting any day button disables and clears the rotation dropdown. Selecting a rotation day disables and clears all day buttons. Clearing the active selection re-enables the other. The disabled state is the visual indicator.
 
 **Dates + Location (one row):**
@@ -104,7 +109,7 @@ The `ActivityDetail` component is wrapped in a DaisyUI modal for the Activity Ma
 
 - Trigger: clicking a row in `ActivityTable` sets `selectedActivity` in `ActivityManagement.jsx`, which opens the modal.
 - Modal size: `modal-lg` or wider — enough for the compact grid layout without cramping.
-- Close: click outside, X button, or Escape. If in edit mode with unsaved changes, optionally prompt (nice-to-have, not required for v1).
+- **Close button:** Round `btn-circle btn-sm` X on the top-right corner/edge of the modal frame. Click outside, Escape, or this button all close the modal. If in edit mode, closing discards unsaved changes without prompting (v1 simplicity).
 - The modal simply wraps `<ActivityDetail activity={selectedActivity} mode={mode} ... />`.
 
 ### Data flow
@@ -124,7 +129,7 @@ The "+ New Activity" button on the Activity Management page opens the same modal
 - `activity` = null (empty defaults)
 - `mode` = `'edit'` (starts in edit mode since there's nothing to view yet)
 - Roster section hidden (no activity ID to query enrollments for)
-- Save → `useCreateActivity` mutation → on success, close modal (or switch to view mode of the newly created activity — TBD on feel)
+- Save → `useCreateActivity` mutation → on success, switch to view mode of the newly created activity (set `selectedActivity` to the returned activity, `isEditing` to false). This allows the admin to immediately see the roster section and hit Enroll.
 
 ### Default values (new activity)
 - `requires_attendance: true` — most common case
@@ -165,8 +170,8 @@ Small, independent task. Can be done before or after the UI changes.
 
 **`StaffRows.jsx`** — the flexible staff row sub-component.
 - Manages an array of `{ role, value }` entries.
-- In view mode: renders formatted text per entry.
-- In edit mode: renders role dropdown + value field per entry, with "+ Staff" to add rows.
+- In view mode: renders formatted text per entry ("Role: Name").
+- In edit mode: renders role dropdown + value field per entry, with "+ Staff" to add rows. Value field is a staff user lookup dropdown when role is Teacher or Monitor, and a text input when role is Instructor or Mentor. Switching roles clears the current value.
 - Enforces one-per-role constraint (disables used roles in subsequent dropdowns).
 
 **`ActivityDetailModal.jsx`** — thin modal wrapper.
