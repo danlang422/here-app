@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 9, 2026 (session 10.2)
+**Last updated:** March 9, 2026 (session 10.3)
 
 ---
 
@@ -27,9 +27,9 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 **Dashboard architecture:** Agenda view as centerpiece. Toolbar above with filters, property toggle icons, and panel-summoning buttons. Floating panels for Activities, Enrollment, and Settings/Calendar (future). Activity/User Management remain as dedicated pages — not embedded in the dashboard. Details in `admin-dashboard.md`.
 
-**Build order:** Agenda view, toolbar stub, dashboard rebuild, bulk user entry, and activity detail modal + form redesign are done. Next: block cascade → org settings UI → Activity Panel → dashboard composition.
+**Build order:** Agenda view, toolbar stub, dashboard rebuild, bulk user entry, activity detail modal + form redesign, block cascade, and activity type removal are done. Next: org settings UI → Activity Panel → dashboard composition.
 
-**Activity type removal (done in UI).** The `type` field is removed from the UI. The DB column stays with `'regular_class'` set silently on save — schema migration planned for later.
+**Activity type removal (done).** The `type` column has been removed from both the UI and the database (migration `20260309000000`). Activities are configured entirely through scheduling fields and behavior flags. Schema docs updated to use "common scenarios" framing instead of type-based tables.
 
 **Activity detail — view-first unified layout (built).** `ActivityDetail` component serves as both read-only view and edit form. Same layout in both modes. Properties tray with 7 behavior flag icon toggles, flexible staff rows (role dropdown + context-dependent value field), enrollment roster. Lives in `ActivityDetailModal` on Activity Management. Designed container-agnostic for future FloatingPanel use. Spec: `activity-detail-and-form-redesign-spec.md`.
 
@@ -37,18 +37,18 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 ## Known Issues / Tech Debt
 
-- **Block cascade missing on activity edit.** The denormalized `block` on enrollments is copied at enrollment time but not updated when an activity's block changes. Small independent fix needed.
+- **~~Block cascade missing on activity edit.~~** Fixed via `trg_activity_block_cascade` trigger (migration `20260309000001`).
 - **Agenda view filter/zoom oddity.** Block label filter and click-to-zoom behavior reported as working oddly — needs investigation.
 - **Raw fetch in useAuthListener:** `fetchProfile` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 inside `onAuthStateChange`. Revisit on supabase-js upgrade.
 - **RLS policies are starter-level:** Policies exist for core admin workflows but will need expansion (teacher-scoped writes, student check-in policies). Some phase 4 policies aren't org-scoped yet.
 - **Architecture docs mostly current:** React Query/RHF patterns are now implemented for existing pages. Example hooks for future features (useCheckIn, useMarkAttendance) are still aspirational.
 - **`docs/USER_FLOWS.md` is outdated:** References V1 concepts. Being replaced by per-feature docs in `docs/user-flows/`.
-- **Activity `type` column is legacy.** No longer used in the UI but still in the DB with a CHECK constraint. Silently set to `'regular_class'` on save. Schema migration to remove it is planned but not prioritized.
-- **`ActivityForm.jsx` is dead code.** Replaced by `ActivityDetail.jsx`. Safe to delete once confirmed in production.
+- **~~Activity `type` column is legacy.~~** Removed (migration `20260309000000`).
+- **~~`ActivityForm.jsx` is dead code.~~** Deleted.
 
 ## Next Steps
 
-1. **Block cascade on activity edit.** When an activity's block changes, update the denormalized `block` on all active enrollments. Small independent task.
+1. ~~**Block cascade on activity edit.**~~ Done (migration `20260309000001`).
 3. **Agenda view filter/zoom fix.** Investigate and fix the odd behavior in block label filtering and click-to-zoom.
 4. **Agenda view polish (remaining).** Card color treatment, density/spacing tuning with more activity data, responsive behavior.
 5. **Org settings UI.** Admin interface for defining blocks (labels, time ranges), A/B day rotation configuration. Hooks up what's currently generated/hardcoded in the activity form.

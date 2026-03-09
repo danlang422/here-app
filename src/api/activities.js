@@ -13,7 +13,7 @@ export async function getActivity(activityId) {
 }
 
 // Get all activities for an organization, with optional filters
-export async function getActivities(organizationId, { termId, type, isActive = true } = {}) {
+export async function getActivities(organizationId, { termId, isActive = true } = {}) {
   let query = supabase
     .from('activities')
     .select('*, teacher:user_profiles!teacher_id(first_name, last_name), monitor:user_profiles!monitor_id(first_name, last_name)')
@@ -25,10 +25,6 @@ export async function getActivities(organizationId, { termId, type, isActive = t
   if (termId) {
     query = query.eq('term_id', termId)
   }
-  if (type) {
-    query = query.eq('type', type)
-  }
-
   const { data, error } = await query
   if (error) throw error
   return data

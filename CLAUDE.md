@@ -63,7 +63,7 @@ src/
 
 ## Key Architectural Decisions
 
-**Everything is an activity.** Regular classes, college courses, internships, freeform blocks — all in one `activities` table. `type` is a UI hint, not a behavioral switch.
+**Everything is an activity.** Regular classes, college courses, internships, freeform blocks — all in one `activities` table, configured entirely through scheduling fields and behavior flags. There is no type system.
 
 **Prevent conflicts, don't resolve them.** Enrollment validation checks block + days_of_week + rotation_day_type overlap at enrollment time. A student's schedule is exactly what it appears to be — there's no runtime priority system.
 
@@ -89,6 +89,8 @@ V2 schema with migrations in `supabase/migrations/`. Run them in order against y
 - `20260301000000` — RLS fix for user_profiles
 - `20260301000001` — Dynamic block count (loosened constraints, removed `<= 5` ceiling)
 - `20260301000002` — Admin RLS policies
+- `20260309000000` — Remove activity type column
+- `20260309000001` — Block cascade trigger (syncs enrollment block on activity edit)
 
 Schema docs are in `docs/schema/` — these are the authoritative source for table structure, constraints, and RLS policies.
 

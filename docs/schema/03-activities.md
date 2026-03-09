@@ -47,12 +47,6 @@ CREATE TABLE activities (
   -- Activities without a term_id can still be filtered by date range using start_date/end_date.
   name TEXT NOT NULL,
 
-  -- UI hint only — drives form field visibility during data entry, not behavior
-  type TEXT NOT NULL CHECK (type IN (
-    'regular_class', 'college_course', 'external_hs_course',
-    'online_course', 'freeform', 'internship'
-  )),
-
   -- Scheduling state flags (mutually exclusive)
   is_not_scheduled BOOLEAN DEFAULT false,
   -- true = activity intentionally has no fixed time/place (e.g. online courses that roll up to
@@ -152,42 +146,33 @@ CREATE TABLE activities (
 CREATE INDEX idx_activities_org ON activities(organization_id);
 CREATE INDEX idx_activities_teacher ON activities(teacher_id);
 CREATE INDEX idx_activities_monitor ON activities(monitor_id);
-CREATE INDEX idx_activities_type ON activities(organization_id, type);
 CREATE INDEX idx_activities_active ON activities(organization_id, is_active) WHERE is_active = true;
 CREATE INDEX idx_activities_days_gin ON activities USING GIN(days_of_week);
 CREATE INDEX idx_activities_term ON activities(term_id) WHERE term_id IS NOT NULL;
 ```
 
-**Scheduling rules by type:**
+**Common activity scenarios:**
 
-| Type | block | days_of_week | rotation_day_type | default_start/end_time |
-|------|-------|-------------|-------------------|----------------------|
-| regular_class | Required | Required (or NULL if rotation-only) | NULL (or set if rotation-only) | Required |
-| college_course | Required | Required (e.g. [1,3,5] or [2,4] pattern) | NULL | Required |
-| external_hs_course | Required | NULL | Required ('A' or 'B') | Required |
-| online_course | NULL | NULL | NULL | NULL — set is_not_scheduled |
-| freeform | Required | Required | NULL | Required |
-| internship | Required | Required | NULL | Required |
+Activities are configured entirely through their scheduling fields and behavior flags — there is no type system. These scenarios illustrate common configurations:
 
-All activity types that occupy a time slot in the schedule get a block number, including external activities. The only activities without a block are those with `is_not_scheduled = true` (online courses) or activities whose block has not yet been assigned.
+- **Regular class** — block assigned, `days_of_week` set, `requires_attendance` + `allows_presence_wave`. Teacher assigned via `teacher_id`.
+- **College course (e.g. Kirkwood)** — block assigned, `days_of_week` pattern like MWF or TuTh, `requires_attendance`. External professor recorded in `instructor_name`; optionally a City View staff member in `monitor_id`.
+- **External HS course (e.g. Kennedy Band)** — block assigned, `rotation_day_type` instead of `days_of_week` (occurrence driven by district A/B rotation calendar), `requires_attendance = false` (other school handles it). External teacher in `instructor_name`.
+- **Online course** — `is_not_scheduled = true`, `requires_checkin`, no block/days/times. Supervised via `monitor_id`.
+- **Freeform block** — block assigned, `days_of_week` set, `requires_checkin` + `allows_freeform`. Supervised via `monitor_id`.
+- **Internship** — block assigned, `days_of_week` set, `requires_checkin` + `requires_geofence`. External mentor in `mentor_name`; supervised via `monitor_id`. Location/geofence fields copied from `internship_opportunities` at creation.
+- **Release** — block assigned with a schedule (blocks the slot visually), `is_release = true`, no attendance or check-in. Student is released for the period.
 
-Any activity type can carry `rotation_day_type` if it only occurs on one rotation day. This is most common for `external_hs_course`, but a `regular_class` or any other type that is scheduled opposite an external HS course would also use it.
+All activities that occupy a time slot in the schedule get a block number, including external activities. The only activities without a block are those with `is_not_scheduled = true` or activities whose block has not yet been assigned.
 
-**Behavior flag defaults by type** (set at creation time, all overridable):
+Any activity can carry `rotation_day_type` if it only occurs on one rotation day. This is most common for external HS courses, but a regular class scheduled opposite an external course would also use it.
 
-| Type | requires_attendance | requires_checkin | allows_presence_wave | allows_freeform |
-|------|--------------------|-----------------|--------------------|----------------|
-| regular_class | true | false | true | false |
-| college_course | true | false | false | false |
-| external_hs_course | false | false | false | false |
-| online_course | true | true | false | false |
-| freeform | true | true | false | true |
-| internship | true | true | false | false |
+See `docs/business-logic/01-schedule-and-calendar.md` for the full `activityMeetsToday` algorithm and scheduling predicate logic.
 
 **Personnel fields explained:**
 
-- `teacher_id`: A City View staff member who owns the activity. They see enrolled students on their roster and are responsible for taking attendance. Set for `regular_class` only.
-- `monitor_id`: A City View staff member who supervises without ownership. They see enrolled students listed under this block in their view. Set for `freeform`, `online_course`, `internship`, and sometimes `college_course` if a staff member is assigned to supervise.
+- `teacher_id`: A City View staff member who owns the activity. They see enrolled students on their roster and are responsible for taking attendance. Typically set for regular classes.
+- `monitor_id`: A City View staff member who supervises without ownership. They see enrolled students listed under this block in their view. Typically set for freeform blocks, online courses, internships, and sometimes college courses if a staff member is assigned to supervise.
 - `instructor_name`: Free text for external instructors — Kirkwood professors, cooperating teachers at other high schools. Not a user in the system.
 - `mentor_name`: Free text for internship mentors. Not a user in the system. Future: could become a separate `mentors` table with contact info.
 
@@ -209,8 +194,8 @@ CREATE TABLE enrollments (
   block INTEGER,
   -- Denormalized from activities.block at enrollment time.
   -- Used for efficient schedule queries ("what does this student have in Block 3?").
-  -- NULL when the parent activity has no block (online_course with is_not_scheduled, etc.).
-  -- Must be updated if the activity's block changes (application responsibility).
+  -- NULL when the parent activity has no block (is_not_scheduled activities, etc.).
+  -- Kept in sync by the trg_activity_block_cascade trigger on the activities table.
   notes TEXT, -- "Enrolled mid-semester", "Kirkwood campus on Tue/Thu"
   is_active BOOLEAN DEFAULT true,
   enrolled_at TIMESTAMPTZ DEFAULT NOW(),
