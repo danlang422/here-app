@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm run build)",
       "Bash(npm run lint)",
-      "WebFetch(domain:daisyui.com)"
+      "WebFetch(domain:daisyui.com)",
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -E \"^/.*\\\\.\\(jsx|js\\)$|error|warning\")",
+      "Bash(npx eslint src/components/activities/ActivityDetail.jsx)"
     ]
   }
 }
