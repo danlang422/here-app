@@ -21,6 +21,7 @@ import CalendarManagement from '@/pages/admin/CalendarManagement'
 import ActivityManagement from '@/pages/admin/ActivityManagement'
 import UserManagement from '@/pages/admin/UserManagement'
 import Reports from '@/pages/admin/Reports'
+import OrgSettings from '@/pages/admin/OrgSettings'
 
 function App() {
   return (
@@ -64,6 +65,7 @@ function App() {
         <Route path="activities" element={<ActivityManagement />} />
         <Route path="users" element={<UserManagement />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="settings" element={<OrgSettings />} />
       </Route>
 
       {/* Default redirect */}

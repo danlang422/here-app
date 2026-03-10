@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { FaCalendarAlt, FaTasks, FaUsers, FaChartBar, FaTachometerAlt } from 'react-icons/fa'
+import { FaCalendarAlt, FaTasks, FaUsers, FaChartBar, FaTachometerAlt, FaCog } from 'react-icons/fa'
 
 const adminNav = [
   { to: '/admin', icon: FaTachometerAlt, label: 'Dashboard', end: true },
@@ -7,6 +7,7 @@ const adminNav = [
   { to: '/admin/activities', icon: FaTasks, label: 'Activities' },
   { to: '/admin/users', icon: FaUsers, label: 'Users' },
   { to: '/admin/reports', icon: FaChartBar, label: 'Reports' },
+  { to: '/admin/settings', icon: FaCog, label: 'Settings' },
 ]
 
 function AdminLayout() {

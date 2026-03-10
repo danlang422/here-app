@@ -80,3 +80,77 @@ Built the activity detail modal and unified view/edit component per the spec in 
 - `ActivityForm.jsx` is now dead code. Left in place; safe to delete after confirming in production.
 - `watch(flag.field)` inside `BEHAVIOR_FLAGS.map()` in `ActivityDetail` triggers the React Compiler "incompatible library" warning (same pattern as the existing `ActivityForm` and `UserForm`). Not an error; compiler skips memoization for that block.
 - After update, `selectedActivity` is merged with the flat return from `updateActivity`. The joined `teacher`/`monitor` objects are slightly stale if staff was changed in this edit — the table view updates on next open since the activities list is invalidated and refetched.
+
+---
+
+## 10.3 — Activity Type Removal + Block Cascade
+
+Removed the `type` column from the database and codebase, and added a block cascade trigger that syncs enrollment block numbers when an activity's block is edited. Two migrations: `20260309000000` (drop type column) and `20260309000001` (block cascade trigger). Dead code cleanup: deleted `ActivityForm.jsx`.
+
+---
+
+## 10.4 — Org Settings UI + Activity Form Enhancements
+
+Built the admin Org Settings page and activity form enhancements per `docs/user-flows/org-settings-build-spec.md`. Tier 1 (block schedule) and Tier 2 (academic terms) with corresponding activity form auto-fill.
+
+### What Was Built
+
+**New files (5):**
+
+- **`src/api/scheduleTemplates.js`** — `getDefaultTemplate(orgId)` and `upsertDefaultTemplate(orgId, blockDefinitions)`. Creates or updates the default `schedule_templates` row.
+- **`src/api/terms.js`** — Full CRUD: `getTerms`, `createTerm`, `updateTerm`, `deleteTerm`, `setCurrentTerm`. The `setCurrentTerm` function handles the two-step update (unset old current, set new).
+- **`src/hooks/useScheduleTemplate.js`** — `useDefaultScheduleTemplate(orgId)` query hook with `['schedule-template-default', orgId]` key.
+- **`src/hooks/useTerms.js`** — `useTerms(orgId)` query hook with `['terms', orgId]` key.
+- **`src/pages/admin/OrgSettings.jsx`** — Settings page with three card sections, each independently saveable:
+
+  **Block Schedule section:**
+  - Block count selector (1–10 dropdown)
+  - Editable block labels (text inputs, fallback to "Block N")
+  - Optional start/end times per block (stored in default schedule template's `block_definitions` JSONB)
+  - Validation: half-filled time rows, end-before-start
+  - Reduce confirmation dialog when lowering block count
+  - Saves to `organization.settings` (count + labels) and `schedule_templates` (times)
+
+  **Academic Terms section:**
+  - Term list ordered by start date, current term indicated with green dot
+  - Inline add/edit forms with name, start date, end date, set-as-current checkbox
+  - Delete with confirmation warning about linked activities
+  - `setCurrentTerm` enforces at-most-one via two-step update
+
+  **Rotation Days section:**
+  - Toggle for `uses_rotation_schedule`
+  - Editable day name inputs with add/remove (min 2)
+  - Continue/repeat radio buttons for cancellation mode
+  - Helper text explaining rotation day behavior
+
+**Modified files (9):**
+
+- **`src/lib/constants.js`** — `getBlockLabel(blockNum, blockLabels)` and `getBlockLabels(blockCount, blockLabels)` now accept optional `blockLabels` array. Backward-compatible — omitting the param falls back to `"Block N"`.
+- **`src/components/layout/AdminLayout.jsx`** — Added Settings nav item with `FaCog` icon.
+- **`src/App.jsx`** — Added `/admin/settings` route with `OrgSettings` component.
+- **`src/components/activities/ActivityDetail.jsx`** — Multiple enhancements:
+  - Properties tray tightened with `w-fit`
+  - Location moved up to full-width input above staff rows
+  - Dates row restructured: Term | Start Date | End Date (3-column grid)
+  - `term_id` added to form default values and submit handler
+  - Block → time auto-fill: selecting a block fills start/end times and duration from default template (only if fields are empty)
+  - Term → date auto-fill: selecting a term fills start/end dates from the term (only if fields are empty)
+  - New props: `defaultTemplate`, `terms`
+  - `blockLabels` threaded to `SchedulingView` and `SchedulingEdit`
+- **`src/components/activities/ActivityDetailModal.jsx`** — Accepts and passes `defaultTemplate` and `terms` props.
+- **`src/pages/admin/ActivityManagement.jsx`** — Fetches `defaultTemplate` via `useDefaultScheduleTemplate` and `terms` via `useTerms`, passes both to modal and `blockLabels` to table.
+- **`src/components/activities/ActivityTable.jsx`** — Accepts `blockLabels` prop, passes to `getBlockLabel()`.
+- **`src/components/agenda/AgendaGrid.jsx`** — Accepts `blockLabels` prop, passes to `getBlockLabel()`.
+- **`src/components/agenda/AgendaView.jsx`** — Threads `blockLabels` prop to `AgendaGrid`.
+- **`src/pages/admin/Dashboard.jsx`** — Fixed existing bug: `orgSettings?.settings?.block_count` → `orgSettings?.block_count` (was double-nesting). Added `blockLabels` prop to `AgendaView`.
+
+### Bug Fix
+
+Dashboard was accessing `orgSettings?.settings?.block_count` — since `useOrgSettings` returns the `settings` object directly, the extra `.settings` meant block count was always undefined on the agenda view. Fixed to `orgSettings?.block_count`.
+
+### Implementation Notes
+
+- All three settings sections use local state synced from server via `useEffect` on the query data. Each section manages its own save/toast lifecycle independently — no shared form state.
+- Block times are stored in the default schedule template (`schedule_templates` row with `is_default = true`), not in org settings. The "template" abstraction is invisible to the admin.
+- The `blockLabels` prop threading stops at components that already have orgSettings (ActivityDetail, AgendaGrid, ActivityTable). Components deep in the tree without settings access (AgendaCard, EnrollmentPanel) continue using the fallback `"Block N"` format — acceptable for v1.
+- Term FK cascade migration (`20260310000000`) was pre-applied by the user before this session started.

@@ -81,7 +81,8 @@ function Dashboard() {
       <AgendaView
         activities={scheduledActivities}
         enrollmentCountByActivity={enrollmentCountByActivity}
-        blockCount={orgSettings?.settings?.block_count ?? 0}
+        blockCount={orgSettings?.block_count ?? 0}
+        blockLabels={orgSettings?.block_labels ?? null}
       />
     </div>
   )

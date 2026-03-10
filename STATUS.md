@@ -1,14 +1,14 @@
 # Here App — Project Status
 
-**Last updated:** March 9, 2026 (session 10.3)
+**Last updated:** March 9, 2026 (session 10.4)
 
 ---
 
 ## Current State
 
-**Documentation:** Up to date. Schema docs and business logic docs are current. Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes through 10.2. User flow docs listed at bottom of this file.
+**Documentation:** Up to date. Schema docs and business logic docs are current. Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes through 10.4. User flow docs listed at bottom of this file.
 
-**Database:** V2 schema deployed with migrations through `duration_minutes` on activities. City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activity types.
+**Database:** V2 schema deployed with migrations through term FK cascade (`20260310000000`). City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activities.
 
 **Application:**
 
@@ -17,9 +17,10 @@
 - **User Management** — Full CRUD via modal-based create/edit flow (Supabase Edge Function for account creation). Bulk user entry: paste-from-spreadsheet with preview, inline editing, per-row validation, sequential creation with progress tracking.
 - **Enrollment Panel (Entry A)** — Activity-centric. FloatingPanel shell (draggable/minimizable), activity dropdown, two-zone student list, progressive conflict indicators, three-phase submit flow, post-conflict "create activity" action. Launched from activity row "Enroll" button. Spec: `enrollment-panel-build-spec.md`.
 - **Admin Dashboard** — Schedule-building workspace. Agenda view as centerpiece with toolbar stub. Time-based week grid with adaptive card density (single/few/aggregate), block grouping, day column headers, block label filters, click-to-zoom. Grid spans 7 AM–4 PM by default with vertical scroll. Aggregate card tooltips render multiline on hover. Spec: `agenda-view-build-spec.md`, design: `admin-dashboard.md`.
+- **Org Settings** — Admin page at `/admin/settings`. Three independently-saveable sections: Block Schedule (count, labels, times → default template), Academic Terms (CRUD, current term indicator, set-as-current), Rotation Days (toggle, day names, continue/repeat mode). Custom block labels flow to activity table, agenda grid, and activity detail. Spec: `org-settings-build-spec.md`.
 - **Remaining admin pages** (Calendar, Reports) are placeholders.
 
-**Hooks/state layer:** Custom hooks in `src/hooks/` (useActivities, useUsers, useStudents, useStaffUsers, useOrgSettings, useEnrollments) wrap API functions with TanStack Query. Zustand stores for auth and UI state (including agenda focus state). Enrollment validation utilities in `src/lib/enrollmentValidation.js` — block-based and time-based conflict detection.
+**Hooks/state layer:** Custom hooks in `src/hooks/` (useActivities, useUsers, useStudents, useStaffUsers, useOrgSettings, useEnrollments, useDefaultScheduleTemplate, useTerms) wrap API functions with TanStack Query. Zustand stores for auth and UI state (including agenda focus state). Enrollment validation utilities in `src/lib/enrollmentValidation.js` — block-based and time-based conflict detection.
 
 ## Active Decisions
 
@@ -27,11 +28,11 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 **Dashboard architecture:** Agenda view as centerpiece. Toolbar above with filters, property toggle icons, and panel-summoning buttons. Floating panels for Activities, Enrollment, and Settings/Calendar (future). Activity/User Management remain as dedicated pages — not embedded in the dashboard. Details in `admin-dashboard.md`.
 
-**Build order:** Agenda view, toolbar stub, dashboard rebuild, bulk user entry, activity detail modal + form redesign, block cascade, and activity type removal are done. Next: org settings UI → Activity Panel → dashboard composition.
+**Build order:** Agenda view, toolbar stub, dashboard rebuild, bulk user entry, activity detail modal + form redesign, block cascade, activity type removal, and org settings UI are done. Next: Activity Panel → dashboard composition.
 
 **Activity type removal (done).** The `type` column has been removed from both the UI and the database (migration `20260309000000`). Activities are configured entirely through scheduling fields and behavior flags. Schema docs updated to use "common scenarios" framing instead of type-based tables.
 
-**Activity detail — view-first unified layout (built).** `ActivityDetail` component serves as both read-only view and edit form. Same layout in both modes. Properties tray with 7 behavior flag icon toggles, flexible staff rows (role dropdown + context-dependent value field), enrollment roster. Lives in `ActivityDetailModal` on Activity Management. Designed container-agnostic for future FloatingPanel use. Spec: `activity-detail-and-form-redesign-spec.md`.
+**Activity detail — view-first unified layout (built).** `ActivityDetail` component serves as both read-only view and edit form. Same layout in both modes. Properties tray (tightened `w-fit`) with 7 behavior flag icon toggles, location full-width above staff, term selector in dates row with auto-fill, block→time auto-fill from default template. Flexible staff rows, enrollment roster. Lives in `ActivityDetailModal` on Activity Management. Designed container-agnostic for future FloatingPanel use. Spec: `activity-detail-and-form-redesign-spec.md`.
 
 **Enrollment Panel — Entry B (designed, not built):** Student-centric entry point. Open from toolbar with no activity context, browse/filter students first, then pick activity target. Same component, different initial state (`initialActivityId` null). Activity selector layout within the student-first flow is an open question.
 
@@ -49,14 +50,14 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 ## Next Steps
 
 1. ~~**Block cascade on activity edit.**~~ Done (migration `20260309000001`).
+2. ~~**Org settings UI.**~~ Done (session 10.4). Block schedule, academic terms, rotation days.
 3. **Agenda view filter/zoom fix.** Investigate and fix the odd behavior in block label filtering and click-to-zoom.
 4. **Agenda view polish (remaining).** Card color treatment, density/spacing tuning with more activity data, responsive behavior.
-5. **Org settings UI.** Admin interface for defining blocks (labels, time ranges), A/B day rotation configuration. Hooks up what's currently generated/hardcoded in the activity form.
-6. **Bulk/quick activity entry.** Bulk paste-from-spreadsheet (similar to bulk user entry) and/or quick-create for rapid schedule building.
-7. **Activity Panel spec and build.** Floating panel for browsing/searching activities on the dashboard. The `ActivityDetail` component is designed to be droppable into a FloatingPanel.
-8. **Dashboard composition.** Wire agenda view, activity panel, enrollment panel, and toolbar together.
-9. **Enrollment Panel Entry B.** Student-centric entry point. Can be spec'd and built independently.
-10. **Calendar management.** Term CRUD, school day generation, schedule template editor, block assignment mapping.
+5. **Bulk/quick activity entry.** Bulk paste-from-spreadsheet (similar to bulk user entry) and/or quick-create for rapid schedule building.
+6. **Activity Panel spec and build.** Floating panel for browsing/searching activities on the dashboard. The `ActivityDetail` component is designed to be droppable into a FloatingPanel.
+7. **Dashboard composition.** Wire agenda view, activity panel, enrollment panel, and toolbar together.
+8. **Enrollment Panel Entry B.** Student-centric entry point. Can be spec'd and built independently.
+9. **Calendar management.** School day generation, multiple schedule templates (early dismissal, etc.), block assignment mapping. Term CRUD is already built in Org Settings.
 
 ---
 
@@ -82,3 +83,4 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 | `schedule-action-map.md` | **Current** | Activity states, action validation, build phasing. |
 | `enrollment-and-floating-panels.md` | **Historical** | Original design exploration, not a build reference. |
 | `activity-detail-and-form-redesign-spec.md` | **Current** | Unified view/edit detail modal, form redesign, table changes. March 8, revised March 9. |
+| `org-settings-build-spec.md` | **Implemented** | Block schedule, academic terms, rotation days, activity form enhancements. Built in session 10.4. |

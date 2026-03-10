@@ -34,6 +34,7 @@ const DEFAULT_VALUES = {
   default_start_time: '',
   default_end_time: '',
   duration_minutes: '',
+  term_id: '',
   start_date: '',
   end_date: '',
   location: '',
@@ -58,6 +59,7 @@ function buildInitialValues(activity) {
     default_start_time: activity.default_start_time || '',
     default_end_time: activity.default_end_time || '',
     duration_minutes: activity.duration_minutes != null ? String(activity.duration_minutes) : '',
+    term_id: activity.term_id || '',
     start_date: activity.start_date || '',
     end_date: activity.end_date || '',
     location: activity.location || '',
@@ -95,15 +97,17 @@ const DAY_LABELS = { 1: 'M', 2: 'Tu', 3: 'W', 4: 'Th', 5: 'F', 0: 'Su', 6: 'Sa' 
  * ActivityDetail — unified view/edit component for a single activity.
  *
  * Props:
- *   activity      - activity object (or null for new)
- *   mode          - 'view' | 'edit'
- *   saving        - boolean, disables save while pending
- *   orgSettings   - organization.settings object
- *   enrollments   - array of enrollment objects (with .student)
- *   onSave        - called with form data on save
- *   onCancel      - called when edit is cancelled (returns to view)
- *   onEditClick   - called when edit pencil icon is clicked
- *   onEnrollClick - called when enroll icon is clicked
+ *   activity        - activity object (or null for new)
+ *   mode            - 'view' | 'edit'
+ *   saving          - boolean, disables save while pending
+ *   orgSettings     - organization.settings object
+ *   enrollments     - array of enrollment objects (with .student)
+ *   defaultTemplate - default schedule template (for block→time auto-fill)
+ *   terms           - array of academic term objects (for term selector)
+ *   onSave          - called with form data on save
+ *   onCancel        - called when edit is cancelled (returns to view)
+ *   onEditClick     - called when edit pencil icon is clicked
+ *   onEnrollClick   - called when enroll icon is clicked
  */
 export default function ActivityDetail({
   activity = null,
@@ -111,6 +115,8 @@ export default function ActivityDetail({
   saving = false,
   orgSettings = {},
   enrollments = [],
+  defaultTemplate = null,
+  terms = [],
   onSave,
   onCancel,
   onEditClick,
@@ -121,6 +127,7 @@ export default function ActivityDetail({
   const { data: staffUsers = [] } = useStaffUsers(orgId)
 
   const blockCount = orgSettings?.block_count ?? null
+  const blockLabels = orgSettings?.block_labels ?? null
   const blocks = useMemo(() => getBlocks(blockCount), [blockCount])
   const rotationDayNames = orgSettings?.rotation_day_names ?? ['A', 'B']
 
@@ -170,6 +177,42 @@ export default function ActivityDetail({
     if (field === 'requires_attendance' && next) setValue('is_release', false)
   }
 
+  // Block → time auto-fill from default template
+  const watchedBlock = watch('block')
+  useEffect(() => {
+    if (mode !== 'edit' || !defaultTemplate?.block_definitions || watchedBlock === '') return
+    const blockNum = parseInt(watchedBlock, 10)
+    const def = defaultTemplate.block_definitions.find((d) => d.block === blockNum)
+    if (!def) return
+    const currentStart = getValues('default_start_time')
+    const currentEnd = getValues('default_end_time')
+    if (!currentStart && !currentEnd) {
+      setValue('default_start_time', def.start_time)
+      setValue('default_end_time', def.end_time)
+      // Auto-fill duration if empty
+      if (!getValues('duration_minutes') && def.start_time && def.end_time) {
+        const [sh, sm] = def.start_time.split(':').map(Number)
+        const [eh, em] = def.end_time.split(':').map(Number)
+        const mins = (eh * 60 + em) - (sh * 60 + sm)
+        if (mins > 0) setValue('duration_minutes', String(mins))
+      }
+    }
+  }, [watchedBlock]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Term → date auto-fill
+  const watchedTermId = watch('term_id')
+  useEffect(() => {
+    if (mode !== 'edit' || !watchedTermId || !terms.length) return
+    const term = terms.find((t) => t.id === watchedTermId)
+    if (!term) return
+    const currentStart = getValues('start_date')
+    const currentEnd = getValues('end_date')
+    if (!currentStart && !currentEnd) {
+      setValue('start_date', term.start_date)
+      setValue('end_date', term.end_date)
+    }
+  }, [watchedTermId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function onFormSubmit(formValues) {
     const staffFlat = staffRowsToFlat(staffRows)
     const data = {
@@ -182,6 +225,7 @@ export default function ActivityDetail({
       default_start_time: formValues.default_start_time || null,
       default_end_time: formValues.default_end_time || null,
       duration_minutes: formValues.duration_minutes !== '' ? parseInt(formValues.duration_minutes, 10) : null,
+      term_id: formValues.term_id || null,
       start_date: formValues.start_date || null,
       end_date: formValues.end_date || null,
       location: formValues.location?.trim() || null,
@@ -263,7 +307,7 @@ export default function ActivityDetail({
       </div>
 
       {/* ── Properties tray: behavior flags ── */}
-      <div className="bg-base-200 rounded-lg px-4 py-3">
+      <div className="bg-base-200 rounded-lg px-4 py-3 w-fit">
         <div className="flex gap-1 flex-wrap">
           {BEHAVIOR_FLAGS.map((flag) => {
             const active = watch(flag.field)
@@ -291,6 +335,23 @@ export default function ActivityDetail({
       {/* ── Detail fields ── */}
       <div className="space-y-4">
 
+        {/* Location — full width, above staff */}
+        {mode === 'view' ? (
+          activity?.location ? (
+            <span className="text-sm text-base-content/70">{activity.location}</span>
+          ) : null
+        ) : (
+          <div>
+            <label className="label-text text-xs text-base-content/50 mb-1 block">Location</label>
+            <input
+              type="text"
+              className="input input-bordered input-sm w-full"
+              placeholder="Room, building, or address"
+              {...register('location')}
+            />
+          </div>
+        )}
+
         {/* Staff */}
         <div>
           <StaffRows
@@ -305,13 +366,14 @@ export default function ActivityDetail({
         {/* Block / Time / Duration */}
         <div>
           {mode === 'view' ? (
-            <SchedulingView activity={activity} />
+            <SchedulingView activity={activity} blockLabels={blockLabels} />
           ) : (
             <SchedulingEdit
               register={register}
               watch={watch}
               setValue={setValue}
               blocks={blocks}
+              blockLabels={blockLabels}
               disabled={watchedIsNotScheduled}
               daysSelected={daysSelected}
               rotationSelected={rotationSelected}
@@ -324,12 +386,12 @@ export default function ActivityDetail({
           )}
         </div>
 
-        {/* Dates + Location */}
+        {/* Term + Dates */}
         <div>
           {mode === 'view' ? (
-            <DatesLocationView activity={activity} />
+            <DatesView activity={activity} terms={terms} />
           ) : (
-            <DatesLocationEdit register={register} />
+            <DatesEdit register={register} terms={terms} />
           )}
         </div>
 
@@ -368,13 +430,13 @@ export default function ActivityDetail({
 
 // ─── Scheduling view/edit sub-components ──────────────────────────────────────
 
-function SchedulingView({ activity }) {
+function SchedulingView({ activity, blockLabels }) {
   if (activity?.is_not_scheduled) {
     return <span className="text-sm text-base-content/40 italic">Not scheduled</span>
   }
 
   const parts = []
-  if (activity?.block != null) parts.push(getBlockLabel(activity.block))
+  if (activity?.block != null) parts.push(getBlockLabel(activity.block, blockLabels))
 
   const timeParts = []
   if (activity?.default_start_time) timeParts.push(formatTime(activity.default_start_time))
@@ -411,7 +473,7 @@ function SchedulingView({ activity }) {
 }
 
 function SchedulingEdit({
-  register, blocks, disabled,
+  register, blocks, blockLabels, disabled,
   daysSelected, rotationSelected, rotationDayNames,
   watchedDaysOfWeek, watchedRotation,
   onDayToggle, onRotationChange,
@@ -426,7 +488,7 @@ function SchedulingEdit({
             <select className="select select-bordered select-sm w-full" {...register('block')} disabled={disabled}>
               <option value="">—</option>
               {blocks.map((b) => (
-                <option key={b} value={b}>{getBlockLabel(b)}</option>
+                <option key={b} value={b}>{getBlockLabel(b, blockLabels)}</option>
               ))}
             </select>
           ) : (
@@ -491,21 +553,35 @@ function SchedulingEdit({
   )
 }
 
-function DatesLocationView({ activity }) {
+function DatesView({ activity, terms }) {
   const parts = []
+  if (activity?.term_id && terms?.length) {
+    const term = terms.find((t) => t.id === activity.term_id)
+    if (term) parts.push(term.name)
+  }
   const dateParts = []
   if (activity?.start_date) dateParts.push(formatDate(activity.start_date))
   if (activity?.end_date) dateParts.push(formatDate(activity.end_date))
   if (dateParts.length) parts.push(dateParts.join(' – '))
-  if (activity?.location) parts.push(activity.location)
 
   if (!parts.length) return null
   return <span className="text-sm text-base-content/70">{parts.join(' · ')}</span>
 }
 
-function DatesLocationEdit({ register }) {
+function DatesEdit({ register, terms }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div>
+        <label className="label-text text-xs text-base-content/50 mb-1 block">Term</label>
+        <select className="select select-bordered select-sm w-full" {...register('term_id')}>
+          <option value="">—</option>
+          {terms?.map((term) => (
+            <option key={term.id} value={term.id}>
+              {term.name}{term.is_current ? ' (current)' : ''}
+            </option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="label-text text-xs text-base-content/50 mb-1 block">Start Date</label>
         <input type="date" className="input input-bordered input-sm w-full" {...register('start_date')} />
@@ -513,15 +589,6 @@ function DatesLocationEdit({ register }) {
       <div>
         <label className="label-text text-xs text-base-content/50 mb-1 block">End Date</label>
         <input type="date" className="input input-bordered input-sm w-full" {...register('end_date')} />
-      </div>
-      <div>
-        <label className="label-text text-xs text-base-content/50 mb-1 block">Location</label>
-        <input
-          type="text"
-          className="input input-bordered input-sm w-full"
-          placeholder="Room, building, or address"
-          {...register('location')}
-        />
       </div>
     </div>
   )
