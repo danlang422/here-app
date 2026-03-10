@@ -6,7 +6,9 @@
       "WebFetch(domain:daisyui.com)",
       "Bash(grep -v \"^$\")",
       "Bash(grep -E \"^/.*\\\\.\\(jsx|js\\)$|error|warning\")",
-      "Bash(npx eslint src/components/activities/ActivityDetail.jsx)"
+      "Bash(npx eslint src/components/activities/ActivityDetail.jsx)",
+      "Bash(git checkout:*)",
+      "Bash(gh pr:*)"
     ]
   }
 }
