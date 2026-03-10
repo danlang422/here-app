@@ -34,9 +34,7 @@ CREATE TABLE organizations (
 
 `block_count`: Number of blocks in the daily schedule. `null` means the org hasn't defined their block structure yet. Activities can still be created with `block = NULL` in this state. When set (e.g. `6`), the app validates that block assignments stay within `0` to `block_count - 1`.
 
-`rotation_mode`:
-- `"continue"` — cancelled school days are skipped in the rotation count (snow day on A day → next school day is B day)
-- `"repeat"` — cancelled days repeat (snow day on A day → next school day is also A day)
+`rotation_mode`: **Deprecated.** Ignored by application code. Rotation advancement is now determined per-reason: planned holidays pause the rotation, unscheduled cancellations (weather/emergency) advance it. See `docs/business-logic/01-schedule-and-calendar.md`. Left in existing JSONB data — no migration to remove it.
 
 ---
 

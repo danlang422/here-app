@@ -1,54 +1,6 @@
 import { supabase } from './supabase'
 
-// Get the current academic term for an organization
-export async function getCurrentTerm(organizationId) {
-  const { data, error } = await supabase
-    .from('academic_terms')
-    .select('*')
-    .eq('organization_id', organizationId)
-    .eq('is_current', true)
-    .single()
-
-  if (error) throw error
-  return data
-}
-
-// Get all terms for an organization
-export async function getTerms(organizationId) {
-  const { data, error } = await supabase
-    .from('academic_terms')
-    .select('*')
-    .eq('organization_id', organizationId)
-    .order('start_date', { ascending: false })
-
-  if (error) throw error
-  return data
-}
-
-// Create a new term
-export async function createTerm(term) {
-  const { data, error } = await supabase
-    .from('academic_terms')
-    .insert(term)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
-}
-
-// Update a term
-export async function updateTerm(termId, updates) {
-  const { data, error } = await supabase
-    .from('academic_terms')
-    .update(updates)
-    .eq('id', termId)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
-}
+// Term CRUD functions are in terms.js — this file handles school days and schedule templates.
 
 // Get the school day record for a specific date
 export async function getSchoolDay(organizationId, date) {
@@ -98,6 +50,18 @@ export async function bulkUpsertSchoolDays(schoolDays) {
 
   if (error) throw error
   return data
+}
+
+// Delete school days in a date range (for term deletion/shrinking)
+export async function deleteSchoolDaysInRange(organizationId, startDate, endDate) {
+  const { error } = await supabase
+    .from('school_days')
+    .delete()
+    .eq('organization_id', organizationId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+
+  if (error) throw error
 }
 
 // Get all schedule templates for an organization
