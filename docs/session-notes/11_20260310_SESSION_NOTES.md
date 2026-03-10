@@ -33,7 +33,7 @@ Discussed adopting team-style development practices as a solo developer, both fo
 
 **10 issues created** covering all items from the previous Next Steps list plus tech debt items from Known Issues. Calendar management is `ready-to-build`; most features are `needs-spec`; tech debt items are labeled accordingly.
 
-**PR-based workflow discussed (not yet adopted).** Feature branches + PRs would add review checkpoints and make the repo's Git history more portfolio-ready. Lightweight approach: branch for anything with a build spec or issue, commit to main for small fixes. Claude Code can create branches and open PRs. Adoption planned for the next implementation session.
+**PR-based workflow adopted.** Feature branches + PRs add review checkpoints and make the repo's Git history more portfolio-ready. Lightweight approach: branch for anything with a build spec or issue, commit to main for small fixes. Claude Code creates branches and opens PRs. Squash and merge is the default merge strategy — collapses branch commits into a single clean commit on main.
 
 **GitHub CLI confirmed working.** `gh` is installed and authenticated (`danlang422` account, SSH protocol, full repo scope). Issues were created through the web interface after CLI text editor had trouble rendering markdown checkboxes.
 
@@ -52,8 +52,38 @@ Surveyed developer tools relevant to the project:
 - Clarified that Claude.ai's DOCX/PPTX skills are part of the Cowork feature set and not relevant to this project's markdown-based documentation workflow.
 - Discussed Claude Code skills vs. CLAUDE.md — for this project, CLAUDE.md and the docs folder are already serving the role that skills would fill.
 
+---
+
+## 11.2 — Calendar Management Implementation and First PR
+
+Calendar management feature built by Claude Code and merged via the project's first pull request.
+
+### What Was Built
+
+Claude Code implemented the full calendar management build spec (`calendar-management-build-spec.md`) in a single session on the `feature/calendar-management` branch. PR #11 was opened with a detailed summary, file tables, and a test plan checklist.
+
+**Implementation matches spec.** Two-column settings layout, CalendarGrid with weekday-only month view, DayPopover with single-day and range exception marking, school day auto-generation on term save, per-reason rotation algorithm, rotation recalculation on exception changes, and API cleanup (duplicate term functions removed from `calendar.js`).
+
+See PR #11 description for full details on new and modified files.
+
+### First PR Workflow
+
+Successfully ran the full PR-based workflow for the first time:
+
+1. Claude Code created `feature/calendar-management` branch from main
+2. Implementation work committed to the branch
+3. Claude Code opened PR #11 with summary, file tables, and test plan checklist
+4. Daniel reviewed by running through the test plan checklist locally
+5. Added `Closes #1` to the PR description to auto-close the calendar management issue
+6. Squash-merged via GitHub web UI
+7. Deleted the remote branch, pulled main locally
+
+### Bug Found During Testing
+
+Cross-month date ranges fail when marking exceptions. Filing a range from Dec 22 – Jan 2 (or any range crossing a month boundary) throws a Postgres error: `null value in column "id" of relation "school_days" violates not-null constraint`. The range-marking logic is likely trying to upsert days outside the current term's generated school days without assigning UUIDs. Filed as issue #12 with `bug` label. Does not block the PR — the feature works correctly for same-month ranges.
+
 ### Next Up
 
-- Calendar management implementation (spec is ready, issue is `ready-to-build`)
-- Try the PR-based workflow: create a feature branch, implement, open PR, review, merge
-- Optionally install the doc-updater sub-agent in `.claude/agents/` before starting
+- Fix cross-month range bug (#12)
+- Install doc-updater sub-agent in `.claude/agents/`
+- Next feature: agenda view filter/zoom fix (#3) or agenda view polish (#4)
