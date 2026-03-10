@@ -8,7 +8,25 @@ import { useTerms } from '@/hooks/useTerms'
 import { updateOrgSettings } from '@/api/organizations'
 import { upsertDefaultTemplate } from '@/api/scheduleTemplates'
 import { createTerm, updateTerm, deleteTerm, setCurrentTerm } from '@/api/terms'
+import { getSchoolDays, bulkUpsertSchoolDays, deleteSchoolDaysInRange } from '@/api/calendar'
 import { getBlocks } from '@/lib/constants'
+import { generateSchoolDays } from '@/lib/business-logic/schoolDayGeneration'
+import { recalculateRotationDays } from '@/lib/business-logic/rotation'
+import CalendarGrid from '@/components/calendar/CalendarGrid'
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function dayBefore(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() - 1)
+  return d.toISOString().slice(0, 10)
+}
+
+function dayAfter(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
 
 // ─── Block Schedule Section ──────────────────────────────────────────────────
 
@@ -243,7 +261,7 @@ function BlockScheduleSection({ orgSettings, defaultTemplate, orgId }) {
 
 // ─── Academic Terms Section ──────────────────────────────────────────────────
 
-function AcademicTermsSection({ terms, orgId }) {
+function AcademicTermsSection({ terms, orgId, orgSettings }) {
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -312,9 +330,17 @@ function AcademicTermsSection({ terms, orgId }) {
       if (formCurrent) {
         await setCurrentTerm(orgId, newTerm.id)
       }
+
+      // Generate school days for the new term
+      const newDays = generateSchoolDays(orgId, formStart, formEnd, orgSettings)
+      if (newDays.length > 0) {
+        await bulkUpsertSchoolDays(newDays)
+      }
+
       queryClient.invalidateQueries({ queryKey: ['terms', orgId] })
+      queryClient.invalidateQueries({ queryKey: ['school-days', orgId] })
       resetForm()
-      showToast('success', 'Term created.')
+      showToast('success', `Term created. School days generated for ${formStart} – ${formEnd}.`)
     } catch (e) {
       showToast('error', e.message)
     } finally {
@@ -328,6 +354,7 @@ function AcademicTermsSection({ terms, orgId }) {
 
     setSaving(true)
     try {
+      const oldTerm = terms.find(t => t.id === editingId)
       await updateTerm(editingId, {
         name: formName.trim(),
         start_date: formStart,
@@ -336,9 +363,41 @@ function AcademicTermsSection({ terms, orgId }) {
       if (formCurrent) {
         await setCurrentTerm(orgId, editingId)
       }
+
+      // Handle school day generation/cleanup on date changes
+      let genMsg = ''
+      if (oldTerm && (oldTerm.start_date !== formStart || oldTerm.end_date !== formEnd)) {
+        // Delete days outside the new range
+        if (formStart > oldTerm.start_date) {
+          await deleteSchoolDaysInRange(orgId, oldTerm.start_date, formStart > formEnd ? formEnd : dayBefore(formStart))
+        }
+        if (formEnd < oldTerm.end_date) {
+          await deleteSchoolDaysInRange(orgId, dayAfter(formEnd), oldTerm.end_date)
+        }
+
+        // Fetch existing days in the new range and generate missing ones
+        const existing = await getSchoolDays(orgId, formStart, formEnd)
+        const newDays = generateSchoolDays(orgId, formStart, formEnd, orgSettings, existing)
+        if (newDays.length > 0) {
+          await bulkUpsertSchoolDays(newDays)
+        }
+
+        // Recalculate rotation for the full term
+        const allDays = await getSchoolDays(orgId, formStart, formEnd)
+        const rotationUpdates = recalculateRotationDays(allDays, orgSettings)
+        if (rotationUpdates.length > 0) {
+          await bulkUpsertSchoolDays(rotationUpdates)
+        }
+
+        genMsg = newDays.length > 0
+          ? ` Added ${newDays.length} school days.`
+          : ' Rotation recalculated.'
+      }
+
       queryClient.invalidateQueries({ queryKey: ['terms', orgId] })
+      queryClient.invalidateQueries({ queryKey: ['school-days', orgId] })
       resetForm()
-      showToast('success', 'Term updated.')
+      showToast('success', `Term updated.${genMsg}`)
     } catch (e) {
       showToast('error', e.message)
     } finally {
@@ -349,11 +408,16 @@ function AcademicTermsSection({ terms, orgId }) {
   async function handleDelete(termId) {
     setSaving(true)
     try {
+      const term = terms.find(t => t.id === termId)
+      if (term) {
+        await deleteSchoolDaysInRange(orgId, term.start_date, term.end_date)
+      }
       await deleteTerm(termId)
       queryClient.invalidateQueries({ queryKey: ['terms', orgId] })
+      queryClient.invalidateQueries({ queryKey: ['school-days', orgId] })
       resetForm()
       setConfirmDelete(null)
-      showToast('success', 'Term deleted.')
+      showToast('success', 'Term and associated school days deleted.')
     } catch (e) {
       showToast('error', e.message)
     } finally {
@@ -447,7 +511,7 @@ function AcademicTermsSection({ terms, orgId }) {
         {/* Delete confirmation */}
         {confirmDelete && (
           <div className="alert alert-warning mt-3 py-2">
-            <span className="text-sm">Delete this term? Activities referencing it will keep their dates but lose the term association.</span>
+            <span className="text-sm">Delete this term? All school day data (including holidays and cancellations) for this term will be removed.</span>
             <div className="flex gap-1">
               <button className="btn btn-ghost btn-xs" onClick={() => setConfirmDelete(null)}>Cancel</button>
               <button className="btn btn-error btn-xs" onClick={() => handleDelete(confirmDelete)} disabled={saving}>Delete</button>
@@ -533,14 +597,12 @@ function RotationDaysSection({ orgSettings, orgId }) {
 
   const [usesRotation, setUsesRotation] = useState(orgSettings?.uses_rotation_schedule ?? false)
   const [dayNames, setDayNames] = useState(orgSettings?.rotation_day_names ?? ['A', 'B'])
-  const [rotationMode, setRotationMode] = useState(orgSettings?.rotation_mode ?? 'continue')
 
   // Sync from server
   useEffect(() => {
     setUsesRotation(orgSettings?.uses_rotation_schedule ?? false)
     setDayNames(orgSettings?.rotation_day_names ?? ['A', 'B'])
-    setRotationMode(orgSettings?.rotation_mode ?? 'continue')
-  }, [orgSettings?.uses_rotation_schedule, orgSettings?.rotation_day_names, orgSettings?.rotation_mode])
+  }, [orgSettings?.uses_rotation_schedule, orgSettings?.rotation_day_names])
 
   function handleDayNameChange(idx, value) {
     setDayNames((prev) => {
@@ -565,7 +627,6 @@ function RotationDaysSection({ orgSettings, orgId }) {
       await updateOrgSettings(orgId, {
         uses_rotation_schedule: usesRotation,
         rotation_day_names: dayNames.map((n) => n.trim() || `Day ${dayNames.indexOf(n) + 1}`),
-        rotation_mode: rotationMode,
       })
       queryClient.invalidateQueries({ queryKey: ['org-settings', orgId] })
       setToast({ type: 'success', message: 'Rotation settings saved.' })
@@ -641,39 +702,9 @@ function RotationDaysSection({ orgSettings, orgId }) {
               <p className="text-xs text-base-content/40 mt-2">
                 Rotation day names identify alternating schedule days. Common examples: A Day / B Day, Gold / Maroon.
               </p>
-            </div>
-
-            {/* Cancellation mode */}
-            <div>
-              <label className="label-text text-sm font-medium mb-2 block">On cancellation</label>
-              <div className="space-y-2">
-                <label className="label cursor-pointer justify-start gap-3">
-                  <input
-                    type="radio"
-                    className="radio radio-sm"
-                    name="rotation_mode"
-                    checked={rotationMode === 'continue'}
-                    onChange={() => setRotationMode('continue')}
-                  />
-                  <div>
-                    <span className="label-text font-medium">Continue</span>
-                    <p className="text-xs text-base-content/50">Skip cancelled days in the rotation (Snow day on A → next day is B)</p>
-                  </div>
-                </label>
-                <label className="label cursor-pointer justify-start gap-3">
-                  <input
-                    type="radio"
-                    className="radio radio-sm"
-                    name="rotation_mode"
-                    checked={rotationMode === 'repeat'}
-                    onChange={() => setRotationMode('repeat')}
-                  />
-                  <div>
-                    <span className="label-text font-medium">Repeat</span>
-                    <p className="text-xs text-base-content/50">Repeat cancelled days (Snow day on A → next day is also A)</p>
-                  </div>
-                </label>
-              </div>
+              <p className="text-xs text-base-content/40 mt-1">
+                Planned holidays pause the rotation; unscheduled cancellations (weather, emergency) advance it.
+              </p>
             </div>
           </div>
         )}
@@ -709,10 +740,18 @@ export default function OrgSettings() {
         </p>
       </div>
 
-      <div className="space-y-6 max-w-3xl">
-        <BlockScheduleSection orgSettings={orgSettings} defaultTemplate={defaultTemplate} orgId={orgId} />
-        <AcademicTermsSection terms={terms} orgId={orgId} />
-        <RotationDaysSection orgSettings={orgSettings} orgId={orgId} />
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-6">
+        {/* Left column: settings cards */}
+        <div className="space-y-6">
+          <BlockScheduleSection orgSettings={orgSettings} defaultTemplate={defaultTemplate} orgId={orgId} />
+          <AcademicTermsSection terms={terms} orgId={orgId} orgSettings={orgSettings} />
+          <RotationDaysSection orgSettings={orgSettings} orgId={orgId} />
+        </div>
+
+        {/* Right column: calendar */}
+        <div className="lg:sticky lg:top-4 lg:self-start">
+          <CalendarGrid orgId={orgId} orgSettings={orgSettings} terms={terms} />
+        </div>
       </div>
     </div>
   )

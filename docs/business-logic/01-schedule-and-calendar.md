@@ -8,48 +8,53 @@ City View itself does not use A/B rotation — every school day is the same from
 
 Rotation day values are stored in `school_days.rotation_day` and validated in the application layer against `organization.settings.rotation_day_names` (defaults to `["A", "B"]`).
 
-**Algorithm:**
+**Algorithm (per-reason advancement):**
+
+The rotation advances based on the `override_reason` of non-school days, not a global toggle:
+
+- **School days** (`is_school_day = true`): always advance the rotation
+- **Unscheduled cancellations** (`weather`, `emergency`): advance the rotation (the day "counts" even though school didn't happen)
+- **Planned holidays** (`planned_holiday`): do NOT advance the rotation (rotation pauses)
+
+The former `rotation_mode` setting (`continue`/`repeat`) is deprecated and ignored.
 
 ```
 function calculateRotationDay(date, organization):
-  // Orgs that don't use rotation have no rotation days
   if not organization.settings.uses_rotation_schedule:
     return null
 
-  // Check for an explicit override on this date
   schoolDay = getSchoolDay(date, organization.id)
   if schoolDay and schoolDay.rotation_day is not null:
-    return schoolDay.rotation_day
+    return schoolDay.rotation_day  // explicit override
 
-  // Calculate from the term start using org settings
   term = getCurrentTerm(organization.id)
   allDays = getSchoolDaysInRange(term.start_date, date, organization.id)
 
-  if organization.settings.rotation_mode == "continue":
-    // Skip non-school days — rotation advances only on days school is in session
-    countableDays = allDays.filter(d => d.is_school_day)
-  else: // "repeat"
-    // Cancelled days repeat — the rotation does not advance
-    countableDays = allDays
+  // Count days that advance the rotation
+  countableDays = allDays.filter(d =>
+    d.is_school_day or
+    d.override_reason == "weather" or
+    d.override_reason == "emergency"
+  )
 
   rotationNames = organization.settings.rotation_day_names  // e.g. ["A", "B"]
   index = countableDays.length % rotationNames.length
   return rotationNames[index]
 ```
 
-**Example — "continue" mode:**
+**Example:**
 
-Organization: `rotation_day_names: ["A", "B"]`, `rotation_mode: "continue"`, term starts Mon Jan 5 (A day)
+Organization: `rotation_day_names: ["A", "B"]`, term starts Mon Jan 5 (A day)
 
-| Date | School? | Rotation | Why |
-|------|---------|----------|-----|
-| Mon Jan 5 | Yes | A | Day 0 → index 0 |
-| Tue Jan 6 | Yes | B | Day 1 → index 1 |
-| Wed Jan 7 | Yes | A | Day 2 → index 0 |
-| Thu Jan 8 | Cancelled (weather) | — | Skipped in count |
-| Fri Jan 9 | Yes | B | Day 3 → index 1 (continues, doesn't repeat Thu) |
-
-If `rotation_mode` were `"repeat"`: Fri Jan 9 would be A (repeats Thu's cancelled slot).
+| Date | School? | Reason | Rotation | Why |
+|------|---------|--------|----------|-----|
+| Mon Jan 5 | Yes | — | A | Day 0 → index 0 |
+| Tue Jan 6 | Yes | — | B | Day 1 → index 1 |
+| Wed Jan 7 | Yes | — | A | Day 2 → index 0 |
+| Thu Jan 8 | No | weather | — | Counts (advances rotation) |
+| Fri Jan 9 | Yes | — | A | Day 3 → index 1... wait, 4 countable days → index 0 = A |
+| Mon Jan 12 | No | planned_holiday | — | Does NOT count (rotation pauses) |
+| Tue Jan 13 | Yes | — | B | Still index 1 (holiday didn't advance) |
 
 ---
 
