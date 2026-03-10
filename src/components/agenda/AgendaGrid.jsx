@@ -15,6 +15,7 @@ function AgendaGrid({
   gridStartMinutes,
   gridEndMinutes,
   blockCount,
+  blockLabels,
 }) {
   const agendaFocusedBlock = useUIStore((s) => s.agendaFocusedBlock)
   const agendaFocusedDay = useUIStore((s) => s.agendaFocusedDay)
@@ -154,7 +155,7 @@ function AgendaGrid({
               }`}
               onClick={() => handleBlockClick(block)}
             >
-              {getBlockLabel(block)}
+              {getBlockLabel(block, blockLabels)}
             </button>
           ))}
         </div>

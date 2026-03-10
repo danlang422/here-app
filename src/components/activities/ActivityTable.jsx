@@ -10,7 +10,7 @@ import { FaChevronRight } from 'react-icons/fa'
  *   onSelect         - called with activity object when row is clicked
  *   enrollmentCounts - Map<activity_id, count> of active enrollment counts
  */
-export default function ActivityTable({ activities = [], loading = false, onSelect, enrollmentCounts = new Map() }) {
+export default function ActivityTable({ activities = [], loading = false, onSelect, enrollmentCounts = new Map(), blockLabels }) {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -58,7 +58,7 @@ export default function ActivityTable({ activities = [], loading = false, onSele
                 </td>
                 <td>
                   {activity.block != null
-                    ? getBlockLabel(activity.block)
+                    ? getBlockLabel(activity.block, blockLabels)
                     : <span className="text-base-content/40">—</span>
                   }
                 </td>

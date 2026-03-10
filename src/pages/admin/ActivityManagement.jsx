@@ -6,6 +6,8 @@ import EnrollmentPanel from '@/components/enrollment/EnrollmentPanel'
 import { useActivities, useCreateActivity, useUpdateActivity } from '@/hooks/useActivities'
 import { useOrgEnrollments, useActivityEnrollments } from '@/hooks/useEnrollments'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
+import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
+import { useTerms } from '@/hooks/useTerms'
 import useAuthStore from '@/store/authStore'
 
 function ActivityManagement() {
@@ -15,6 +17,8 @@ function ActivityManagement() {
   // Server state
   const { data: activities = [], isLoading, error: loadError } = useActivities(orgId)
   const { data: orgSettings = {} } = useOrgSettings(orgId)
+  const { data: defaultTemplate = null } = useDefaultScheduleTemplate(orgId)
+  const { data: terms = [] } = useTerms(orgId)
   const { data: orgEnrollments = [] } = useOrgEnrollments(orgId)
   const createMutation = useCreateActivity(orgId)
   const updateMutation = useUpdateActivity(orgId)
@@ -141,6 +145,7 @@ function ActivityManagement() {
         loading={isLoading}
         onSelect={handleSelect}
         enrollmentCounts={enrollmentCountByActivity}
+        blockLabels={orgSettings?.block_labels}
       />
 
       <ActivityDetailModal
@@ -150,6 +155,8 @@ function ActivityManagement() {
         saving={saving}
         orgSettings={orgSettings}
         enrollments={activityEnrollments}
+        defaultTemplate={defaultTemplate}
+        terms={terms}
         onClose={handleCloseModal}
         onEditClick={handleEditClick}
         onCancel={handleCancel}

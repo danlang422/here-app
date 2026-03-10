@@ -7,13 +7,16 @@ export function getBlocks(blockCount) {
   return Array.from({ length: blockCount }, (_, i) => i)
 }
 
-export function getBlockLabel(blockNum) {
+export function getBlockLabel(blockNum, blockLabels) {
+  if (blockLabels && blockLabels[blockNum]) {
+    return blockLabels[blockNum]
+  }
   return `Block ${blockNum}`
 }
 
-export function getBlockLabels(blockCount) {
+export function getBlockLabels(blockCount, blockLabels) {
   const blocks = getBlocks(blockCount)
-  return Object.fromEntries(blocks.map(b => [b, getBlockLabel(b)]))
+  return Object.fromEntries(blocks.map(b => [b, getBlockLabel(b, blockLabels)]))
 }
 
 // Days of week per EXTRACT(DOW): 0=Sun, 1=Mon, ..., 6=Sat

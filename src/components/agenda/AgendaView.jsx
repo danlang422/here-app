@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import AgendaGrid from './AgendaGrid'
 import { timeToMinutes, floorToHour, ceilToHour, DEFAULT_GRID_START, DEFAULT_GRID_END } from './agendaUtils'
 
-function AgendaView({ activities, enrollmentCountByActivity, blockCount }) {
+function AgendaView({ activities, enrollmentCountByActivity, blockCount, blockLabels }) {
   const gridBounds = useMemo(() => {
     if (activities.length === 0) {
       return { start: DEFAULT_GRID_START, end: DEFAULT_GRID_END }
@@ -40,6 +40,7 @@ function AgendaView({ activities, enrollmentCountByActivity, blockCount }) {
       gridStartMinutes={gridStartMinutes}
       gridEndMinutes={gridEndMinutes}
       blockCount={blockCount}
+      blockLabels={blockLabels}
     />
   )
 }
