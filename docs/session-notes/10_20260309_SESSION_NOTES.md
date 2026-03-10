@@ -154,3 +154,36 @@ Dashboard was accessing `orgSettings?.settings?.block_count` — since `useOrgSe
 - Block times are stored in the default schedule template (`schedule_templates` row with `is_default = true`), not in org settings. The "template" abstraction is invisible to the admin.
 - The `blockLabels` prop threading stops at components that already have orgSettings (ActivityDetail, AgendaGrid, ActivityTable). Components deep in the tree without settings access (AgendaCard, EnrollmentPanel) continue using the fallback `"Block N"` format — acceptable for v1.
 - Term FK cascade migration (`20260310000000`) was pre-applied by the user before this session started.
+
+---
+
+## 10.5 — Calendar Management Spec (Design Only)
+
+Designed the calendar management feature through discussion, resulting in a build spec at `docs/user-flows/calendar-management-build-spec.md`. No code changes — design and spec writing only.
+
+### Key Design Decisions
+
+**1. Per-reason rotation advancement replaces global toggle.** The `rotation_mode` setting (continue/repeat) is being deprecated. Instead, the rotation algorithm inspects `override_reason` on each `school_days` row: planned holidays (`planned_holiday`) don't advance the rotation, while unscheduled cancellations (`weather`, `emergency`) do. This better matches how districts actually manage A/B day calendars — breaks are pre-planned and the rotation pauses over them, but snow days consume a rotation slot. The "On cancellation" radio buttons in the Rotation Days settings section will be removed and replaced with explanatory helper text.
+
+**2. Calendar exists independently of terms.** The month grid UI is always navigable and shows the current month by default, regardless of whether terms or school days have been defined. It populates as terms are created and school days generated.
+
+**3. School day auto-generation on term save.** When a term is created, weekday `school_days` rows are generated for the full date range with rotation labels calculated from the term start. Edit scenarios (extend, shrink, start date change) preserve existing overrides while regenerating/recalculating as needed.
+
+**4. Bulk date-range exception marking.** Essential for breaks — a "Mark Range" tool allows selecting a start/end date, picking a reason and optional note (e.g., "Spring Break"), and marking all weekdays in the range as non-school days in one action.
+
+**5. Between-term days are interactive.** Days outside any term's date range can still be annotated (e.g., marking the gap between semesters as "Winter Break"). These are informational — they don't affect rotation calculations — but they let the admin build a complete calendar picture.
+
+**6. Weekday-only grid.** The calendar shows Mon–Fri columns only. Weekends are omitted since they're never school days.
+
+### Spec Scope
+
+- Calendar month grid component with color-coded day types and rotation labels
+- School day generation logic (weekday enumeration, rotation calculation)
+- Exception management (single-day popover, date-range tool)
+- Updated rotation algorithm in `rotation.js`
+- Settings page integration (calendar section, generation wired to term save, rotation section simplified)
+- 9-step build order: rotation algorithm → generation logic → hooks/API → term integration → calendar grid → day popover → range tool → rotation recalculation → cleanup
+
+### Open for Review
+
+Spec is complete but will be reviewed before passing to implementation. Possible adjustments around calendar grid sizing/placement on the settings page and interaction details for the Mark Range tool.
