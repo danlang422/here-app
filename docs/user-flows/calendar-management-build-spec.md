@@ -1,9 +1,9 @@
 # Calendar Management — Build Spec
 
-**Date:** March 9, 2026
+**Date:** March 9, 2026 (revised March 10, 2026)
 **Context:** Admin interface for managing the school calendar: generating school days from terms, marking exceptions (holidays, cancellations), and calculating rotation days. Builds on the org settings work (block schedule, terms, rotation day names) completed in the previous session. The schema infrastructure (`school_days`, `schedule_templates`, `academic_terms`) and API functions (`calendar.js`) already exist — this spec adds the UI and generation logic.
 
-**Scope:** Calendar month grid UI, school day auto-generation on term save, exception management (single-day and date-range), and an updated rotation algorithm that uses per-reason advancement instead of a global toggle.
+**Scope:** Settings page layout restructure (two-column), calendar month grid UI, school day auto-generation on term save, exception management (single-day and date-range via popover), and an updated rotation algorithm that uses per-reason advancement instead of a global toggle.
 
 **Design principle:** The calendar exists independently of terms. It's always navigable, always shows the current month by default, and becomes populated with school day data as terms are defined. Exceptions can be added even outside of term boundaries (informational annotation). The calendar is a visual tool for understanding the school year at a glance.
 
@@ -11,68 +11,105 @@
 
 ## What Gets Built
 
-### 1. Calendar Month Grid UI
+### 1. Settings Page Layout Restructure
 
-Compact month grid on the Org Settings page showing school days, rotation labels, and exceptions with color coding.
+Convert the current single-column settings layout to a two-column layout: settings cards stacked on the left, calendar pinned on the right. The calendar is always visible alongside the settings it depends on — term saves, rotation changes, and block edits are immediately reflected in the calendar.
 
-### 2. School Day Generation
+### 2. Calendar Month Grid UI
+
+Compact month grid showing school days, rotation labels, and exceptions with color coding.
+
+### 3. School Day Generation
 
 Auto-generate `school_days` rows when a term is created or edited. Weekdays within the term range become school days with calculated rotation labels.
 
-### 3. Exception Management
+### 4. Exception Management
 
-Single-day click to toggle exceptions, plus a date-range tool for bulk marking (spring break, winter break, etc.). Override reasons (`planned_holiday`, `weather`, `emergency`) with optional notes.
+Single-day and date-range exception marking, both initiated from a day-click popover. Override reasons (`planned_holiday`, `weather`, `emergency`) with optional notes.
 
-### 4. Rotation Algorithm Update
+### 5. Rotation Algorithm Update
 
 Replace the global `rotation_mode` toggle with per-reason advancement logic. Planned holidays don't advance the rotation; unscheduled cancellations (weather/emergency) do.
 
-### 5. Settings Page Cleanup
+### 6. Settings Page Cleanup
 
 Remove "On cancellation" radio buttons from Rotation Days section. Deprecate `rotation_mode` in org settings.
 
 ---
 
-## 1. Calendar Month Grid UI
+## 1. Settings Page Layout Restructure
+
+### Current state
+
+The OrgSettings page uses `space-y-6 max-w-3xl` — three cards (Block Schedule, Academic Terms, Rotation Days) stacked in a single narrow column. On typical admin screens, this leaves significant unused horizontal space.
+
+### New layout
+
+Two-column responsive grid. Left column: settings cards stacked vertically (Block Schedule, Academic Terms, Rotation Days). Right column: calendar, pinned at the top so it remains visible as the admin scrolls through settings.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Settings                                                            │
+│  Organization schedule configuration                                 │
+│                                                                      │
+│  ┌──────────────────────────┐    ┌────────────────────────────────┐  │
+│  │ Block Schedule            │    │ School Calendar   [◀ Mar 2026 ▶] │
+│  │ ...                       │    │                                │  │
+│  ├──────────────────────────┤    │  Mon  Tue  Wed  Thu  Fri       │  │
+│  │ Academic Terms            │    │  ┌────┬────┬────┬────┬────┐   │  │
+│  │ ...                       │    │  │ 2  │ 3  │ 4  │ 5  │ 6  │   │  │
+│  ├──────────────────────────┤    │  │ A  │ B  │ A  │ B  │ A  │   │  │
+│  │ Rotation Days             │    │  ├────┼────┼────┼────┼────┤   │  │
+│  │ ...                       │    │  │ 9  │10  │11  │12  │13  │   │  │
+│  └──────────────────────────┘    │  │ B  │ A  │ B  │ A  │ B  │   │  │
+│                                   │  ├────┼────┼────┼────┼────┤   │  │
+│                                   │  │░16 │░17 │░18 │░19 │░20 │   │  │
+│                                   │  ├────┼────┼────┼────┼────┤   │  │
+│                                   │  │ 23 │ 24 │ 25 │ 26 │ 27 │   │  │
+│                                   │  │ A  │ B  │ A  │ B  │ A  │   │  │
+│                                   │  └────┴────┴────┴────┴────┘   │  │
+│                                   │  Legend: ■ School  ░ Holiday   │  │
+│                                   └────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Implementation
+
+Replace the current `<div className="space-y-6 max-w-3xl">` wrapper with a responsive two-column grid:
+
+```jsx
+<div className="grid grid-cols-1 lg:grid-cols-[minmax(0,_2fr)_minmax(0,_3fr)] gap-6">
+  {/* Left column: settings cards */}
+  <div className="space-y-6">
+    <BlockScheduleSection ... />
+    <AcademicTermsSection ... />
+    <RotationDaysSection ... />
+  </div>
+
+  {/* Right column: calendar */}
+  <div className="lg:sticky lg:top-4 lg:self-start">
+    <CalendarGrid ... />
+  </div>
+</div>
+```
+
+**Responsive behavior:** On screens below the `lg` breakpoint, the grid collapses to a single column with the calendar appearing below the settings cards. The `sticky` positioning only applies at `lg` and above.
+
+**Column proportions:** The left column (settings) is narrower (`2fr`) since the cards are form-based and don't need much width. The right column (calendar) is wider (`3fr`) to give the month grid comfortable cell sizing. The exact ratio can be tuned during implementation — the calendar needs roughly 400–500px minimum to render 5 day columns comfortably.
+
+### Why this matters
+
+The calendar reacts live to settings changes. When the admin saves a term on the left, school days populate on the calendar on the right immediately (via React Query cache invalidation). When rotation settings change, the calendar re-renders with updated labels. This side-by-side layout makes that feedback loop visible without scrolling.
+
+---
+
+## 2. Calendar Month Grid UI
 
 ### Placement
 
-The calendar sits as a new section on the Org Settings page (`/admin/settings`), positioned between Academic Terms and Rotation Days. It spans the same card width as the other sections.
+The calendar lives in the right column of the two-column settings layout (see section 1). It's wrapped in its own card with the same styling as the settings cards.
 
 The calendar is always visible and navigable, regardless of whether terms or school days exist. If no terms are defined, it's an empty calendar showing month/day structure only. As terms are created and school days generated, the calendar populates.
-
-### Layout
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  School Calendar            [◀ Mar 2026 ▶]  [Mark Range]   │
-│                                                             │
-│  Mon    Tue    Wed    Thu    Fri    (Sat/Sun hidden)        │
-│  ┌──────┬──────┬──────┬──────┬──────┐                      │
-│  │      │      │      │      │      │                      │
-│  │  2   │  3   │  4   │  5   │  6   │                      │
-│  │  A   │  B   │  A   │  B   │  A   │                      │
-│  ├──────┼──────┼──────┼──────┼──────┤                      │
-│  │      │      │      │      │      │                      │
-│  │  9   │  10  │  11  │  12  │  13  │                      │
-│  │  B   │  A   │  B   │  A   │  B   │                      │
-│  ├──────┼──────┼──────┼──────┼──────┤                      │
-│  │░░░░░░│░░░░░░│░░░░░░│░░░░░░│░░░░░░│                      │
-│  │░ 16 ░│░ 17 ░│░ 18 ░│░ 19 ░│░ 20 ░│  ← Spring break    │
-│  │░░░░░░│░░░░░░│░░░░░░│░░░░░░│░░░░░░│    (planned_holiday) │
-│  ├──────┼──────┼──────┼──────┼──────┤                      │
-│  │      │      │      │      │      │                      │
-│  │  23  │  24  │  25  │  26  │  27  │                      │
-│  │  A   │  B   │  A   │  B   │  A   │  ← rotation resumed │
-│  ├──────┼──────┼──────┼──────┼──────┤    (no advancement   │
-│  │      │      │      │      │      │     over break)      │
-│  │  30  │  31  │      │      │      │                      │
-│  │  B   │  A   │      │      │      │                      │
-│  └──────┴──────┴──────┴──────┴──────┘                      │
-│                                                             │
-│  Legend: ■ School day  ░ Planned holiday  ▓ Cancellation    │
-└─────────────────────────────────────────────────────────────┘
-```
 
 ### Grid behavior
 
@@ -98,37 +135,45 @@ The calendar is always visible and navigable, regardless of whether terms or sch
 
 Rotation day labels are colored to match the rotation day name. This is displayed using a small badge or the letter itself in a distinct color. For MVP, use two fixed colors (e.g., blue for the first rotation day name, green for the second). Future enhancement: customizable rotation day colors in org settings.
 
-### Click interaction
+### Click interaction — Day Popover
 
-**Single click on a school day:** Opens a small popover or inline panel with:
+Every day cell click opens a popover anchored to the clicked cell. The popover handles both single-day and range-based exception management — there is no separate "Mark Range" button in the calendar header.
+
+**Single click on a school day:** Popover shows:
 - Date (e.g., "Monday, March 9, 2026")
-- Current status (School day / Holiday / Cancelled)
-- Toggle: "Mark as day off" (if currently a school day) or "Restore school day" (if currently an exception)
-- If marking as day off: reason selector (Planned holiday, Weather, Emergency)
-- Optional notes field
-- Save / Cancel buttons
+- Current status (School day)
+- **"Mark as day off"** action:
+  - Reason selector (Planned holiday, Weather, Emergency)
+  - Optional notes field
+  - Save / Cancel buttons
+- **"Mark range starting here"** action:
+  - End date picker (defaults to same day, admin picks the end of the range)
+  - Reason selector (Planned holiday, Weather, Emergency)
+  - Optional notes field (e.g., "Spring Break")
+  - Save / Cancel buttons
+  - On save, all **weekdays** between the clicked day and the selected end date are marked with the chosen reason and note
 
-**Single click on a non-school day (exception):** Same popover, showing current reason and notes, with option to restore or change the reason.
+**Single click on a non-school day (exception):** Popover shows:
+- Date and current status (Holiday / Cancelled)
+- Current reason and notes (read-only display)
+- **"Restore school day"** action
+- **"Change reason"** action (switch between planned_holiday / weather / emergency)
+- **"Mark range starting here"** — same as above, for extending an existing exception into a range
 
-**Single click on a day outside term range:** Same popover, but shows "Outside term range" status. Allows creating an informational `school_days` row with `is_school_day = false` and a reason/note (e.g., "Winter Break"). This doesn't affect rotation calculations — it's purely for calendar annotation.
+**Single click on a day outside term range:** Popover shows:
+- Date and "Outside term range" status
+- **"Add annotation"** action — creates an informational `school_days` row with `is_school_day = false` and a reason/note (e.g., "Winter Break"). This doesn't affect rotation calculations — it's purely for calendar annotation.
+- **"Mark range starting here"** — same range tool, for annotating multi-day breaks between terms
 
-### Mark Range tool
+### Popover UX notes
 
-A button in the calendar header ("Mark Range" or a date-range icon) that activates a range selection mode:
+The popover should be compact — not a full modal. It anchors to the clicked cell and dismisses on outside click or Cancel. The "mark range" and "mark single day" options can be presented as a simple toggle or tab within the popover (e.g., "This day" | "Date range" tabs), or the range option can be a secondary action below the single-day form. Implementer's choice on the exact layout, but the key requirement is that both actions are accessible from the same popover without a separate calendar-header button.
 
-1. Admin clicks "Mark Range"
-2. Admin clicks a start date on the calendar
-3. Admin clicks an end date (the range highlights as they hover)
-4. A popover appears asking for: reason (Planned holiday / Weather / Emergency) and optional note (e.g., "Spring Break")
-5. On confirm, all **weekdays** in the range are marked as `is_school_day = false` with the selected reason and note
-
-Alternative UX (simpler to implement): instead of click-to-select on the grid, the "Mark Range" button opens a small form with start date picker, end date picker, reason, and note. Less visual but avoids complex click-state management. Either approach works — implementer's choice based on complexity tolerance.
-
-For the range tool, if a day in the range already has an override (e.g., it was individually marked as weather cancellation), the bulk operation overwrites it with the new reason. This matches the intent — if you're marking a whole week as spring break, any previous per-day overrides in that week should be replaced.
+For range marking, if a day in the range already has an override (e.g., it was individually marked as weather cancellation), the bulk operation overwrites it with the new reason. This matches the intent — if you're marking a whole week as spring break, any previous per-day overrides in that week should be replaced.
 
 ---
 
-## 2. School Day Generation
+## 3. School Day Generation
 
 ### Trigger: Term save
 
@@ -137,7 +182,7 @@ When a term is created or updated via the Academic Terms section on the Org Sett
 **On term creation:**
 1. Generate one `school_days` row per weekday (Mon–Fri) between `start_date` and `end_date` inclusive
 2. All rows: `is_school_day = true`, `organization_id` from context, `schedule_template_id = null` (uses default template implicitly)
-3. Calculate `rotation_day` for each day using the updated per-reason algorithm (see section 4). Since this is a fresh generation, all days are school days, so the rotation simply alternates from the term start: day 0 = rotation_names[0], day 1 = rotation_names[1], etc.
+3. Calculate `rotation_day` for each day using the updated per-reason algorithm (see section 5). Since this is a fresh generation, all days are school days, so the rotation simply alternates from the term start: day 0 = rotation_names[0], day 1 = rotation_names[1], etc.
 4. Use `bulkUpsertSchoolDays()` from `calendar.js` (already exists)
 5. Invalidate the school days query cache
 
@@ -213,11 +258,11 @@ This is illustrative — the exact implementation may vary. The key points are: 
 
 ---
 
-## 3. Exception Management
+## 4. Exception Management
 
 ### Single-day exceptions
 
-Handled via the click-popover interaction on the calendar grid (described in section 1). On save:
+Handled via the day-click popover on the calendar grid (described in section 2). On save:
 
 1. Update the `school_days` row via `upsertSchoolDay()` (already exists in `calendar.js`)
 2. Set `is_school_day = false`, `override_reason`, and `notes`
@@ -233,9 +278,9 @@ Same popover, "Restore school day" action:
 
 ### Date-range exceptions
 
-Using the Mark Range tool (described in section 1). On confirm:
+Also initiated from the day-click popover (described in section 2) via the "Mark range starting here" action. On confirm:
 
-1. For each weekday in the range, upsert a `school_days` row with `is_school_day = false`, the selected `override_reason`, and the note
+1. For each weekday in the range (from the clicked day to the selected end date), upsert a `school_days` row with `is_school_day = false`, the selected `override_reason`, and the note
 2. Use `bulkUpsertSchoolDays()` for efficiency
 3. Recalculate rotation days for all days after the range start
 4. Invalidate cache
@@ -250,7 +295,7 @@ Whenever an exception is added, removed, or changed, the rotation days for subse
 
 ---
 
-## 4. Rotation Algorithm Update
+## 5. Rotation Algorithm Update
 
 ### New algorithm
 
@@ -296,7 +341,11 @@ The current `rotation.js` reads `orgSettings.rotation_mode` and branches on `'co
 
 ---
 
-## 5. Settings Page Changes
+## 6. Settings Page Changes
+
+### Layout restructure
+
+See section 1 for the full two-column layout change. The `OrgSettings` page component needs its wrapper updated and the `CalendarGrid` component added to the right column.
 
 ### Academic Terms section — generation integration
 
@@ -308,13 +357,13 @@ After a term is saved (create or update), trigger school day generation:
 3. Term is created via `createTerm()`
 4. School days are auto-generated for the term range
 5. Toast: "Term created. School days generated for [start] – [end]."
-6. Calendar section (if visible) refreshes to show the new school days
+6. Calendar (right column) refreshes to show the new school days
 
 **Edit flow (date change):**
 1. Admin edits a term's start or end date
 2. Admin clicks Save
 3. Term is updated via `updateTerm()`
-4. Regeneration logic runs (extend/shrink/recalculate as described in section 2)
+4. Regeneration logic runs (extend/shrink/recalculate as described in section 3)
 5. Toast describes what happened: "Term updated. Added school days for [new range]." or "Term updated. Removed school days after [new end date]."
 
 **Delete flow:**
@@ -353,23 +402,36 @@ The last line of helper text replaces the radio buttons — it explains the beha
 ### School day creation (term save)
 
 ```
-Admin saves term
+Admin saves term (left column)
   → createTerm() / updateTerm()
   → generateSchoolDays(orgId, start, end, orgSettings, existingDays)
   → bulkUpsertSchoolDays(newDays)
   → invalidate ['school-days', orgId] query
-  → calendar UI re-renders
+  → calendar (right column) re-renders with new school days
 ```
 
 ### Exception marking (calendar click)
 
 ```
-Admin clicks day → popover → marks as day off (reason: planned_holiday)
+Admin clicks day on calendar → popover → marks as day off (reason: planned_holiday)
   → upsertSchoolDay({ ...day, is_school_day: false, override_reason: 'planned_holiday', notes: '...' })
   → recalculateRotationDays(orgId, termStartDate, termEndDate, orgSettings)
   → bulkUpsertSchoolDays(updatedDays)  // only days whose rotation changed
   → invalidate ['school-days', orgId] query
-  → calendar UI re-renders with updated rotation labels
+  → calendar re-renders with updated rotation labels
+```
+
+### Range exception marking (calendar click → popover → range)
+
+```
+Admin clicks day on calendar → popover → "Mark range starting here"
+  → admin picks end date, reason, optional note
+  → for each weekday in range: upsert school_days row (is_school_day: false, override_reason, notes)
+  → bulkUpsertSchoolDays(rangeUpdates)
+  → recalculateRotationDays(orgId, termStartDate, termEndDate, orgSettings)
+  → bulkUpsertSchoolDays(rotationUpdates)
+  → invalidate ['school-days', orgId] query
+  → calendar re-renders
 ```
 
 ### Rotation recalculation
@@ -390,8 +452,7 @@ fetchSchoolDays(orgId, termStart, termEnd)
 | File | Purpose |
 |------|--------|
 | `src/components/calendar/CalendarGrid.jsx` | Month grid component with day cells, navigation, color coding |
-| `src/components/calendar/DayPopover.jsx` | Click popover for viewing/editing a single day's status |
-| `src/components/calendar/MarkRangeForm.jsx` | Date range exception form (inline or modal) |
+| `src/components/calendar/DayPopover.jsx` | Click popover for viewing/editing a single day's status and initiating range marking |
 | `src/hooks/useSchoolDays.js` | TanStack Query hook for fetching school days by date range |
 | `src/lib/business-logic/schoolDayGeneration.js` | Generation logic: weekday enumeration, rotation calculation for new days |
 
@@ -399,7 +460,7 @@ fetchSchoolDays(orgId, termStart, termEnd)
 
 | File | Changes |
 |------|--------|
-| `src/pages/admin/OrgSettings.jsx` | Add Calendar section, integrate generation into term save, remove rotation_mode radio buttons |
+| `src/pages/admin/OrgSettings.jsx` | Two-column layout, add CalendarGrid to right column, integrate generation into term save, remove rotation_mode radio buttons |
 | `src/lib/business-logic/rotation.js` | New per-reason algorithm replacing global rotation_mode |
 | `src/api/calendar.js` | Add `deleteSchoolDaysInRange()` for term deletion/shrinking |
 | `docs/business-logic/01-schedule-and-calendar.md` | Update rotation algorithm documentation |
@@ -434,17 +495,17 @@ The calendar component calculates `startDate` and `endDate` from the currently d
 
 ## Build Order
 
-1. **Rotation algorithm update** — Update `rotation.js` with per-reason logic. Update docs. Remove radio buttons from OrgSettings Rotation Days section. Low risk, no UI dependency.
-2. **School day generation logic** — `schoolDayGeneration.js` with weekday enumeration and rotation calculation. Pure functions, testable independently.
-3. **useSchoolDays hook + calendar API additions** — Hook for fetching school days by month. Add `deleteSchoolDaysInRange()` to `calendar.js`.
-4. **Term save → generation integration** — Wire generation into the term create/edit/delete flows in `OrgSettings.jsx`. This makes terms functional — saving a term populates the calendar.
-5. **CalendarGrid component** — Month grid rendering, day cells with color coding and rotation labels, month navigation.
-6. **DayPopover component** — Click interaction for single-day exception management.
-7. **MarkRangeForm component** — Bulk date-range exception marking.
+1. **Settings page layout restructure** — Convert OrgSettings from single-column `max-w-3xl` to two-column responsive grid. Right column is an empty card placeholder for the calendar. This is a prerequisite for everything else since it changes the page structure.
+2. **Rotation algorithm update** — Update `rotation.js` with per-reason logic. Update docs. Remove radio buttons from OrgSettings Rotation Days section. Low risk, no UI dependency.
+3. **School day generation logic** — `schoolDayGeneration.js` with weekday enumeration and rotation calculation. Pure functions, testable independently.
+4. **useSchoolDays hook + calendar API additions** — Hook for fetching school days by month. Add `deleteSchoolDaysInRange()` to `calendar.js`.
+5. **Term save → generation integration** — Wire generation into the term create/edit/delete flows in `OrgSettings.jsx`. This makes terms functional — saving a term populates the calendar.
+6. **CalendarGrid component** — Month grid rendering, day cells with color coding and rotation labels, month navigation. Drops into the right column placeholder from step 1.
+7. **DayPopover component** — Click interaction for single-day exception management AND range marking. Both "mark this day" and "mark range starting here" actions live in this popover.
 8. **Rotation recalculation on exception changes** — After any exception mutation, recalculate and update affected rotation labels.
 9. **API cleanup** — Consolidate duplicate term functions between `terms.js` and `calendar.js`.
 
-Steps 1–4 are the functional core (generation works, rotation is correct). Steps 5–7 are the UI. Step 8 ties exception management to rotation correctness. Step 9 is housekeeping.
+Steps 1–2 are structural prep (layout + algorithm). Steps 3–5 are the functional core (generation works, rotation is correct). Steps 6–7 are the UI. Step 8 ties exception management to rotation correctness. Step 9 is housekeeping.
 
 ---
 
@@ -454,4 +515,5 @@ Steps 1–4 are the functional core (generation works, rotation is correct). Ste
 - **Alternative schedule templates on specific days** — `school_days.schedule_template_id` exists for this, but the UI for assigning non-default templates to specific days is not part of this build. Comes with multi-template support.
 - **Calendar printing / export** — An admin might want to print the calendar or export it. Not in scope.
 - **Student/teacher calendar view** — This build is admin-only. Student and teacher views of the calendar are separate work.
-- **Drag interactions on the calendar** — Dragging across days to select a range (instead of the Mark Range form) could be a future UX enhancement.
+- **Drag interactions on the calendar** — Dragging across days to select a range (instead of the popover-based range tool) could be a future UX enhancement.
+- **Collapsible settings cards** — The left-column settings cards (particularly Block Schedule) could be made collapsible once set up. Not in scope for this build but worth considering once the layout is in place.
