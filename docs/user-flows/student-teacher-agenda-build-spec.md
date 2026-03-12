@@ -1,7 +1,7 @@
 # Student & Teacher Agenda Views — Build Spec
 
 **Date:** March 11, 2026
-**Status:** First draft — ready to review before build
+**Status:** Revised student-specific build spec `student-agenda-today-view-build-spec.md` - teacher flows need review and updated spec before build
 
 **Context:** The admin agenda view is built and working. This spec builds the equivalent views for the student (`TodayView`) and teacher (`Dashboard`) roles. Both are today-focused agenda views of the user's own schedule. They share layout DNA with the admin agenda but differ in purpose: students see their own schedule and have actions to take; teachers see their activities and rosters to manage.
 
