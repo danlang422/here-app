@@ -1,10 +1,10 @@
 # Student Agenda (TodayView) — Build Spec
 
 **Date:** March 12, 2026
-**Status:** Ready to review before build
+**Status:** Ready to build
 **Split from:** `student-teacher-agenda-build-spec.md` (student portion)
 
-**Context:** The admin agenda view is built and working. This spec builds the student equivalent — a today-focused view of the student's own schedule. It reuses the admin agenda's grid infrastructure (`AgendaGrid`, `AgendaDayColumn`, `agendaUtils`) directly.
+**Context:** The admin agenda view is built and working. This spec builds the student equivalent — a today-focused view of the student's own schedule. It reuses the admin agenda's positioning utilities (`agendaUtils`) directly and introduces a shared single-day grid wrapper (`SingleDayAgenda`) designed for reuse by the teacher agenda spec.
 
 **Design principle:** Build the view first, interactions second. This spec covers read display with placeholder action buttons. Check-in flows, status updates, presence waves, and posts are separate features to be layered on afterward.
 
@@ -14,43 +14,151 @@
 
 ## Layout
 
-The student agenda uses the same time-based grid layout as the admin agenda:
+The student agenda uses the same time-based positioning logic as the admin agenda:
 
 - Vertical time axis on the left (7 AM – 4 PM default, expanding to fit actual activity times)
 - Cards positioned vertically by `default_start_time` / `default_end_time`
-- Block overlay strips (from `AgendaBlockOverlay`) as visual reference bands
-- `AgendaGrid`, `AgendaDayColumn`, and `agendaUtils` are reused directly — no forking
+- Block overlay bands as visual reference (see Block Overlay section)
+- `agendaUtils` is reused directly for all time-to-pixel math — no forking
 
 The view is **today-first** with `<` `>` date navigation. Date state is local to the page component (`useState`), not Zustand — it's view-local and shouldn't persist across sessions.
 
 **Date header format:** Arrow buttons flanking the date label. Shows "Today" when viewing the current date; full date otherwise (e.g. "Mon, Mar 11").
 
+**Rotation day display (conditional):** If any of the student's enrolled activities (across all enrollments, not just today's filtered set) have a non-null `rotation_day_type`, append the rotation day label to the header: "Today, March 12 — A Day". This ensures students with rotation-dependent courses always see which rotation day it is. If none of the student's activities use rotation scheduling, the rotation label is omitted entirely — it would just be confusing noise for students whose schedule doesn't vary by rotation.
+
+The check is against the student's full set of enrolled activities (not filtered by today), because a student with an A-day-only course needs to see "B Day" on B days too — the absence of their rotation-dependent activity is itself meaningful information.
+
 **Non-school day behavior:** For MVP, allow navigating to any calendar date. On weekends, holidays, or other non-school days, show an empty state message (e.g. "No classes scheduled for this date"). This is simpler than requiring school day lookups to gate date navigation.
 
 ### Single-Column Layout
 
-Unlike the admin agenda which shows Mon–Fri columns simultaneously, the student view shows **one day at a time**. The student only cares about "what do I have today" (or on a specific date they've navigated to). The grid renders a single `AgendaDayColumn`.
+Unlike the admin agenda which shows Mon–Fri columns simultaneously, the student view shows **one day at a time**. The student only cares about "what do I have today" (or on a specific date they've navigated to).
 
 ```
 ┌──────────────────────────────────────────────┐
-│  ← Today, March 12 →                         │  ← date nav header
+│  ← Today, March 12 — A Day →                 │  ← date nav header (rotation label conditional)
 ├──────────────────────────────────────────────┤
-│  7a ┊                                        │
-│     ┊  ┌────────────────────────┬──────┐     │
-│     ┊  │ Biology               │  ✓   │     │
-│  8a ┊  │ Ms. Rodriguez         │      │     │
-│     ┊  │ 7:30a–9:00a · B0 · 204│  💬  │     │
-│     ┊  │ ◎                     │      │     │
-│  9a ┊  └────────────────────────┴──────┘     │
-│     ┊                                        │
-│     ┊  ┌────────────────────────┬──────┐     │
-│     ┊  │ Advisory              │  👋  │     │
-│ 10a ┊  │ Mr. Lang              │      │     │
-│     ┊  │ 9:05a–9:50a · B1      │  💬  │     │
-│     ┊  └────────────────────────┴──────┘     │
+│  7a ┊░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│  ← block overlay band
+│     ┊░░┌────────────────────────┬──────┐░░░░│
+│     ┊░░│ Biology               │  ✓   │░░░░│
+│  8a ┊░░│ Ms. Rodriguez         │      │░░░░│
+│     ┊░░│ 7:30a–9:00a · B0 · 204│  💬  │░░░░│
+│     ┊░░│ ◎                     │      │░░░░│
+│  9a ┊░░└────────────────────────┴──────┘░░░░│
+│     ┊                                        │  ← gap between blocks (passing period)
+│     ┊▓▓┌────────────────────────┬──────┐▓▓▓▓│  ← alternating block overlay tone
+│     ┊▓▓│ Advisory              │  👋  │▓▓▓▓│
+│ 10a ┊▓▓│ Mr. Lang              │      │▓▓▓▓│
+│     ┊▓▓│ 9:05a–9:50a · B1      │  💬  │▓▓▓▓│
+│     ┊▓▓└────────────────────────┴──────┘▓▓▓▓│
 │     ┊                                        │
 │     ┊         ...                             │
 └──────────────────────────────────────────────┘
+```
+
+---
+
+## Block Overlay
+
+The block overlay renders horizontal reference bands on the time grid, one per block that has defined times in the org's default schedule template. It connects the abstract "Block 2" label on a card to a visible region on the time axis. This is especially useful when activities don't perfectly align with block boundaries (e.g. a Kirkwood course assigned to Block 0 but only covering part of that time range).
+
+### Data Source
+
+Block time definitions come from the default `schedule_templates` row via `useDefaultScheduleTemplate(orgId)`. The template's `block_definitions` is a JSONB array where each entry has `{ block, start_time, end_time }`.
+
+### Visual Treatment
+
+- **Alternating subtle bands.** Two tones alternate across blocks: odd blocks and even blocks get different background colors. Use very low-opacity fills that don't compete with cards — e.g. `bg-primary/5` and `bg-secondary/5`, or `bg-base-200/30` and `bg-base-200/15`. The exact values should be tuned during build to feel like "tinted graph paper" — visible enough to orient, subtle enough to recede behind cards.
+- **Block label on the left edge.** Each band has a small label (e.g. "B0", "B1") anchored to the left edge, vertically centered within the band. Styling: `text-[10px] text-base-content/30 font-medium`. The label sits inside the band, not in the time axis column.
+- **Gaps between blocks stay empty.** If Block 0 ends at 9:00 and Block 1 starts at 9:05, the 5-minute gap is un-banded — naturally communicating passing periods.
+- **Blocks without times are not rendered.** If a block has no `start_time`/`end_time` in the template (or no template exists), no band or label is shown for that block. The overlay degrades gracefully to nothing when no block times are defined.
+
+### Positioning
+
+Each band is absolutely positioned within the grid using the same `agendaUtils` math as activity cards:
+- Top: `minutesToPx(timeToMinutes(block.start_time) - gridStartMinutes) + GRID_PAD_Y`
+- Height: `minutesToPx(timeToMinutes(block.end_time) - timeToMinutes(block.start_time))`
+- Width: full column width
+- Z-index: behind activity cards (render the overlay before cards in the DOM, or use `z-0` on overlay / `z-10` on cards)
+
+### Component
+
+`AgendaBlockOverlay` already exists as a stub (`src/components/agenda/AgendaBlockOverlay.jsx`) — it currently renders `null`. This build replaces the stub with a real implementation.
+
+**Props:**
+- `blockDefinitions` — array of `{ block, start_time, end_time }` from the schedule template (filtered to entries with both times defined)
+- `gridStartMinutes` — the grid's start time in minutes (for positioning math)
+- `blockLabels` — array of custom block labels from org settings (for the band label text; falls back to `"B{n}"`)
+
+**Shared across all agendas.** This component is used by the student `SingleDayAgenda`, and should also be usable by the teacher agenda and the admin `AgendaGrid`. Un-stubbing it for the admin agenda is a separate follow-up task (see GitHub Issues note below).
+
+### Future Enhancements
+
+- **Admin-defined block colors.** Let admins assign a color to each block in OrgSettings, replacing the alternating pattern with intentional per-block colors. Deferred — alternating is good enough for v1 and avoids settings UI overhead.
+- **Admin agenda un-stub.** The existing admin `AgendaGrid` passes `blockCount` and `gridStartMinutes` to the stub. It will need to also pass `blockDefinitions` and `blockLabels` to the real component. File a GitHub issue for this as a small follow-up task — it's not part of this spec's build scope but should happen soon after.
+
+---
+
+## SingleDayAgenda (Shared Grid Wrapper)
+
+`src/components/agenda/SingleDayAgenda.jsx`
+
+A lightweight single-column grid wrapper that renders the time axis, block overlay, and a column of children (activity cards). Designed for reuse by both the student `TodayView` and the teacher `Dashboard`.
+
+### Why Not Reuse AgendaGrid?
+
+The admin `AgendaGrid` is tightly coupled to admin concerns: `WEEKDAYS` multi-column layout, day header buttons with `uiStore` focus state, block filter label row at the bottom. Forcing it into single-column mode would require conditional logic and prop overrides that would make the admin component harder to maintain. The student and teacher agendas share more DNA with each other than with the admin agenda — both are "what's happening today for me" single-day views.
+
+### What It Reuses
+
+- All time-to-pixel math from `agendaUtils`: `timeToMinutes`, `minutesToPx`, `floorToHour`, `ceilToHour`, `activityTop`, `activityHeight`
+- Layout constants: `PX_PER_HOUR`, `TIME_COL_WIDTH`, `GRID_PAD_Y`
+- `AgendaBlockOverlay` for block reference bands
+
+### What It Does NOT Include
+
+- Multi-column day layout
+- Day header buttons
+- Block filter label row
+- `uiStore` focus state
+- Density/aggregate logic (that's card-level, not grid-level)
+
+### Props
+
+```js
+SingleDayAgenda.propTypes = {
+  activities: PropTypes.array.isRequired,       // activities for this day, pre-filtered
+  gridStartMinutes: PropTypes.number.isRequired, // derived from activities or defaults
+  gridEndMinutes: PropTypes.number.isRequired,
+  blockDefinitions: PropTypes.array,             // from schedule template (may be null/empty)
+  blockLabels: PropTypes.array,                  // from org settings
+  renderCard: PropTypes.func.isRequired,         // (activity) => <StudentActivityCard ... />
+}
+```
+
+The `renderCard` prop keeps the grid wrapper role-agnostic — the student view passes a function that renders `StudentActivityCard`, the teacher view will pass one that renders `TeacherActivityCard`. The wrapper handles positioning; the caller handles card content.
+
+### Render Structure
+
+```jsx
+<div className="flex border border-base-300 rounded-lg bg-base-100 overflow-hidden">
+  {/* Time axis */}
+  <div className="flex-shrink-0 border-r border-base-300 relative" style={{ width: TIME_COL_WIDTH, height: gridHeight }}>
+    {hourLabels}
+  </div>
+
+  {/* Card column */}
+  <div className="flex-1 relative" style={{ height: gridHeight }}>
+    {hourGridLines}
+    <AgendaBlockOverlay blockDefinitions={blockDefinitions} gridStartMinutes={gridStartMinutes} blockLabels={blockLabels} />
+    {activities.map(activity => (
+      <div key={activity.id} className="absolute left-2 right-2" style={{ top: activityTop(...), height: activityHeight(...) }}>
+        {renderCard(activity)}
+      </div>
+    ))}
+  </div>
+</div>
 ```
 
 ---
@@ -65,7 +173,7 @@ A shared utility function `ensureActivityInstances(activityIds, date, orgId)` ha
 
 ## Student Activity Card
 
-Cards are positioned and sized by time, same as admin. No density or aggregate logic is needed — a student will never have two activities in the same block (enrollment validation prevents it). Each card is always a full-width single-card display.
+Cards are positioned and sized by time via `SingleDayAgenda`. No density or aggregate logic is needed — a student will never have two activities in the same block (enrollment validation prevents it). Each card is always a full-width single-card display.
 
 ### Two-Zone Card Layout
 
@@ -157,10 +265,13 @@ Fetches all activities the student is enrolled in that meet on the given date.
 
 **Query strategy:** Fetch the student's active enrollments joined to activities and teacher profiles. Apply `activityMeetsToday` filtering client-side after fetch, since the full predicate (rotation day matching, day-of-week, date range, active status, school day check) is complex and partially depends on the school day record for the date.
 
-**Returns:** `{ activities, schoolDay, isLoading, error }`
+**Returns:** `{ activities, allActivities, schoolDay, isLoading, error }`
 
-- `activities`: Array of activity objects enriched with teacher profile data, sorted by `default_start_time`
-- `schoolDay`: The school day record for the given date (needed for rotation day matching and for displaying "A Day" / "B Day" in the header if desired)
+- `activities`: Array of activity objects enriched with teacher profile data, filtered to those meeting today, sorted by `default_start_time`
+- `allActivities`: The unfiltered set of enrolled activities (needed for the rotation day header check — see below)
+- `schoolDay`: The school day record for the given date (needed for rotation day matching and for displaying rotation label in the header)
+
+**Rotation day header derivation:** The `TodayView` component checks whether `allActivities.some(a => a.rotation_day_type != null)`. If true, it reads `schoolDay.rotation_day` and appends it to the date header. This uses the full enrollment set (not today-filtered) so that a student with an A-day course sees the rotation label on B days too.
 
 **Dependencies:**
 - Fetches enrollments for the student: `enrollments` → `activities` → `user_profiles` (teacher)
@@ -200,6 +311,7 @@ export async function ensureActivityInstances(activityIds, orgId, date) { ... }
 
 - `useSchoolDays(orgId, date, date)` from `src/hooks/useSchoolDays.js` — fetches the school day record for the target date (needed for rotation day matching)
 - `useOrgSettings(orgId)` from `src/hooks/useOrgSettings.js` — block count, block labels, rotation day names
+- `useDefaultScheduleTemplate(orgId)` from `src/hooks/useScheduleTemplate.js` — block time definitions for the overlay
 - `upsertActivityInstance` from `src/api/instances.js` — called by `ensureActivityInstances`
 
 ---
@@ -211,6 +323,7 @@ export async function ensureActivityInstances(activityIds, orgId, date) { ... }
 | File | Purpose |
 |------|---------|
 | `src/pages/student/TodayView.jsx` | Replace existing placeholder. Page component with date nav and agenda grid. |
+| `src/components/agenda/SingleDayAgenda.jsx` | Shared single-column grid wrapper with time axis and block overlay. Reused by teacher spec. |
 | `src/components/agenda/StudentActivityCard.jsx` | Student-specific card with two-zone layout (content + action strip). |
 | `src/components/agenda/CardActions.jsx` | Renders action buttons for the strip. Isolated for future mobile overlay swap. |
 | `src/hooks/useStudentAgenda.js` | Fetches student's enrolled activities for a date. |
@@ -221,7 +334,9 @@ export async function ensureActivityInstances(activityIds, orgId, date) { ... }
 
 | File | Change |
 |------|--------|
-| None | This build creates new files only. Existing agenda components (`AgendaGrid`, `AgendaDayColumn`, `agendaUtils`, `AgendaBlockOverlay`) are reused as-is. |
+| `src/components/agenda/AgendaBlockOverlay.jsx` | Replace stub with real implementation. No changes to its usage in admin `AgendaGrid` — the admin still passes the existing props and gets `null` until the admin follow-up task adds `blockDefinitions`. |
+
+**Note on AgendaBlockOverlay backward compatibility:** The stub currently accepts `{ blockCount, gridStartMinutes }` and renders `null`. The real implementation accepts `{ blockDefinitions, gridStartMinutes, blockLabels }`. The admin `AgendaGrid` still passes the old props — since `blockDefinitions` will be `undefined`, the component renders nothing (same as the stub). The admin follow-up task will add the `blockDefinitions` prop to `AgendaGrid`. This means the un-stub is non-breaking for the admin view.
 
 **Note on card components:** The existing `AgendaCard` is admin-specific in its content and density logic. Rather than adding role-conditional props, `StudentActivityCard` is a separate component. It shares grid positioning logic (via `agendaUtils`) but has its own content layout. The student card is always rendered at `single` density — no density switching needed.
 
@@ -229,24 +344,17 @@ export async function ensureActivityInstances(activityIds, orgId, date) { ... }
 
 ```
 TodayView
-├── DateNavHeader (inline — prev/next buttons + date label)
-├── AgendaGrid (reused — configured for single-column)
+├── DateNavHeader (inline — prev/next buttons + date label + conditional rotation day)
+├── SingleDayAgenda (new shared wrapper)
 │   ├── Time axis (left)
-│   ├── AgendaBlockOverlay (reused — stub for now)
-│   └── AgendaDayColumn (reused — single column for the target date)
+│   ├── AgendaBlockOverlay (real implementation — renders block bands from schedule template)
+│   ├── Hour grid lines
+│   └── Positioned activity cards (via renderCard prop)
 │       └── StudentActivityCard (one per activity)
 │           ├── Content area (name, staff, time/block/location, property icons)
 │           └── CardActions (action strip with placeholder buttons)
 └── Empty state (shown on non-school days or when no activities)
 ```
-
-### AgendaGrid / AgendaDayColumn Reuse
-
-The student view passes a single-element `visibleDays` array to `AgendaGrid` (or renders a single `AgendaDayColumn` directly, bypassing `AgendaGrid`'s multi-column layout). The simpler approach: render `AgendaDayColumn` directly in `TodayView` with the time axis, skipping the day-header row and block filter buttons that are admin concerns.
-
-**Decision:** Create a lightweight wrapper rather than forcing `AgendaGrid` into single-column mode. The wrapper reuses `agendaUtils` for time-to-pixel math, renders the time axis, and places a single `AgendaDayColumn`-style column. This avoids conditional logic in the admin component while reusing all the positioning math.
-
-Alternatively, if `AgendaGrid` cleanly supports receiving a single visible day, use it directly. Evaluate during build — the goal is zero changes to existing admin components.
 
 ---
 
@@ -262,8 +370,9 @@ function TodayView() {
   const studentId = profile?.id
 
   // Fetch student's activities + school day for the date
-  const { activities, schoolDay, isLoading } = useStudentAgenda(studentId, date, orgId)
+  const { activities, allActivities, schoolDay, isLoading } = useStudentAgenda(studentId, date, orgId)
   const { data: orgSettings } = useOrgSettings(orgId)
+  const { data: template } = useDefaultScheduleTemplate(orgId)
 
   // Ensure instances exist for today's activities (fire-and-forget on render)
   useEffect(() => {
@@ -278,13 +387,24 @@ function TodayView() {
   const goToToday = () => setDate(new Date())
   const isToday = isSameDay(date, new Date())
 
-  // Derive grid bounds from activities
-  // (reuse floorToHour/ceilToHour from agendaUtils)
+  // Rotation day display — conditional on student having rotation-dependent activities
+  const usesRotation = allActivities?.some(a => a.rotation_day_type != null) ?? false
+  const rotationLabel = usesRotation && schoolDay?.rotation_day
+    ? orgSettings?.rotation_day_names?.[/* index from rotation_day */] ?? schoolDay.rotation_day
+    : null
+
+  // Block overlay data
+  const blockDefinitions = (template?.block_definitions ?? [])
+    .filter(d => d.start_time && d.end_time)
+  const blockLabels = orgSettings?.block_labels ?? []
+
+  // Derive grid bounds from activities (reuse floorToHour/ceilToHour from agendaUtils)
+  // ...
 
   return (
     <div>
-      {/* Date nav header */}
-      {/* Grid with time axis + single column of StudentActivityCards */}
+      {/* Date nav header — includes rotationLabel if non-null */}
+      {/* SingleDayAgenda with activities, blockDefinitions, renderCard */}
       {/* Empty state for non-school days or no activities */}
     </div>
   )
@@ -322,13 +442,17 @@ Build bottom-up so each piece can be tested independently.
 
 2. **`src/api/agenda.js`** — `getStudentActivitiesForDate` (enrollment join query) and `ensureActivityInstances` (batch upsert wrapper). These are straightforward Supabase queries.
 
-3. **`src/hooks/useStudentAgenda.js`** — wraps the API call with TanStack Query, fetches the school day record, applies `activityMeetsToday` filtering client-side, sorts by `default_start_time`.
+3. **`src/hooks/useStudentAgenda.js`** — wraps the API call with TanStack Query, fetches the school day record, applies `activityMeetsToday` filtering client-side, sorts by `default_start_time`. Returns both `activities` (filtered) and `allActivities` (unfiltered, for rotation check).
 
-4. **`src/components/agenda/CardActions.jsx`** — renders action buttons in a vertical strip. Props: `requiresCheckin`, `allowsPresenceWave`, `hasInstance`. All buttons are placeholders (correct icons, disabled/no-op). Isolated component for future mobile overlay swap.
+4. **`src/components/agenda/AgendaBlockOverlay.jsx`** — replace stub with real implementation. Render alternating subtle bands for each block with defined times. Block label on left edge. Accept `blockDefinitions`, `gridStartMinutes`, `blockLabels` props. Render nothing if `blockDefinitions` is empty/undefined (backward compatible with admin's current prop passing).
 
-5. **`src/components/agenda/StudentActivityCard.jsx`** — two-zone layout with content area and `CardActions` strip. Props: `activity`, `staffDisplayName`, `blockLabel`. No click handler on the card itself.
+5. **`src/components/agenda/SingleDayAgenda.jsx`** — shared single-column grid wrapper. Time axis, hour grid lines, `AgendaBlockOverlay`, positioned cards via `renderCard` prop. Uses `agendaUtils` for all math. Designed for teacher agenda reuse.
 
-6. **`src/pages/student/TodayView.jsx`** — assemble the page: date nav header, time axis + single-column card layout using `agendaUtils` positioning math, empty state, instance upsert effect.
+6. **`src/components/agenda/CardActions.jsx`** — renders action buttons in a vertical strip. Props: `requiresCheckin`, `allowsPresenceWave`, `hasInstance`. All buttons are placeholders (correct icons, disabled/no-op). Isolated component for future mobile overlay swap.
+
+7. **`src/components/agenda/StudentActivityCard.jsx`** — two-zone layout with content area and `CardActions` strip. Props: `activity`, `staffDisplayName`, `blockLabel`. No click handler on the card itself.
+
+8. **`src/pages/student/TodayView.jsx`** — assemble the page: date nav header (with conditional rotation label), `SingleDayAgenda` with activities and block overlay data, empty state, instance upsert effect.
 
 ---
 
@@ -345,15 +469,28 @@ Build bottom-up so each piece can be tested independently.
 - Mobile-optimized layout (overlay action buttons)
 - Schedule template–derived times (block times shift on 2-hour delay days, etc.)
 - Teacher agenda, roster modal, and attendance marking (separate spec)
+- Admin-defined block colors (future enhancement for block overlay)
 
 ---
 
-## Open Questions
+## Resolved Decisions
 
-1. **`activityMeetsToday` implementation.** Confirm `docs/business-logic/01-schedule-and-calendar.md` is current before implementing. This is the most complex part of the data layer. The algorithm documented there should be implemented faithfully as the single source of truth.
+Decisions made during spec review, documented here for context.
 
-2. **Rotation day display.** Should the date nav header show the rotation day label (e.g. "Today, March 12 — A Day") when the org uses rotation schedules? Useful for students who have rotation-dependent external courses. Low effort to add — just read `schoolDay.rotation_day` and append if non-null.
+1. **Block overlay: alternating bands.** Two subtle alternating tones rather than per-block colors. Admin-defined block colors deferred as a future enhancement.
 
-3. **AgendaGrid reuse vs. lightweight wrapper.** The admin `AgendaGrid` renders 5 day columns with headers and block filter buttons. The student view needs a single column with none of that chrome. Evaluate during build: can `AgendaGrid` accept a single visible day cleanly, or is a lightweight single-column wrapper simpler? Either way, reuse `agendaUtils` for all positioning math.
+2. **Block overlay: no times = no render.** Blocks without defined `start_time`/`end_time` in the schedule template do not render a band or label. If no template exists, the overlay renders nothing. Block labels without times have no meaningful position on the time axis.
 
-4. **Date navigation and school day awareness.** MVP allows navigating to any date, including weekends. Future enhancement: skip non-school days when navigating (requires school day lookups for adjacent dates). Document this as a potential polish item.
+3. **Rotation day display: conditional on enrollment.** The rotation label appears in the date header only if the student has at least one enrolled activity (across all enrollments) with `rotation_day_type != null`. Students whose schedules don't vary by rotation never see the label.
+
+4. **SingleDayAgenda wrapper over AgendaGrid reuse.** The admin `AgendaGrid` is too coupled to admin concerns (multi-column, day focus, block filter buttons, `uiStore`). A new `SingleDayAgenda` wrapper reuses `agendaUtils` for positioning math and is designed for reuse by both student and teacher views.
+
+5. **Date navigation: any date, empty state on non-school days.** No school day lookups for navigation gating in MVP. Future polish: skip non-school days.
+
+6. **`activityMeetsToday`: verify business logic doc before implementing.** `docs/business-logic/01-schedule-and-calendar.md` is the single source of truth for the algorithm.
+
+---
+
+## Follow-Up Tasks (outside this spec)
+
+- **GitHub Issue: Un-stub `AgendaBlockOverlay` for admin `AgendaGrid`.** The real overlay component is built as part of this spec, but the admin `AgendaGrid` needs to pass `blockDefinitions` and `blockLabels` as props (from `useDefaultScheduleTemplate` + org settings). Small task — add the hook call and prop passing in `Dashboard.jsx` / `AgendaGrid.jsx`.
