@@ -9,26 +9,20 @@ export async function getStudentActivitiesForDate(studentId, orgId) {
     .from('enrollments')
     .select(`
       *,
-      activity:activities!inner(
-        *,
-        teacher:user_profiles!activities_teacher_id_fkey(
-          id, first_name, last_name, preferred_name
-        )
-      )
+      activity:activities!inner(*)
     `)
     .eq('student_id', studentId)
     .eq('is_active', true)
-    .eq('activity.organization_id', orgId)
-    .eq('activity.is_active', true)
 
   if (error) throw error
 
-  // Flatten: return activity objects with teacher embedded
-  return data.map((enrollment) => ({
-    ...enrollment.activity,
-    enrollment_id: enrollment.id,
-    enrollment_block: enrollment.block,
-  }))
+  return data
+    .filter((enrollment) => enrollment.activity?.is_active)
+    .map((enrollment) => ({
+      ...enrollment.activity,
+      enrollment_id: enrollment.id,
+      enrollment_block: enrollment.block,
+    }))
 }
 
 // Batch-ensure activity instances exist for a set of activities on a date.
