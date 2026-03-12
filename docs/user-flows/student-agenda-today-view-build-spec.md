@@ -144,7 +144,7 @@ The `renderCard` prop keeps the grid wrapper role-agnostic — the student view 
 ```jsx
 <div className="flex border border-base-300 rounded-lg bg-base-100 overflow-hidden">
   {/* Time axis */}
-  <div className="flex-shrink-0 border-r border-base-300 relative" style={{ width: TIME_COL_WIDTH, height: gridHeight }}>
+  <div className="shrink-0 border-r border-base-300 relative" style={{ width: TIME_COL_WIDTH, height: gridHeight }}>
     {hourLabels}
   </div>
 
