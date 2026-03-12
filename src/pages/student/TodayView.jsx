@@ -3,7 +3,6 @@ import useAuthStore from '@/store/authStore'
 import { useStudentAgenda } from '@/hooks/useStudentAgenda'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
-import { ensureActivityInstances } from '@/api/agenda'
 import { formatDateISO, addDays, subDays, isSameDay } from '@/lib/scheduleUtils'
 import { getBlockLabel } from '@/lib/constants'
 import SingleDayAgenda from '@/components/agenda/SingleDayAgenda'
@@ -27,17 +26,6 @@ function TodayView() {
     useStudentAgenda(studentId, date, orgId)
   const { data: orgSettings } = useOrgSettings(orgId)
   const { data: template } = useDefaultScheduleTemplate(orgId)
-
-  // Ensure instances exist for today's activities (fire-and-forget)
-  useEffect(() => {
-    if (activities.length > 0 && orgId) {
-      ensureActivityInstances(
-        activities.map((a) => a.id),
-        orgId,
-        formatDateISO(date)
-      )
-    }
-  }, [activities, orgId, date])
 
   // Date navigation
   const goToPrev = () => setDate((d) => subDays(d, 1))
