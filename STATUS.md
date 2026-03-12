@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** March 10, 2026 (session 11)
+**Last updated:** March 11, 2026 (session 12)
 
 ---
 
 ## Current State
 
-**Documentation:** Up to date. Schema docs and business logic docs are current. Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes through 11. User flow docs listed at bottom of this file.
+**Documentation:** Up to date. Schema docs and business logic docs are current. Architecture docs have status notes flagging where planned patterns differ from current implementation. Session notes through 12. User flow docs listed at bottom of this file.
 
 **Database:** V2 schema deployed with migrations through term FK cascade (`20260310000000`). City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activities.
 
@@ -18,8 +18,8 @@
 - **Enrollment Panel (Entry A)** — Activity-centric. FloatingPanel shell (draggable/minimizable), activity dropdown, two-zone student list, progressive conflict indicators, three-phase submit flow, post-conflict "create activity" action. Launched from activity row "Enroll" button. Spec: `enrollment-panel-build-spec.md`.
 - **Admin Dashboard** — Schedule-building workspace. Agenda view as centerpiece with toolbar stub. Time-based week grid with adaptive card density (single/few/aggregate), block grouping, day column headers, block label filters, click-to-zoom. Grid spans 7 AM–4 PM by default with vertical scroll. Aggregate card tooltips render multiline on hover. Spec: `agenda-view-build-spec.md`, design: `admin-dashboard.md`.
 - **Org Settings** — Admin page at `/admin/settings`. Three independently-saveable sections: Block Schedule (count, labels, times → default template), Academic Terms (CRUD, current term indicator, set-as-current), Rotation Days (toggle, day names, continue/repeat mode). Custom block labels flow to activity table, agenda grid, and activity detail. Spec: `org-settings-build-spec.md`.
-- **Calendar Management** — Spec written and revised (`calendar-management-build-spec.md`), not yet built. Two-column settings page layout, calendar month grid, school day generation from terms, exception management via day-click popover (single-day and date-range), per-reason rotation algorithm.
-- **Remaining admin pages** (Calendar, Reports) are placeholders.
+- **Calendar Management** — Built (session 11.2). Two-column settings layout, calendar month grid, school day generation from terms, exception management via day-click popover (single-day and date-range), per-reason rotation algorithm. Known bug: cross-month date ranges fail (issue #12). Spec: `calendar-management-build-spec.md`.
+- **Remaining admin pages** (Reports) is placeholder.
 
 **Hooks/state layer:** Custom hooks in `src/hooks/` (useActivities, useUsers, useStudents, useStaffUsers, useOrgSettings, useEnrollments, useDefaultScheduleTemplate, useTerms) wrap API functions with TanStack Query. Zustand stores for auth and UI state (including agenda focus state). Enrollment validation utilities in `src/lib/enrollmentValidation.js` — block-based and time-based conflict detection.
 
@@ -29,7 +29,7 @@ Decisions that are settled and documented in CLAUDE.md or `docs/` are not repeat
 
 **Dashboard architecture:** Agenda view as centerpiece. Toolbar above with filters, property toggle icons, and panel-summoning buttons. Floating panels for Activities, Enrollment, and Settings/Calendar (future). Activity/User Management remain as dedicated pages — not embedded in the dashboard. Details in `admin-dashboard.md`.
 
-**Build order:** Agenda view, toolbar stub, dashboard rebuild, bulk user entry, activity detail modal + form redesign, block cascade, activity type removal, and org settings UI are done. Next: calendar management → agenda view fixes/polish → Activity Panel → dashboard composition.
+**Build order:** Agenda view, toolbar stub, dashboard rebuild, bulk user entry, activity detail modal + form redesign, block cascade, activity type removal, org settings, and calendar management are done. Shifting focus to student and teacher role views. Admin agenda fixes/polish and Activity Panel deferred. Next: student & teacher agenda views → check-in flows → status updates.
 
 **Rotation algorithm redesign (decided, not built).** The global `rotation_mode` setting (continue/repeat) is being replaced by per-reason advancement logic: planned holidays don't advance the rotation, while unscheduled cancellations (weather/emergency) do. This is determined by `override_reason` on `school_days` rows, not a global toggle. The "On cancellation" radio buttons in Rotation Days settings will be removed. See `calendar-management-build-spec.md`.
 
@@ -55,7 +55,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Key i
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Calendar management (spec ready) → Agenda view bug fix + polish → Activity Panel spec + build → Dashboard composition.
+**Current priority:** Student & teacher agenda views (spec: student-teacher-agenda-build-spec.md) → check-in flows → status updates.
 
 ---
 
@@ -80,6 +80,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `enrollment-panel-build-spec.md` | **Implemented** | Built in session 6.4. |
 | `schedule-action-map.md` | **Current** | Activity states, action validation, build phasing. |
 | `enrollment-and-floating-panels.md` | **Historical** | Original design exploration, not a build reference. |
-| `activity-detail-and-form-redesign-spec.md` | **Current** | Unified view/edit detail modal, form redesign, table changes. March 8, revised March 9. |
+| `activity-detail-and-form-redesign-spec.md` | **Implemented** | Unified view/edit detail modal, form redesign, table changes. March 8, revised March 9. |
 | `org-settings-build-spec.md` | **Implemented** | Block schedule, academic terms, rotation days, activity form enhancements. Built in session 10.4. |
-| `calendar-management-build-spec.md` | **Current** | School day generation, two-column settings layout, calendar grid, exception management, per-reason rotation algorithm. Designed session 10.5, revised session 11. |
+| `calendar-management-build-spec.md` | **Implemented** | School day generation, two-column settings layout, calendar grid, exception management, per-reason rotation algorithm. Designed session 10.5, revised session 11. |
+| `student-teacher-agenda-build-spec.md` | **Current** | Student TodayView and teacher Dashboard agenda specs. Session 12. |
