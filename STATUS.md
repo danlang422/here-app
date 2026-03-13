@@ -48,7 +48,6 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Items
 - **Raw fetch in useAuthListener (#9):** Don't refactor this until supabase-js upgrade. See CLAUDE.md.
 - **Cross-month date ranges fail in calendar (#12):** Adding exception ranges that span e.g. Dec–Jan doesn't work.
 - **Block label filter placement (#13):** Layout issue in agenda view.
-- **Auth state not clearing on user switch (#17):** Blank page until refresh
 - **Block overlay visibility in student agenda (#16):** Block overlay is not visible behind agenda cards
 
 ## Next Steps
