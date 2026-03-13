@@ -6,7 +6,7 @@ import AuthProvider from '@/components/layout/AuthProvider'
 import './index.css'
 import App from './App.jsx'
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,    // 5 minutes
