@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { supabase } from '@/api/supabase'
 import useAuthStore from '@/store/authStore'
+import { queryClient } from '@/main'
 
 // Fetches the user_profiles row for a given auth user ID.
 // Uses raw fetch instead of the Supabase client because supabase-js v2
@@ -72,6 +73,7 @@ export function useAuthListener() {
           if (!mounted) return
           setProfile(profile)
         } else {
+          queryClient.clear()
           clearAuth()
         }
 

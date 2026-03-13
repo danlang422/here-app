@@ -1,10 +1,17 @@
 import { Navigate } from 'react-router-dom'
 import useAuthStore from '@/store/authStore'
 
-// Role-based redirect hub. Sends authenticated users to the
-// appropriate view based on their current role.
 function DashboardRedirect() {
-  const { currentRole } = useAuthStore()
+  const { currentRole, loading } = useAuthStore()
+
+  // Profile hasn't loaded yet — wait rather than redirecting to /login
+  if (!currentRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    )
+  }
 
   const roleRoutes = {
     student: '/student',
