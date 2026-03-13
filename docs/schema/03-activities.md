@@ -127,6 +127,8 @@ CREATE TABLE activities (
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
+  duration_minutes INTEGER CHECK (duration_minutes IS NULL OR duration_minutes > 0),
+-- Expected duration in minutes. Nullable — can be inferred from start/end times when not explicitly set.
 
   CONSTRAINT valid_block CHECK (block IS NULL OR block >= 0),
   -- Upper bound enforced at app layer against organization.settings.block_count
