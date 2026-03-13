@@ -23,7 +23,7 @@
 | Calendar management (school days, exceptions, per-reason rotation) | Built | `calendar-management-build-spec.md`, #12 |
 | Reports | Placeholder | — |
 | **Student** | | |
-| Today view / agenda | Not started | `student-teacher-agenda-build-spec.md` |
+| Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
 | Check-in flows | Not started | — |
 | **Teacher** | | |
 | Dashboard / agenda | Not started | `student-teacher-agenda-build-spec.md` |
@@ -32,7 +32,7 @@
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI/agenda focus) | Built | — |
 | Enrollment validation (block-based + time-based) | Built | `src/lib/enrollmentValidation.js` |
-| RLS policies | Starter-level, needs expansion | #10 |
+| RLS policies | Comprehensive--all tables, all roles | `2026031300000_comprehensive_rls_policies.sql`, `10-rls-policies.md` |
 | Realtime subscriptions | Not started | — |
 
 ## Active Decisions
@@ -46,15 +46,16 @@ Decisions that are settled live in CLAUDE.md (if they're lasting architectural p
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Items that affect day-to-day development:
 
 - **Raw fetch in useAuthListener (#9):** Don't refactor this until supabase-js upgrade. See CLAUDE.md.
-- **RLS policies are starter-level (#10):** Will need expansion for student/teacher role views.
 - **Cross-month date ranges fail in calendar (#12):** Adding exception ranges that span e.g. Dec–Jan doesn't work.
 - **Block label filter placement (#13):** Layout issue in agenda view.
+- **Auth state not clearing on user switch (#17):** Blank page until refresh
+- **Block overlay visibility in student agenda (#16):** Block overlay is not visible behind agenda cards
 
 ## Next Steps
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Student & teacher agenda views → check-in flows → status updates. Spec: `student-teacher-agenda-build-spec.md`.
+**Current priority:** Wire student agenda action buttons (status updates spec, check-in spec) → Teacher agenda spec and build → Check-in flows
 
 ---
 
@@ -82,4 +83,5 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `activity-detail-and-form-redesign-spec.md` | **Implemented** | Unified view/edit detail modal, form redesign, table changes. |
 | `org-settings-build-spec.md` | **Implemented** | Block schedule, academic terms, rotation days. |
 | `calendar-management-build-spec.md` | **Implemented** | School days, exceptions, per-reason rotation. |
-| `student-teacher-agenda-build-spec.md` | **Current** | Student TodayView and teacher Dashboard agenda specs. |
+| `student-teacher-agenda-build-spec.md` | **Outdated** | Student spec split off; and teacher needs rewrite. |
+| `student-agenda-today-view-build-spec.md` | **Implemented** | Student TodayView agenda built - buttons and functions need spec. | 
