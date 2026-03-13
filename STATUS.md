@@ -6,7 +6,7 @@
 
 ## Current State
 
-**Database:** V2 schema deployed with migrations through term FK cascade (`20260310000000`). City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activities.
+**Database:** V2 schema deployed with migrations through comprehensive RLS policies (`20260313000000`). City View org has `block_count: 6` in settings. Real data: City View org with admin account (Daniel Lang), staff users, and multiple activities.
 
 **Application:**
 

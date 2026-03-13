@@ -147,6 +147,7 @@ The "+ New Activity" button on the Activity Management page opens the same modal
 - **Existing data:** Untouched. Activities that already have a type keep it. Nothing reads it in the UI anymore.
 - **Constants:** `ACTIVITY_TYPE_DEFAULTS` and `TYPE_FIELD_VISIBILITY` in `constants.js` can be removed or left as dead code. `ACTIVITY_TYPES` and `ACTIVITY_TYPE_LABELS` may still be used by the table filter — if so, we should remove that filter too (or replace it with behavior flag filters, which is a future enhancement).
 - **Future:** Migration to drop the `type` column and CHECK constraint from the schema. Not part of this build.
+- **Update (March 2026):** The migration to drop the `type` column (`20260309000000_remove_activity_type.sql`) has been created and deployed. The `type` field no longer exists in the database.
 
 ---
 
