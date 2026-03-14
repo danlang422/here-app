@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 11, 2026
+**Last updated:** March 13, 2026
 
 ---
 
@@ -26,8 +26,8 @@
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
 | Check-in flows | Not started | — |
 | **Teacher** | | |
-| Dashboard / agenda | Not started | `student-teacher-agenda-build-spec.md` |
-| Attendance marking | Not started | — |
+| Dashboard / agenda | Spec complete, not built | `teacher-agenda-build-spec.md` |
+| Attendance marking | Spec complete (in teacher agenda spec), not built | `teacher-agenda-build-spec.md` |
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI/agenda focus) | Built | — |
@@ -49,12 +49,13 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Items
 - **Cross-month date ranges fail in calendar (#12):** Adding exception ranges that span e.g. Dec–Jan doesn't work.
 - **Block label filter placement (#13):** Layout issue in agenda view.
 - **Block overlay visibility in student agenda (#16):** Block overlay is not visible behind agenda cards
+- **Student TodayView missing instance upsert:** The `ensureActivityInstances` useEffect was lost during session 13.1 build. RLS policy exists; just needs the call re-added.
 
 ## Next Steps
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Wire student agenda action buttons (status updates spec, check-in spec) → Teacher agenda spec and build → Check-in flows
+**Current priority:** Teacher agenda build (from `teacher-agenda-build-spec.md`) → Student agenda action buttons (status updates spec, check-in spec) → Check-in flows
 
 ---
 
@@ -82,5 +83,5 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `activity-detail-and-form-redesign-spec.md` | **Implemented** | Unified view/edit detail modal, form redesign, table changes. |
 | `org-settings-build-spec.md` | **Implemented** | Block schedule, academic terms, rotation days. |
 | `calendar-management-build-spec.md` | **Implemented** | School days, exceptions, per-reason rotation. |
-| `student-teacher-agenda-build-spec.md` | **Outdated** | Student spec split off; and teacher needs rewrite. |
-| `student-agenda-today-view-build-spec.md` | **Implemented** | Student TodayView agenda built - buttons and functions need spec. | 
+| `student-agenda-today-view-build-spec.md` | **Implemented** | Student TodayView agenda built - buttons and functions need spec. |
+| `teacher-agenda-build-spec.md` | **Ready to build** | Teacher Dashboard, roster modal, attendance marking. |
