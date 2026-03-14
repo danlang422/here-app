@@ -170,3 +170,159 @@ export async function getInstancesForActivities(orgId, date, activityIds) {
   const filtered = instances.filter((i) => activityIds.includes(i.activity_id))
   return new Map(filtered.map((i) => [i.activity_id, i.id]))
 }
+
+// --- Student action API functions ---
+
+// Fetch existing check-ins for a student across multiple instances
+export async function getStudentCheckIns(studentId, instanceIds) {
+  if (instanceIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('*')
+    .eq('student_id', studentId)
+    .in('activity_instance_id', instanceIds)
+
+  if (error) throw error
+  return data
+}
+
+// Fetch existing waves for a student across multiple instances
+export async function getStudentWaves(studentId, instanceIds) {
+  if (instanceIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('presence_waves')
+    .select('*')
+    .eq('student_id', studentId)
+    .in('activity_instance_id', instanceIds)
+
+  if (error) throw error
+  return data
+}
+
+// Fetch status update counts per instance for a student
+export async function getStudentStatusCounts(studentId, instanceIds) {
+  if (instanceIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('status_updates')
+    .select('activity_instance_id')
+    .eq('student_id', studentId)
+    .in('activity_instance_id', instanceIds)
+
+  if (error) throw error
+  return data
+}
+
+// Fetch wave history for streak calculation
+export async function getWaveHistory(studentId, activityIds, sinceDate) {
+  if (activityIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('presence_waves')
+    .select('*, activity_instance:activity_instance_id(activity_id, date)')
+    .eq('student_id', studentId)
+    .gte('waved_at', sinceDate)
+
+  if (error) throw error
+  // Filter to relevant activities client-side (join doesn't filter by activity_id)
+  return data.filter(
+    (w) => w.activity_instance && activityIds.includes(w.activity_instance.activity_id)
+  )
+}
+
+// Create a presence wave
+export async function createPresenceWave(studentId, instanceId) {
+  const { data, error } = await supabase
+    .from('presence_waves')
+    .insert({
+      student_id: studentId,
+      activity_instance_id: instanceId,
+      waved_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// Create a status update
+export async function createStatusUpdate(studentId, instanceId, statusType, content, checkinId = null) {
+  const { data, error } = await supabase
+    .from('status_updates')
+    .insert({
+      student_id: studentId,
+      activity_instance_id: instanceId,
+      checkin_id: checkinId,
+      status_type: statusType,
+      content: content.trim(),
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// Create a check-in record
+export async function createCheckIn(studentId, instanceId, locationData = {}) {
+  const { data, error } = await supabase
+    .from('check_ins')
+    .insert({
+      student_id: studentId,
+      activity_instance_id: instanceId,
+      checked_in_at: new Date().toISOString(),
+      check_in_location_lat: locationData.lat ?? null,
+      check_in_location_lng: locationData.lng ?? null,
+      geofence_validated: locationData.validated ?? null,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// Delete a check-in (rollback on cancel)
+export async function deleteCheckIn(checkinId) {
+  const { error } = await supabase
+    .from('check_ins')
+    .delete()
+    .eq('id', checkinId)
+
+  if (error) throw error
+}
+
+// Create freeform activity tags for a check-in
+export async function createCheckinTags(checkinId, activityIds) {
+  const rows = activityIds.map((activityId) => ({
+    checkin_id: checkinId,
+    activity_id: activityId,
+  }))
+
+  const { data, error } = await supabase
+    .from('checkin_activity_tags')
+    .insert(rows)
+    .select()
+
+  if (error) throw error
+  return data
+}
+
+// Check out (update existing check-in with checkout timestamp)
+export async function checkOut(checkinId) {
+  const { data, error } = await supabase
+    .from('check_ins')
+    .update({
+      checked_out_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', checkinId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
