@@ -4,16 +4,14 @@ import { supabase } from './supabase'
 // Uses upsert so concurrent calls are safe.
 export async function upsertActivityInstance(activityId, organizationId, date) {
   const { data, error } = await supabase
-    .from('activity_instances')
-    .upsert(
-      { activity_id: activityId, organization_id: organizationId, date },
-      { onConflict: 'activity_id,date' }
-    )
-    .select()
-    .single()
+    .rpc('ensure_activity_instance', {
+      p_activity_id: activityId,
+      p_organization_id: organizationId,
+      p_date: date,
+    })
 
   if (error) throw error
-  return data
+  return data?.[0] ?? data
 }
 
 // Get instances for a specific date (optionally filtered by activity)
