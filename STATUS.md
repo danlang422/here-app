@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 13, 2026
+**Last updated:** March 14, 2026
 
 ---
 
@@ -24,7 +24,7 @@
 | Reports | Placeholder | — |
 | **Student** | | |
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
-| Check-in flows | Not started | — |
+| Check-in flows | Built | `student-actions-build-spec.md` |
 | **Teacher** | | |
 | Dashboard / agenda | Built | `teacher-agenda-build-spec.md` |
 | Attendance marking | Built | `teacher-agenda-build-spec.md` |
@@ -55,7 +55,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Items
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Student agenda actions & check-in flow build (`student-actions-build-spec.md`)
+**Current priority:** Write build spec for teacher agenda incorporation of student actions (status update, wave, check-in/out) - details TBD. 
 
 ---
 
@@ -85,4 +85,4 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `calendar-management-build-spec.md` | **Implemented** | School days, exceptions, per-reason rotation. |
 | `student-agenda-today-view-build-spec.md` | **Implemented** | Student TodayView agenda built - buttons and functions need spec. |
 | `teacher-agenda-build-spec.md` | **Implemented** | Teacher Dashboard, roster modal, attendance marking. |
-| `student-actions-build-spec.md` | **Ready to Build** | Student action buttons and check-in flow |
+| `student-actions-build-spec.md` | **Implemented** | Student action buttons and check-in flow |

@@ -1,6 +1,6 @@
 # Session 14 — March 14, 2026
 
-Planning session (Claude.ai). No code changes beyond a single constant adjustment. Focus was on designing the student actions spec — the interaction flows for presence wave, status update, check-in/check-out, and the card layout redesign needed to support them.
+Planning and build session (Claude.ai + Claude Code). Designed and built the student actions feature — presence wave, status update, check-in/check-out — including a full card layout redesign and an RLS fix for activity instance creation.
 
 ---
 
@@ -60,25 +60,61 @@ Mapped out all four student interaction flows:
 
 **Tone decision:** Status prompts are conversational — "What're you up to?", "What're your plans?", "What'd you accomplish?" — matching the friendly vibe of the app. Avoided overly vague prompts ("How'd it go?") that would invite one-word answers.
 
-**Streak indicator:** Lives bottom-right of card content area (always visible), not on the action button. Exploring `GiFallingStar` or similar icon — distinctive without being the overused flame.
+**Streak indicator:** Lives bottom-right of card content area (always visible), not on the action button. Uses `GiFlame` icon with amber color at 5+ streaks.
 
 ---
 
 ## 14.5 — Spec Written
 
-Wrote `docs/user-flows/student-actions-build-spec.md` covering:
+Wrote `docs/user-flows/student-actions-build-spec.md` — 11-part spec covering card redesign, action buttons, interaction flows, modals, geofence utilities, time-window availability, data layer, and build sequence.
 
-1. Card & grid redesign (PX_PER_HOUR, layout, overflow fixes)
-2. Action button placement and per-button states
-3. Streak indicator design and data optimization
-4. All four interaction flows with step-by-step sequences and API signatures
-5. Status update modal (shared across flows)
-6. Freeform tag selector for check-in flow
-7. Geofence utilities (Haversine, browser location)
-8. Time window availability functions
-9. Data layer (two new hooks, all API functions, query invalidation map)
-10. Instance upsert fix (re-add `ensureActivityInstances` to TodayView)
-11. Build sequence (8 ordered steps)
+---
+
+## 14.6 — Build (Claude Code)
+
+Claude Code built the full student actions feature from the spec. PR merged successfully.
+
+### What Was Built
+
+**New files:**
+- `src/components/student/StatusUpdateModal.jsx` — shared modal with conversational prompts, type selector, textarea, character count
+- `src/components/student/FreeformTagSelector.jsx` — tag selection modal for freeform check-in flow
+- `src/components/student/ActionButton.jsx` — edge-overlapping action button with state-driven styling and white fill
+- `src/hooks/useStudentActions.js` — fetches check-ins, waves, status counts, and instance IDs for a date
+- `src/hooks/useStreakData.js` — fetches wave history and calculates streaks client-side
+- `src/lib/actionAvailability.js` — pure functions for time-window and button state calculations
+- `src/lib/geofenceUtils.js` — Haversine distance, geofence validation, browser location helper
+
+**Modified files:**
+- `src/components/agenda/StudentActivityCard.jsx` — new two-row layout (title+time / block·location·staff), edge-overlapping buttons, streak indicator, removed property icons and CardActions
+- `src/pages/student/TodayView.jsx` — integrated all action hooks and flow handlers, re-added `ensureActivityInstances` useEffect, modal state management for multi-step check-in flow
+- `src/components/agenda/SingleDayAgenda.jsx` — overflow-visible fix for edge-overlapping buttons
+- `src/api/agenda.js` — added all new API functions (createPresenceWave, createStatusUpdate, createCheckIn, deleteCheckIn, createCheckinTags, checkOut, getStudentCheckIns, getStudentWaves, getStudentStatusCounts, getWaveHistory)
+
+**Deleted files:**
+- `src/components/agenda/CardActions.jsx` — replaced by individual ActionButton components
+
+---
+
+## 14.7 — RLS Fix: activity_instances 403
+
+After the build, the existing 403 error on student activity instance creation resurfaced. Diagnosed the root cause:
+
+**Problem:** Supabase's `.upsert()` translates to `INSERT ... ON CONFLICT DO UPDATE`, which requires an UPDATE policy. Students only have SELECT + INSERT policies on `activity_instances`. When a row already exists (created by another user or a prior session), the `ON CONFLICT DO UPDATE` path fires and fails RLS.
+
+**Fix:** Created `ensure_activity_instance` SECURITY DEFINER function (`20260314000000_ensure_activity_instance_function.sql`) that does `INSERT ... ON CONFLICT DO NOTHING` and returns the row. Consistent with the existing DEFINER pattern (`is_enrolled_in`, `is_teacher_or_monitor_of`, `get_profile_display_info`). Org-scoped via JWT check.
+
+Updated `src/api/instances.js` to call the RPC function instead of using `.upsert()`. Both student and teacher views benefit from the same safe path.
+
+---
+
+## 14.8 — Dev Override Testing
+
+Created a temporary dev override system (`src/lib/devOverrides.js`) to test button states and interaction flows during the weekend (and spring break). The override fakes the current date/time so the TodayView, action availability checks, and streak calculation all treat a past school day as "today."
+
+Tested all flows: presence wave, status update modal, check-in with status prompt, button state transitions. Streak indicator verified — appeared and incremented correctly after waving on a school day.
+
+Dev override was rolled back after testing and the file deleted before merging.
 
 ---
 
@@ -94,6 +130,7 @@ Wrote `docs/user-flows/student-actions-build-spec.md` covering:
 | Conversational status prompts | Friendly app tone, specific enough to elicit useful responses |
 | Status type pre-set in check-in/check-out flows | Reduces friction — students don't need to think about type classification |
 | Cancel during check-in status step = rollback | Status update is a required part of the check-in flow |
+| SECURITY DEFINER for instance creation | Avoids RLS UPDATE policy requirement on upsert conflict path |
 
 ## Issues Filed
 
@@ -102,6 +139,6 @@ Wrote `docs/user-flows/student-actions-build-spec.md` covering:
 
 ## Follow-Up
 
-- Daniel updating STATUS.md to reflect teacher agenda build completion and current state
-- Student actions build (from the new spec) is the next implementation task for Claude Code
-- After student actions: return to teacher view to surface student interactions (waves, check-ins, status updates)
+- Teacher visibility of student interactions (waves, check-ins, status updates) — next spec
+- Streak calculation may need debugging once real school-day usage begins
+- Test data from dev override testing cleaned from database
