@@ -1,12 +1,18 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import useAuthStore from '@/store/authStore'
 import { useStudentAgenda } from '@/hooks/useStudentAgenda'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
+import { useStudentActions } from '@/hooks/useStudentActions'
+import { useStreakData } from '@/hooks/useStreakData'
 import { formatDateISO, addDays, subDays, isSameDay } from '@/lib/scheduleUtils'
 import { getBlockLabel } from '@/lib/constants'
+import { getCurrentPosition, validateGeofence } from '@/lib/geofenceUtils'
 import SingleDayAgenda from '@/components/agenda/SingleDayAgenda'
 import StudentActivityCard from '@/components/agenda/StudentActivityCard'
+import StatusUpdateModal from '@/components/student/StatusUpdateModal'
+import FreeformTagSelector from '@/components/student/FreeformTagSelector'
 import {
   timeToMinutes,
   floorToHour,
@@ -14,25 +20,49 @@ import {
   DEFAULT_GRID_START,
   DEFAULT_GRID_END,
 } from '@/components/agenda/agendaUtils'
+import {
+  ensureActivityInstances,
+  createPresenceWave,
+  createStatusUpdate,
+  createCheckIn,
+  deleteCheckIn,
+  createCheckinTags,
+  checkOut,
+} from '@/api/agenda'
 
 function TodayView() {
   const [date, setDate] = useState(new Date())
   const profile = useAuthStore((s) => s.profile)
   const orgId = profile?.organization_id
   const studentId = profile?.id
+  const queryClient = useQueryClient()
 
   // Data hooks
   const { activities, allActivities, schoolDay, isLoading, error } =
     useStudentAgenda(studentId, date, orgId)
   const { data: orgSettings } = useOrgSettings(orgId)
   const { data: template } = useDefaultScheduleTemplate(orgId)
+  const { data: actionData } = useStudentActions(studentId, activities, date, orgId)
+  const { data: streakData } = useStreakData(studentId, allActivities ?? [], orgId)
 
   // Date navigation
   const goToPrev = () => setDate((d) => subDays(d, 1))
   const goToNext = () => setDate((d) => addDays(d, 1))
   const isToday = isSameDay(date, new Date())
+  const dateStr = formatDateISO(date)
 
-  // Rotation day display — conditional on student having rotation-dependent activities
+  // Ensure activity instances exist (fire-and-forget)
+  useEffect(() => {
+    if (activities.length > 0 && orgId) {
+      ensureActivityInstances(
+        activities.map((a) => a.id),
+        orgId,
+        formatDateISO(date)
+      ).catch(console.error)
+    }
+  }, [activities, orgId, date])
+
+  // Rotation day display
   const usesRotation =
     allActivities?.some((a) => a.rotation_day_type != null) ?? false
   const rotationLabel =
@@ -50,29 +80,21 @@ function TodayView() {
   )
   const blockLabels = orgSettings?.block_labels ?? []
 
-  // Grid bounds — expand from defaults to fit actual activity times
+  // Grid bounds
   const gridBounds = useMemo(() => {
     if (activities.length === 0) {
       return { start: DEFAULT_GRID_START, end: DEFAULT_GRID_END }
     }
-    const starts = activities
-      .map((a) => a.default_start_time)
-      .filter(Boolean)
-    const ends = activities
-      .map((a) => a.default_end_time)
-      .filter(Boolean)
+    const starts = activities.map((a) => a.default_start_time).filter(Boolean)
+    const ends = activities.map((a) => a.default_end_time).filter(Boolean)
     if (starts.length === 0) {
       return { start: DEFAULT_GRID_START, end: DEFAULT_GRID_END }
     }
     const minStart = starts.reduce((a, b) => (a < b ? a : b))
     const maxEnd = ends.reduce((a, b) => (a > b ? a : b))
     return {
-      start:
-        minStart < DEFAULT_GRID_START
-          ? floorToHour(minStart)
-          : DEFAULT_GRID_START,
-      end:
-        maxEnd > DEFAULT_GRID_END ? ceilToHour(maxEnd) : DEFAULT_GRID_END,
+      start: minStart < DEFAULT_GRID_START ? floorToHour(minStart) : DEFAULT_GRID_START,
+      end: maxEnd > DEFAULT_GRID_END ? ceilToHour(maxEnd) : DEFAULT_GRID_END,
     }
   }, [activities])
 
@@ -88,6 +110,224 @@ function TodayView() {
         day: 'numeric',
       })
 
+  // --- Modal state ---
+  const [statusModal, setStatusModal] = useState(null)
+  const [freeformModal, setFreeformModal] = useState(null)
+  const [savingStatus, setSavingStatus] = useState(false)
+  // Transient check-in state for multi-step flow
+  const [pendingCheckIn, setPendingCheckIn] = useState(null)
+
+  const invalidateActions = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['student-actions', studentId, dateStr] })
+  }, [queryClient, studentId, dateStr])
+
+  const invalidateStreaks = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['streaks', studentId] })
+  }, [queryClient, studentId])
+
+  // --- Flow A: Presence Wave ---
+  const handleWave = useCallback(async (activity) => {
+    const instanceId = actionData?.instances?.get(activity.id)
+    if (!instanceId) return
+    try {
+      await createPresenceWave(studentId, instanceId)
+      invalidateActions()
+      invalidateStreaks()
+    } catch (err) {
+      console.error('Wave failed:', err)
+    }
+  }, [studentId, actionData, invalidateActions, invalidateStreaks])
+
+  // --- Flow B: Standalone Status Update ---
+  const handleStatusUpdate = useCallback((activity) => {
+    const instanceId = actionData?.instances?.get(activity.id)
+    if (!instanceId) return
+    setStatusModal({
+      activityName: activity.name,
+      instanceId,
+      promptText: "What're you up to?",
+      defaultType: 'reflection',
+      allowTypeChange: true,
+      checkinId: null,
+      onComplete: () => {
+        invalidateActions()
+      },
+    })
+  }, [actionData, invalidateActions])
+
+  // --- Flow C: Check-In ---
+  const handleCheckIn = useCallback(async (activity) => {
+    const instanceId = actionData?.instances?.get(activity.id)
+    if (!instanceId) return
+
+    // Step 1: Geofence check (if required)
+    let locationData = {}
+    if (activity.requires_geofence) {
+      try {
+        const pos = await getCurrentPosition()
+        const result = validateGeofence(pos.lat, pos.lng, activity)
+        locationData = { lat: pos.lat, lng: pos.lng, validated: result.valid }
+        if (!result.valid) {
+          // Warn but allow proceeding
+          alert(`You're ${result.distance}m away from the expected area (${result.radius}m radius). You can still check in.`)
+        }
+      } catch {
+        // Permission denied or error — proceed without location
+        locationData = {}
+      }
+    }
+
+    // Step 2: Create check-in record
+    try {
+      const checkInRecord = await createCheckIn(studentId, instanceId, locationData)
+      invalidateActions()
+
+      // Step 3: Freeform tagging (if applicable)
+      if (activity.allows_freeform) {
+        // Get taggable activities: today's other scheduled + unscheduled enrolled
+        const taggableActivities = (allActivities ?? []).filter((a) => {
+          if (a.id === activity.id) return false
+          // Include today's scheduled activities
+          const meetsToday = activities.some((ta) => ta.id === a.id)
+          // Include unscheduled activities
+          return meetsToday || a.is_not_scheduled
+        })
+
+        setPendingCheckIn({ checkInRecord, activity, instanceId })
+        setFreeformModal({
+          activityName: activity.name,
+          availableActivities: taggableActivities,
+          checkInRecord,
+        })
+        return
+      }
+
+      // Step 4: Status prompt (no freeform)
+      setPendingCheckIn({ checkInRecord, activity, instanceId })
+      setStatusModal({
+        activityName: activity.name,
+        instanceId,
+        promptText: "What're your plans?",
+        defaultType: 'plans',
+        allowTypeChange: false,
+        checkinId: checkInRecord.id,
+        isCheckInFlow: true,
+        onComplete: () => {
+          setPendingCheckIn(null)
+          invalidateActions()
+        },
+      })
+    } catch (err) {
+      console.error('Check-in failed:', err)
+    }
+  }, [studentId, actionData, activities, allActivities, invalidateActions])
+
+  // Handle freeform tag selection → transition to status modal
+  const handleFreeformConfirm = useCallback(async (activityIds) => {
+    if (!pendingCheckIn) return
+    const { checkInRecord, activity, instanceId } = pendingCheckIn
+
+    try {
+      await createCheckinTags(checkInRecord.id, activityIds)
+    } catch (err) {
+      console.error('Failed to save tags:', err)
+    }
+
+    setFreeformModal(null)
+
+    // Open status modal for check-in
+    setStatusModal({
+      activityName: activity.name,
+      instanceId,
+      promptText: "What're your plans?",
+      defaultType: 'plans',
+      allowTypeChange: false,
+      checkinId: checkInRecord.id,
+      isCheckInFlow: true,
+      onComplete: () => {
+        setPendingCheckIn(null)
+        invalidateActions()
+      },
+    })
+  }, [pendingCheckIn, invalidateActions])
+
+  // Handle freeform cancel → rollback check-in
+  const handleFreeformCancel = useCallback(async () => {
+    if (pendingCheckIn) {
+      try {
+        await deleteCheckIn(pendingCheckIn.checkInRecord.id)
+      } catch (err) {
+        console.error('Failed to rollback check-in:', err)
+      }
+      setPendingCheckIn(null)
+      invalidateActions()
+    }
+    setFreeformModal(null)
+  }, [pendingCheckIn, invalidateActions])
+
+  // --- Flow D: Check-Out ---
+  const handleCheckOut = useCallback((activity, checkInRecord) => {
+    const instanceId = actionData?.instances?.get(activity.id)
+    if (!instanceId || !checkInRecord) return
+
+    setStatusModal({
+      activityName: activity.name,
+      instanceId,
+      promptText: "What'd you accomplish?",
+      defaultType: 'progress',
+      allowTypeChange: false,
+      checkinId: checkInRecord.id,
+      isCheckOutFlow: true,
+      checkInRecordId: checkInRecord.id,
+      onComplete: () => {
+        invalidateActions()
+      },
+    })
+  }, [actionData, invalidateActions])
+
+  // --- Status modal save handler ---
+  const handleStatusSave = useCallback(async (content, statusType) => {
+    if (!statusModal) return
+    setSavingStatus(true)
+
+    try {
+      await createStatusUpdate(
+        studentId,
+        statusModal.instanceId,
+        statusType,
+        content,
+        statusModal.checkinId
+      )
+
+      // If check-out flow, write the checkout timestamp
+      if (statusModal.isCheckOutFlow && statusModal.checkInRecordId) {
+        await checkOut(statusModal.checkInRecordId)
+      }
+
+      statusModal.onComplete?.()
+      setStatusModal(null)
+    } catch (err) {
+      console.error('Status update failed:', err)
+    } finally {
+      setSavingStatus(false)
+    }
+  }, [studentId, statusModal])
+
+  // --- Status modal cancel handler ---
+  const handleStatusCancel = useCallback(async () => {
+    // If cancelling during check-in flow, rollback the check-in
+    if (statusModal?.isCheckInFlow && pendingCheckIn) {
+      try {
+        await deleteCheckIn(pendingCheckIn.checkInRecord.id)
+      } catch (err) {
+        console.error('Failed to rollback check-in:', err)
+      }
+      setPendingCheckIn(null)
+      invalidateActions()
+    }
+    setStatusModal(null)
+  }, [statusModal, pendingCheckIn, invalidateActions])
+
   // Render card function for SingleDayAgenda
   const renderCard = (activity) => {
     const staffName = resolveStaffName(activity)
@@ -95,11 +335,22 @@ function TodayView() {
       activity.block != null
         ? getBlockLabel(activity.block, blockLabels)
         : null
+
     return (
       <StudentActivityCard
         activity={activity}
         staffDisplayName={staffName}
         blockLabel={label}
+        isToday={isToday}
+        checkIn={actionData?.checkIns?.get(activity.id) ?? null}
+        wave={actionData?.waves?.get(activity.id) ?? null}
+        statusCount={actionData?.statusCounts?.get(activity.id) ?? 0}
+        hasInstance={actionData?.instances?.has(activity.id) ?? false}
+        streak={streakData?.get(activity.id) ?? 0}
+        onWave={handleWave}
+        onStatusUpdate={handleStatusUpdate}
+        onCheckIn={handleCheckIn}
+        onCheckOut={handleCheckOut}
       />
     )
   }
@@ -175,6 +426,27 @@ function TodayView() {
           </div>
         </div>
       )}
+
+      {/* Status Update Modal */}
+      <StatusUpdateModal
+        isOpen={!!statusModal}
+        onClose={handleStatusCancel}
+        onSave={handleStatusSave}
+        activityName={statusModal?.activityName ?? ''}
+        promptText={statusModal?.promptText ?? ''}
+        defaultType={statusModal?.defaultType ?? 'reflection'}
+        allowTypeChange={statusModal?.allowTypeChange ?? true}
+        saving={savingStatus}
+      />
+
+      {/* Freeform Tag Selector */}
+      <FreeformTagSelector
+        isOpen={!!freeformModal}
+        onClose={handleFreeformCancel}
+        onConfirm={handleFreeformConfirm}
+        availableActivities={freeformModal?.availableActivities ?? []}
+        activityName={freeformModal?.activityName ?? ''}
+      />
     </div>
   )
 }

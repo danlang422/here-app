@@ -27,7 +27,7 @@ function SingleDayAgenda({
   }
 
   return (
-    <div className="flex border border-base-300 rounded-lg bg-base-100 overflow-hidden">
+    <div className="flex border border-base-300 rounded-lg bg-base-100">
       {/* Time axis */}
       <div
         className="shrink-0 border-r border-base-300 relative"
@@ -50,7 +50,7 @@ function SingleDayAgenda({
       </div>
 
       {/* Card column */}
-      <div className="flex-1 relative" style={{ height: `${gridHeight}px` }}>
+      <div className="flex-1 relative overflow-visible" style={{ height: `${gridHeight}px` }}>
         {/* Hour grid lines */}
         {hours.map((h) => {
           const offsetMin = h * 60 - gridStartMinutes
@@ -75,7 +75,7 @@ function SingleDayAgenda({
         {activities.map((activity) => (
           <div
             key={activity.id}
-            className="absolute left-2 right-2"
+            className="absolute left-2 right-5"
             style={{
               top: `${activityTop(activity, gridStartMinutes) + GRID_PAD_Y}px`,
               height: `${activityHeight(activity)}px`,
