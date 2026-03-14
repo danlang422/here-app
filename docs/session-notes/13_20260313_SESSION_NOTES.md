@@ -126,3 +126,45 @@ Updated STATUS.md, session notes (this file), and RLS schema docs to reflect wor
 | File | Superseded By |
 |------|---------------|
 | `supabase/migrations/20260312000000_student_rls_policies.sql` | `20260313000000_comprehensive_rls.sql` |
+
+---
+
+## 13.4 — Teacher Agenda Build Spec (March 13, Claude.ai)
+
+Reviewed the outdated combined `student-teacher-agenda-build-spec.md` against the current codebase and wrote a new standalone teacher agenda spec: `teacher-agenda-build-spec.md`.
+
+### Spec Review Process
+
+Loaded and compared the original combined spec's teacher section against the built student `TodayView`, `SingleDayAgenda`, admin `AgendaDayColumn`/`AgendaCard`, `agendaUtils`, schema docs, and RLS policies. Identified what still held, what had changed, and what open questions needed resolution.
+
+### Key Decisions Made
+
+1. **Simplified two-tier density model.** No "few" mode (side-by-side cards). 1 activity = single card, 2+ = always aggregate. Teacher's mental model is "managing Block X" as a unit, not viewing individual overlapping activities.
+
+2. **Card click always opens roster modal.** Single card → roster for that activity. Aggregate → combined roster for all activities in the block. No expand-to-individual-cards pattern (that's admin-only via `uiStore` focus state).
+
+3. **Attendance save via explicit save button.** Not instant/optimistic upsert per click. Local state toggles immediately for responsive UI; batch database upsert on save. Simpler to troubleshoot, more forgiving of misclicks.
+
+4. **No property icons on teacher cards for v1.** Deferred until check-in and freeform features are built. Most relevant flags (`requires_checkin`, `allows_freeform`) don't add enough value at a glance right now.
+
+5. **No monitor vs. teacher role distinction.** Teacher sees all assigned activities regardless of role. No visual differentiation needed.
+
+6. **Non-attendance activities show read-only roster.** Clicking a card for an activity without `requires_attendance` opens the roster in informational mode — student list visible, no attendance buttons.
+
+7. **Simpler groupByBlock for teacher view.** Plain group-by-block function instead of reusing `groupActivitiesByBlock` from `agendaUtils` (which redundantly re-checks `days_of_week` after `activityMeetsToday` has already filtered).
+
+8. **Aggregate card synthesis.** Teacher page creates synthetic aggregate objects with `default_start_time`/`default_end_time` set to earliest/latest across the group, so `SingleDayAgenda`'s existing positioning math works without modification.
+
+### Instance Upsert Status Clarified
+
+Investigated the state of lazy instance creation. Found that:
+- `ensureActivityInstances` exists in `src/api/agenda.js` and works correctly
+- Student `TodayView` does NOT call it — the `useEffect` was lost during the session 13.1 build
+- RLS policies for both student and teacher INSERT on `activity_instances` are in place (from the comprehensive migration)
+- The teacher spec includes the `useEffect` call; re-adding it to student `TodayView` is noted as a follow-up task
+
+### Documents
+
+- **Created:** `docs/user-flows/teacher-agenda-build-spec.md` — full build spec for teacher Dashboard, roster modal, and attendance marking
+- **Deleted:** `docs/user-flows/student-teacher-agenda-build-spec.md` — fully superseded by `student-agenda-today-view-build-spec.md` (student) and `teacher-agenda-build-spec.md` (teacher). Only referenced in STATUS.md (updated) and as historical context in the headers of its successor specs.
+- **Updated:** `STATUS.md` — teacher dashboard row now references new spec; user flow docs table updated; next steps updated
