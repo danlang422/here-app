@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getWaveHistory } from '@/api/agenda'
 import { getSchoolDays } from '@/api/calendar'
 import { formatDateISO, subDays } from '@/lib/scheduleUtils'
+import { calculateStreak } from '@/lib/streakUtils'
 
 export function useStreakData(studentId, activities, orgId) {
   // Only wave-enabled activities need streak calculation
@@ -51,38 +52,4 @@ export function useStreakData(studentId, activities, orgId) {
     enabled: !!studentId && !!orgId && activityIds.length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
-}
-
-function calculateStreak(activity, waveDates, schoolDaySet, asOfDate) {
-  let streak = 0
-  let checkDate = new Date(asOfDate)
-
-  for (let i = 0; i < 365; i++) {
-    const dateStr = formatDateISO(checkDate)
-
-    if (!schoolDaySet.has(dateStr)) {
-      // Non-school day — skip without breaking
-      checkDate = subDays(checkDate, 1)
-      continue
-    }
-
-    // Check if activity meets on this day (day-of-week check)
-    if (activity.days_of_week != null) {
-      const dow = checkDate.getDay()
-      if (!activity.days_of_week.includes(dow)) {
-        checkDate = subDays(checkDate, 1)
-        continue
-      }
-    }
-
-    // School day, activity meets — did the student wave?
-    if (!waveDates.has(dateStr)) {
-      break // Streak broken
-    }
-
-    streak += 1
-    checkDate = subDays(checkDate, 1)
-  }
-
-  return streak
 }

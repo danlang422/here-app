@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import useAuthStore from '@/store/authStore'
 import { useTeacherAgenda } from '@/hooks/useTeacherAgenda'
+import { useTeacherActionSummary } from '@/hooks/useTeacherActionSummary'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
 import { ensureActivityInstances } from '@/api/agenda'
@@ -28,6 +29,13 @@ function Dashboard() {
     useTeacherAgenda(teacherId, date, orgId)
   const { data: orgSettings } = useOrgSettings(orgId)
   const { data: template } = useDefaultScheduleTemplate(orgId)
+
+  // Action summary for wave counts on cards and icons in roster
+  const allActivityIds = useMemo(
+    () => activities.map((a) => a.id),
+    [activities]
+  )
+  const { data: actionSummary } = useTeacherActionSummary(allActivityIds, date, orgId)
 
   // Instance upsert (fire-and-forget)
   useEffect(() => {
@@ -150,14 +158,24 @@ function Dashboard() {
         day: 'numeric',
       })
 
-  // Render card function
-  const renderCard = (item) => (
-    <TeacherActivityCard
-      item={item}
-      blockLabels={blockLabels}
-      onClick={() => handleCardClick(item)}
-    />
-  )
+  // Render card function with wave counts
+  const renderCard = (item) => {
+    const waveCount = item.isAggregate
+      ? item.activities.reduce(
+          (sum, a) => sum + (actionSummary?.waveCounts?.get(a.id) ?? 0),
+          0
+        )
+      : (actionSummary?.waveCounts?.get(item.id) ?? 0)
+
+    return (
+      <TeacherActivityCard
+        item={item}
+        blockLabels={blockLabels}
+        waveCount={waveCount}
+        onClick={() => handleCardClick(item)}
+      />
+    )
+  }
 
   function handleCardClick(item) {
     if (item.isAggregate) {
@@ -248,6 +266,7 @@ function Dashboard() {
           orgId={orgId}
           teacherId={teacherId}
           blockLabels={blockLabels}
+          actionSummary={actionSummary}
           onClose={() => setRosterTarget(null)}
         />
       )}
