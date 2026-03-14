@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { upsertActivityInstance } from './instances'
+import { upsertActivityInstance, getInstancesForDate } from './instances'
 
 // Fetch display name info for a profile via SECURITY DEFINER function.
 // Bypasses RLS to avoid recursion when students need teacher names.
@@ -79,4 +79,94 @@ export async function ensureActivityInstances(activityIds, orgId, date) {
   await Promise.all(
     activityIds.map((id) => upsertActivityInstance(id, orgId, date))
   )
+}
+
+// Fetch all activities assigned to a teacher (as teacher_id or monitor_id),
+// plus active enrollment counts per activity. Does NOT filter by date —
+// date filtering happens client-side via activityMeetsToday.
+export async function getTeacherActivitiesForDate(teacherId, orgId) {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('*')
+    .eq('is_active', true)
+    .eq('organization_id', orgId)
+    .or(`teacher_id.eq.${teacherId},monitor_id.eq.${teacherId}`)
+
+  if (error) throw error
+
+  // Fetch enrollment counts for these activities
+  const activityIds = data.map((a) => a.id)
+  if (activityIds.length === 0) {
+    return { activities: data, enrollmentCounts: new Map() }
+  }
+
+  const { data: enrollments, error: enrollError } = await supabase
+    .from('enrollments')
+    .select('activity_id')
+    .in('activity_id', activityIds)
+    .eq('is_active', true)
+
+  if (enrollError) throw enrollError
+
+  const countMap = new Map()
+  for (const e of enrollments) {
+    countMap.set(e.activity_id, (countMap.get(e.activity_id) ?? 0) + 1)
+  }
+
+  return { activities: data, enrollmentCounts: countMap }
+}
+
+// Fetch enrollment rosters for one or more activities with student profiles.
+export async function getRosterForActivities(activityIds) {
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select('*, student:student_id(id, first_name, last_name, preferred_name)')
+    .in('activity_id', activityIds)
+    .eq('is_active', true)
+
+  if (error) throw error
+  return data
+}
+
+// Fetch existing attendance records for given activity instance IDs.
+export async function getAttendanceForInstances(instanceIds) {
+  if (instanceIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('attendance_records')
+    .select('*')
+    .in('activity_instance_id', instanceIds)
+
+  if (error) throw error
+  return data
+}
+
+// Create or update a single attendance record.
+export async function upsertAttendanceRecord(instanceId, studentId, status, markedById) {
+  const { data, error } = await supabase
+    .from('attendance_records')
+    .upsert(
+      {
+        activity_instance_id: instanceId,
+        student_id: studentId,
+        status,
+        marked_by_id: markedById,
+        marked_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'activity_instance_id,student_id' }
+    )
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// Fetch activity instances for a date, filtered to specific activity IDs.
+// Used by roster modal to get instance IDs for attendance upserts.
+export async function getInstancesForActivities(orgId, date, activityIds) {
+  const instances = await getInstancesForDate(orgId, date)
+  const filtered = instances.filter((i) => activityIds.includes(i.activity_id))
+  return new Map(filtered.map((i) => [i.activity_id, i.id]))
 }
