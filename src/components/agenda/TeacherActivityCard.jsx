@@ -1,21 +1,30 @@
 import { FaLayerGroup } from 'react-icons/fa6'
+import { PiHandWaving } from 'react-icons/pi'
 import { getBlockLabel } from '@/lib/constants'
 
-function TeacherActivityCard({ item, blockLabels, onClick }) {
+function TeacherActivityCard({ item, blockLabels, waveCount = 0, onClick }) {
   if (item.isAggregate) {
     return (
       <AggregateCard
         item={item}
         blockLabels={blockLabels}
+        waveCount={waveCount}
         onClick={onClick}
       />
     )
   }
 
-  return <SingleCard item={item} blockLabels={blockLabels} onClick={onClick} />
+  return (
+    <SingleCard
+      item={item}
+      blockLabels={blockLabels}
+      waveCount={waveCount}
+      onClick={onClick}
+    />
+  )
 }
 
-function SingleCard({ item, blockLabels, onClick }) {
+function SingleCard({ item, blockLabels, waveCount, onClick }) {
   const timeRange = formatTimeRange(
     item.default_start_time,
     item.default_end_time
@@ -26,7 +35,6 @@ function SingleCard({ item, blockLabels, onClick }) {
   const metaLine = metaParts.join(' \u00b7 ')
 
   const count = item.enrollmentCount ?? 0
-  const countLabel = `${count} student${count !== 1 ? 's' : ''}`
 
   return (
     <div
@@ -35,26 +43,28 @@ function SingleCard({ item, blockLabels, onClick }) {
     >
       <div className="p-3 flex flex-col gap-0.5">
         <div className="font-medium truncate">{item.name}</div>
-        {metaLine && (
-          <div className="text-sm text-base-content/60 truncate">
-            {metaLine}
-          </div>
-        )}
-        <div className="text-sm text-base-content/50">{countLabel}</div>
+        <div className="text-sm text-base-content/60 truncate">
+          {metaLine && <>{metaLine} &middot; </>}
+          <span>{count}</span>
+          {waveCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center gap-0.5">
+              <PiHandWaving size={14} className="inline" />
+              <span>{waveCount}</span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-function AggregateCard({ item, blockLabels, onClick }) {
+function AggregateCard({ item, blockLabels, waveCount, onClick }) {
   const timeRange = formatTimeRange(
     item.default_start_time,
     item.default_end_time
   )
   const blockLabel =
     item.block != null ? getBlockLabel(item.block, blockLabels) : 'Unassigned'
-
-  const countLabel = `${item.activityCount} activities \u00b7 ${item.totalEnrollment} students`
 
   return (
     <div
@@ -66,10 +76,17 @@ function AggregateCard({ item, blockLabels, onClick }) {
           <FaLayerGroup size={14} />
           <span className="truncate">{blockLabel}</span>
         </div>
-        {timeRange && (
-          <div className="text-sm text-base-content/60">{timeRange}</div>
-        )}
-        <div className="text-sm text-base-content/50">{countLabel}</div>
+        <div className="text-sm text-base-content/60 truncate">
+          {timeRange && <>{timeRange} &middot; </>}
+          <span>{item.activityCount} activities</span>
+          <span> &middot; {item.totalEnrollment}</span>
+          {waveCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center gap-0.5">
+              <PiHandWaving size={14} className="inline" />
+              <span>{waveCount}</span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -1,10 +1,14 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { FaLayerGroup } from 'react-icons/fa6'
+import { PiHandWaving } from 'react-icons/pi'
+import { IoCheckmarkCircle, IoExitOutline } from 'react-icons/io5'
+import { MdLocationDisabled, MdOutlineAddComment } from 'react-icons/md'
 import { useRoster } from '@/hooks/useRoster'
 import { upsertAttendanceRecord } from '@/api/agenda'
 import { getBlockLabel } from '@/lib/constants'
 import { formatDateISO } from '@/lib/scheduleUtils'
+import StudentDetailOverlay from './StudentDetailOverlay'
 
 const STATUS_OPTIONS = [
   { key: 'present', label: 'P', fullLabel: 'Present', btnClass: 'btn-success' },
@@ -20,6 +24,7 @@ function RosterModal({
   orgId,
   teacherId,
   blockLabels,
+  actionSummary,
   onClose,
 }) {
   const activityIds = activities.map((a) => a.id)
@@ -28,6 +33,7 @@ function RosterModal({
 
   const [pendingChanges, setPendingChanges] = useState(new Map())
   const [saving, setSaving] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState(null)
   const queryClient = useQueryClient()
 
   const getStudentStatus = useCallback(
@@ -59,7 +65,6 @@ function RosterModal({
     try {
       const upserts = []
       for (const [studentId, status] of pendingChanges) {
-        // Find the activity this student belongs to
         const student = students.find((s) => s.studentId === studentId)
         if (!student) continue
         const instanceId = instances.get(student.activityId)
@@ -71,7 +76,6 @@ function RosterModal({
       }
       await Promise.all(upserts)
 
-      // Invalidate queries
       const dateStr = formatDateISO(date)
       queryClient.invalidateQueries({ queryKey: ['roster'] })
       queryClient.invalidateQueries({
@@ -83,6 +87,26 @@ function RosterModal({
       console.error('Failed to save attendance:', err)
       setSaving(false)
     }
+  }
+
+  function getActionData(student) {
+    if (!actionSummary) return { wave: null, checkIn: null, statusCount: 0 }
+    const key = `${student.studentId}-${student.activityId}`
+    return {
+      wave: actionSummary.waves?.get(key) ?? null,
+      checkIn: actionSummary.checkIns?.get(key) ?? null,
+      statusCount: actionSummary.statusCounts?.get(key) ?? 0,
+    }
+  }
+
+  function handleRowClick(student) {
+    const instanceId = actionSummary?.instances?.get(student.activityId) ?? instances.get(student.activityId)
+    const activity = activities.find((a) => a.id === student.activityId) ?? activities[0]
+    setSelectedStudent({
+      ...student,
+      instanceId,
+      activity,
+    })
   }
 
   // Header content
@@ -131,13 +155,16 @@ function RosterModal({
 
           {!isLoading &&
             !error &&
-            students.map((student) => (
+            students.map((student, index) => (
               <StudentRow
                 key={`${student.studentId}-${student.activityId}`}
                 student={student}
                 isAggregate={isAggregate}
                 currentStatus={getStudentStatus(student.studentId)}
                 onToggle={toggleAttendance}
+                actionData={getActionData(student)}
+                onClick={() => handleRowClick(student)}
+                isEven={index % 2 === 1}
               />
             ))}
         </div>
@@ -162,52 +189,140 @@ function RosterModal({
       <form method="dialog" className="modal-backdrop">
         <button onClick={onClose}>close</button>
       </form>
+
+      {/* Student detail overlay */}
+      {selectedStudent && (
+        <StudentDetailOverlay
+          isOpen={true}
+          onClose={() => setSelectedStudent(null)}
+          student={selectedStudent}
+          instanceId={selectedStudent.instanceId}
+          activity={selectedStudent.activity}
+          orgId={orgId}
+          blockLabels={blockLabels}
+        />
+      )}
     </dialog>
   )
 }
 
-function StudentRow({ student, isAggregate, currentStatus, onToggle }) {
+function StudentRow({
+  student,
+  isAggregate,
+  currentStatus,
+  onToggle,
+  actionData,
+  onClick,
+  isEven,
+}) {
   const displayName = student.preferredName
     ? `${student.preferredName} ${student.lastName}`
     : `${student.firstName} ${student.lastName}`
 
-  const activityLabel = student.activityLocation
-    ? `${student.activityName} \u00b7 ${student.activityLocation}`
-    : student.activityName
-
   return (
-    <div className="flex items-center justify-between gap-2 py-2 px-1">
-      <div className="flex-1 min-w-0">
-        <span className="truncate block">{displayName}</span>
-        {isAggregate && (
-          <span className="text-sm text-base-content/50 italic truncate block">
-            {activityLabel}
+    <div
+      className={`flex items-center gap-2 py-2.5 px-2 rounded-lg cursor-pointer hover:bg-base-200/50 transition-colors ${
+        isEven ? 'bg-base-200/30' : ''
+      }`}
+      onClick={onClick}
+    >
+      {/* Name */}
+      <div className="min-w-30 max-w-45 truncate font-medium">
+        {displayName}
+      </div>
+
+      {/* Activity label — aggregate only */}
+      {isAggregate && (
+        <div className="min-w-20 max-w-35 text-sm text-base-content/50 italic truncate">
+          {student.activityName}
+        </div>
+      )}
+
+      {/* Icon zone */}
+      <div className="flex-1 flex items-center gap-1.5 justify-end">
+        {actionData.wave && (
+          <span
+            className="text-success"
+            title={`Waved at ${formatTimestamp(actionData.wave.waved_at)}`}
+          >
+            <PiHandWaving size={16} />
+          </span>
+        )}
+        {actionData.checkIn && (
+          <CheckInIcon checkIn={actionData.checkIn} />
+        )}
+        {actionData.checkIn?.geofence_validated === false && (
+          <span className="text-error" title="Location check failed">
+            <MdLocationDisabled size={16} />
+          </span>
+        )}
+        {actionData.statusCount > 0 && (
+          <span
+            className="flex items-center gap-0.5 text-base-content/50"
+            title={`${actionData.statusCount} status update(s)`}
+          >
+            <MdOutlineAddComment size={14} />
+            <span className="text-xs">({actionData.statusCount})</span>
           </span>
         )}
       </div>
 
-      {student.requiresAttendance ? (
-        <div className="join shrink-0">
-          {STATUS_OPTIONS.map(({ key, label, fullLabel, btnClass }) => (
-            <button
-              key={key}
-              className={`btn btn-xs join-item ${
-                currentStatus === key ? btnClass : 'btn-ghost'
-              }`}
-              title={fullLabel}
-              onClick={() => onToggle(student.studentId, key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <span className="text-sm text-base-content/40 shrink-0">
-          No attendance
-        </span>
-      )}
+      {/* PAET buttons — stop propagation */}
+      <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+        {student.requiresAttendance ? (
+          <div className="flex items-center gap-1">
+            {STATUS_OPTIONS.map(({ key, label, fullLabel, btnClass }) => (
+              <button
+                key={key}
+                className={`btn btn-xs rounded ${
+                  currentStatus === key ? btnClass : 'btn-ghost'
+                }`}
+                title={fullLabel}
+                onClick={() => onToggle(student.studentId, key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="text-sm text-base-content/40 shrink-0">
+            No attendance
+          </span>
+        )}
+      </div>
     </div>
   )
+}
+
+function CheckInIcon({ checkIn }) {
+  if (checkIn.checked_out_at) {
+    return (
+      <span
+        className="text-success"
+        title={`Checked in ${formatTimestamp(checkIn.checked_in_at)}, out ${formatTimestamp(checkIn.checked_out_at)}`}
+      >
+        <IoExitOutline size={16} />
+      </span>
+    )
+  }
+  return (
+    <span
+      className="text-success"
+      title={`Checked in at ${formatTimestamp(checkIn.checked_in_at)}`}
+    >
+      <IoCheckmarkCircle size={16} />
+    </span>
+  )
+}
+
+function formatTimestamp(isoString) {
+  if (!isoString) return ''
+  const d = new Date(isoString)
+  return d.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
 }
 
 function buildHeader(activities, isAggregate, blockLabels) {
