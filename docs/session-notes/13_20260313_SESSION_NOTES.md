@@ -168,3 +168,9 @@ Investigated the state of lazy instance creation. Found that:
 - **Created:** `docs/user-flows/teacher-agenda-build-spec.md` — full build spec for teacher Dashboard, roster modal, and attendance marking
 - **Deleted:** `docs/user-flows/student-teacher-agenda-build-spec.md` — fully superseded by `student-agenda-today-view-build-spec.md` (student) and `teacher-agenda-build-spec.md` (teacher). Only referenced in STATUS.md (updated) and as historical context in the headers of its successor specs.
 - **Updated:** `STATUS.md` — teacher dashboard row now references new spec; user flow docs table updated; next steps updated
+
+## 13.4 — Teacher Agenda Build 
+
+Claude Code built the teacher `Dashboard` from the `teacher-agenda-build-spec.md` spec. All components built according to spec - all is working as expected. 
+
+Creating one issue from build based on the only item in the test plan that failed - issue #19. 
