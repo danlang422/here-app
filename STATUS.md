@@ -26,8 +26,8 @@
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
 | Check-in flows | Not started | — |
 | **Teacher** | | |
-| Dashboard / agenda | Spec complete, not built | `teacher-agenda-build-spec.md` |
-| Attendance marking | Spec complete (in teacher agenda spec), not built | `teacher-agenda-build-spec.md` |
+| Dashboard / agenda | Built | `teacher-agenda-build-spec.md` |
+| Attendance marking | Built | `teacher-agenda-build-spec.md` |
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI/agenda focus) | Built | — |
@@ -55,7 +55,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Items
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Teacher agenda build (from `teacher-agenda-build-spec.md`) → Student agenda action buttons (status updates spec, check-in spec) → Check-in flows
+**Current priority:** Student agenda actions & check-in flow build (`student-actions-build-spec.md`)
 
 ---
 
@@ -84,4 +84,5 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `org-settings-build-spec.md` | **Implemented** | Block schedule, academic terms, rotation days. |
 | `calendar-management-build-spec.md` | **Implemented** | School days, exceptions, per-reason rotation. |
 | `student-agenda-today-view-build-spec.md` | **Implemented** | Student TodayView agenda built - buttons and functions need spec. |
-| `teacher-agenda-build-spec.md` | **Ready to build** | Teacher Dashboard, roster modal, attendance marking. |
+| `teacher-agenda-build-spec.md` | **Implemented** | Teacher Dashboard, roster modal, attendance marking. |
+| `student-actions-build-spec.md` | **Ready to Build** | Student action buttons and check-in flow |
