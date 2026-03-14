@@ -1,5 +1,5 @@
 // Agenda grid layout constants
-export const PX_PER_HOUR = 80
+export const PX_PER_HOUR = 100
 export const TIME_COL_WIDTH = 48
 export const DAY_COL_MIN_WIDTH = 140
 
