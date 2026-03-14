@@ -28,6 +28,7 @@
 | **Teacher** | | |
 | Dashboard / agenda | Built | `teacher-agenda-build-spec.md` |
 | Attendance marking | Built | `teacher-agenda-build-spec.md` |
+| Student action visibility | Spec Written | `teacher-roster-student-actions-build-spec.md` |
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI/agenda focus) | Built | — |
@@ -55,7 +56,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Items
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Write build spec for teacher agenda incorporation of student actions (status update, wave, check-in/out) - details TBD. 
+**Current priority:** Build spec complete for teacher roster visibility of student actions. `teacher-roster-student-actions-build-spec.md` Ready to build.
 
 ---
 
@@ -86,3 +87,4 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `student-agenda-today-view-build-spec.md` | **Implemented** | Student TodayView agenda built - buttons and functions need spec. |
 | `teacher-agenda-build-spec.md` | **Implemented** | Teacher Dashboard, roster modal, attendance marking. |
 | `student-actions-build-spec.md` | **Implemented** | Student action buttons and check-in flow |
+| `teacher-roster-student-actions-build-spec.md` | **Ready to build** | Teacher visibility of student actions | 
