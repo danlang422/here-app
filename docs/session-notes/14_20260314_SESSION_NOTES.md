@@ -137,8 +137,45 @@ Dev override was rolled back after testing and the file deleted before merging.
 - Admin-configurable agenda view start/end times (replacing hardcoded DEFAULT_GRID_END)
 - Mutual exclusivity enforcement for `allows_presence_wave` and `requires_checkin` on activities
 
+## 14.9 — Teacher Roster Student Actions Spec (Claude.ai)
+
+Designed and wrote `docs/user-flows/teacher-roster-student-actions-build-spec.md` — the spec for surfacing student actions (waves, check-ins, status updates) on the teacher side. This was a conversation-heavy design session with a lot of back-and-forth on layout and interaction model.
+
+### Design Decisions
+
+**Teacher activity card condensed to two rows.** The three-row layout (name / meta / enrollment count) was cramped at PX_PER_HOUR = 100 for shorter blocks. Merged enrollment count and wave count into the meta line: `7:30a – 9a · Block 0 · Trevor's Hub · 7 👋 4`. Wave count is the only student action indicator on the card — check-in and status data lives in the roster.
+
+**Roster row redesigned as single-row with icon zone.** Current roster has a big gap between student names and PAET buttons. New layout fills the middle with conditional icons: wave (green hand), check-in/out (green checkmark/exit), geofence failure (red location), status update count badge. For aggregate rosters, the activity label (without location) also goes inline: `Name | Activity | Icons | PAET`. Location removed from aggregate rows — available in student detail overlay.
+
+**Whole row clickable except PAET buttons.** `stopPropagation` on the button zone. Consistent interaction model — clicking anywhere in the row opens a student detail overlay, even if no interactions exist yet (shows empty state).
+
+**Student detail overlay as separate modal.** Layers on top of the roster modal rather than inline expansion or slide-out panel. Keeps the roster scannable — no accordion expanding/collapsing while marking attendance. The overlay fetches its own data on open (keeps roster query lightweight), shows check-in/out timestamps, geofence status, freeform tags, wave + streak, and full status update content as a chronological timeline.
+
+**Icons only when data exists.** No placeholders, no "not yet waved" indicators. Absence = no icon. Keeps the roster clean for students who haven't interacted yet.
+
+**Per-student-per-activity indicators in aggregate rosters.** Each enrollment row gets its own icons independently.
+
+**Attendance button styling fix noted.** DaisyUI `join` only rounds outer edges of first/last button — switching to individually rounded buttons with gap.
+
+**Zebra striping on roster rows.** `even:bg-base-200/30` for scanability.
+
+### Data Architecture
+
+- `useTeacherActionSummary` hook owned by Dashboard, fetches all waves/check-ins/status updates for the teacher's activities on a date in parallel, passed to both cards (wave counts) and roster (per-student icons)
+- `useStudentInstanceDetail` hook fetches deep detail per-student on overlay open — including streak calculation (noted: extract streak logic into shared `src/lib/streakUtils.js` utility during build)
+- Four new API functions: `getWavesForInstances`, `getCheckInsForInstances`, `getStatusUpdatesForInstances`, `getStudentInstanceDetail`
+
+### Scope
+
+Spec covers teacher card changes, roster row redesign with icons, student detail overlay, and all supporting hooks/API. Explicitly deferred: feed page, student interaction history, Realtime subscriptions, bulk attendance actions, mobile layout.
+
+---
+
 ## Follow-Up
 
-- Teacher visibility of student interactions (waves, check-ins, status updates) — next spec
+- Build from `teacher-roster-student-actions-build-spec.md` — next Claude Code session
+- Feed page spec (filterable view of status updates, check-ins, waves across activities/dates)
+- Student interaction history (student-facing view of own past actions)
 - Streak calculation may need debugging once real school-day usage begins
 - Test data from dev override testing cleaned from database
+- Extract streak calculation into shared utility (`src/lib/streakUtils.js`) during build
