@@ -171,6 +171,95 @@ export async function getInstancesForActivities(orgId, date, activityIds) {
   return new Map(filtered.map((i) => [i.activity_id, i.id]))
 }
 
+// --- Teacher action summary API functions ---
+
+// Fetch all presence waves for a set of activity instances (teacher view).
+export async function getWavesForInstances(instanceIds) {
+  if (instanceIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('presence_waves')
+    .select('*')
+    .in('activity_instance_id', instanceIds)
+
+  if (error) throw error
+  return data
+}
+
+// Fetch all check-ins for a set of activity instances (teacher view).
+export async function getCheckInsForInstances(instanceIds) {
+  if (instanceIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('*')
+    .in('activity_instance_id', instanceIds)
+
+  if (error) throw error
+  return data
+}
+
+// Fetch all status updates for a set of activity instances (teacher view).
+export async function getStatusUpdatesForInstances(instanceIds) {
+  if (instanceIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('status_updates')
+    .select('*')
+    .in('activity_instance_id', instanceIds)
+
+  if (error) throw error
+  return data
+}
+
+// Fetch full detail for a single student on a single activity instance.
+// Used by the student detail overlay.
+export async function getStudentInstanceDetail(studentId, instanceId) {
+  const [checkIns, waves, statusUpdates] = await Promise.all([
+    supabase
+      .from('check_ins')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('activity_instance_id', instanceId)
+      .maybeSingle()
+      .then(({ data, error }) => { if (error) throw error; return data }),
+    supabase
+      .from('presence_waves')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('activity_instance_id', instanceId)
+      .maybeSingle()
+      .then(({ data, error }) => { if (error) throw error; return data }),
+    supabase
+      .from('status_updates')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('activity_instance_id', instanceId)
+      .order('created_at', { ascending: true })
+      .then(({ data, error }) => { if (error) throw error; return data ?? [] }),
+  ])
+
+  // If check-in exists, fetch freeform tags
+  let freeformTags = []
+  if (checkIns?.id) {
+    const { data: tags, error: tagError } = await supabase
+      .from('checkin_activity_tags')
+      .select('*, activity:activity_id(name)')
+      .eq('checkin_id', checkIns.id)
+
+    if (!tagError && tags) {
+      freeformTags = tags.map(t => t.activity?.name).filter(Boolean)
+    }
+  }
+
+  return {
+    checkIn: checkIns,
+    wave: waves,
+    statusUpdates,
+    freeformTags,
+  }
+}
+
 // --- Student action API functions ---
 
 // Fetch existing check-ins for a student across multiple instances
