@@ -28,7 +28,7 @@
 | **Teacher** | | |
 | Dashboard / agenda | Built | `teacher-agenda-build-spec.md` |
 | Attendance marking | Built | `teacher-agenda-build-spec.md` |
-| Student action visibility | Spec Written | `teacher-roster-student-actions-build-spec.md` |
+| Student action visibility | Built | `teacher-roster-student-actions-build-spec.md` |
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI/agenda focus) | Built | — |
@@ -50,13 +50,12 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Items
 - **Cross-month date ranges fail in calendar (#12):** Adding exception ranges that span e.g. Dec–Jan doesn't work.
 - **Block label filter placement (#13):** Layout issue in agenda view.
 - **Block overlay visibility in student agenda (#16):** Block overlay is not visible behind agenda cards
-- **Student TodayView missing instance upsert:** The `ensureActivityInstances` useEffect was lost during session 13.1 build. RLS policy exists; just needs the call re-added.
 
 ## Next Steps
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Build spec complete for teacher roster visibility of student actions. `teacher-roster-student-actions-build-spec.md` Ready to build.
+**Current priority:** Teacher and student agendas built and functional! Next will either be the teacher 'feed' of CI/CO, status update, and waves from students or view options for students to view their own interactions. 
 
 ---
 
@@ -87,4 +86,4 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `student-agenda-today-view-build-spec.md` | **Implemented** | Student TodayView agenda built - buttons and functions need spec. |
 | `teacher-agenda-build-spec.md` | **Implemented** | Teacher Dashboard, roster modal, attendance marking. |
 | `student-actions-build-spec.md` | **Implemented** | Student action buttons and check-in flow |
-| `teacher-roster-student-actions-build-spec.md` | **Ready to build** | Teacher visibility of student actions | 
+| `teacher-roster-student-actions-build-spec.md` | **Implemented** | Teacher visibility of student actions | 

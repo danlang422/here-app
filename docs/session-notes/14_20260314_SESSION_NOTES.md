@@ -171,11 +171,38 @@ Spec covers teacher card changes, roster row redesign with icons, student detail
 
 ---
 
+## 14.10 — Build (Claude Code)
+
+Claude Code built the full teacher roster student actions feature from `teacher-roster-student-actions-build-spec.md`. PR merged successfully.
+
+### What Was Built
+
+**New files:**
+- `src/components/roster/StudentDetailOverlay.jsx` — student detail modal layered on top of roster, with conditional sections for check-in/out timestamps, geofence status, freeform tags, wave + streak, and full status update timeline
+- `src/hooks/useTeacherActionSummary.js` — fetches waves, check-ins, and status update counts across all students for the teacher's activities on a date; serves both card wave counts and roster row icons
+- `src/hooks/useStudentInstanceDetail.js` — fetches full detail for one student on one instance, used by the detail overlay on open
+
+**Modified files:**
+- `src/components/agenda/TeacherActivityCard.jsx` — condensed to two-row layout, wave count display via new `waveCount` prop
+- `src/components/roster/RosterModal.jsx` — new single-row flexbox layout with icon zone, row click handler for detail overlay, zebra striping, individually rounded attendance buttons (replacing `join` pattern), accepts `actionSummary` prop
+- `src/pages/teacher/Dashboard.jsx` — integrates `useTeacherActionSummary`, passes wave counts to cards and full action summary to roster modal
+- `src/api/agenda.js` — added `getWavesForInstances`, `getCheckInsForInstances`, `getStatusUpdatesForInstances`, `getStudentInstanceDetail`
+
+### Testing Notes
+
+- Teacher cards display correctly with condensed two-row layout at various block durations
+- Roster row icons render correctly for waves, check-ins/outs, and status update counts
+- Student detail overlay opens from row click, shows empty state when no interactions exist
+- Attendance buttons individually rounded, zebra striping working
+- Whole-row click target works with `stopPropagation` on PAET buttons
+- **Deferred:** Streak counts in detail overlay and geofence failure indicators — need real student interaction data to test properly (spring break)
+
+---
+
 ## Follow-Up
 
-- Build from `teacher-roster-student-actions-build-spec.md` — next Claude Code session
 - Feed page spec (filterable view of status updates, check-ins, waves across activities/dates)
 - Student interaction history (student-facing view of own past actions)
-- Streak calculation may need debugging once real school-day usage begins
+- Streak calculation and geofence failure display need testing with real data
 - Test data from dev override testing cleaned from database
-- Extract streak calculation into shared utility (`src/lib/streakUtils.js`) during build
+- Extract streak calculation into shared utility (`src/lib/streakUtils.js`) if not done during build
