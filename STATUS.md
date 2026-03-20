@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 14, 2026
+**Last updated:** March 20, 2026
 
 ---
 
@@ -21,6 +21,7 @@
 | Enrollment — student-centric (Entry B) | Designed, not built | #7 |
 | Org settings (block schedule, terms, rotation days) | Built | `org-settings-build-spec.md` |
 | Calendar management (school days, exceptions, per-reason rotation) | Built | `calendar-management-build-spec.md`, #12 |
+| Student schedule view | Designed, waiting on decisions to finalize | `student-schedule-view-build-spec.md` |
 | Reports | Placeholder | — |
 | **Student** | | |
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
@@ -55,7 +56,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Items
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Teacher and student agendas built and functional! Next will either be the teacher 'feed' of CI/CO, status update, and waves from students or view options for students to view their own interactions. 
+**Current priority:** Teacher and student agendas built and functional! Will need to spec and build teacher and student views and interaction options with check-in/out logs, status updates, and waves. Pivoting to focus on schedule entry until all student schedules are entered and verified. 
 
 ---
 
@@ -87,3 +88,4 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `teacher-agenda-build-spec.md` | **Implemented** | Teacher Dashboard, roster modal, attendance marking. |
 | `student-actions-build-spec.md` | **Implemented** | Student action buttons and check-in flow |
 | `teacher-roster-student-actions-build-spec.md` | **Implemented** | Teacher visibility of student actions | 
+| `student-schedule-view-build-spec.md` | **Pending Decisions** | Admin view of individual student schedule |
