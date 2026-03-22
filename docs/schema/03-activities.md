@@ -42,9 +42,6 @@ The central table. Replaces both `sessions` and `student_activities` from V1.
 CREATE TABLE activities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  term_id UUID REFERENCES academic_terms(id),
-  -- Optional but recommended. Links activity to a specific term for easy term-based queries.
-  -- Activities without a term_id can still be filtered by date range using start_date/end_date.
   name TEXT NOT NULL,
 
   -- Scheduling state flags (mutually exclusive)
@@ -128,7 +125,10 @@ CREATE TABLE activities (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   duration_minutes INTEGER CHECK (duration_minutes IS NULL OR duration_minutes > 0),
--- Expected duration in minutes. Nullable — can be inferred from start/end times when not explicitly set.
+  -- Planned duration in minutes. Used for unplaced activities (activities that will be scheduled
+  -- but don't have times yet) to size their cards in the future schedule canvas/placement tool.
+  -- For activities with default_start_time and default_end_time, the UI computes duration from
+  -- the time range directly — this field is not kept in sync with times.
 
   CONSTRAINT valid_block CHECK (block IS NULL OR block >= 0),
   -- Upper bound enforced at app layer against organization.settings.block_count
@@ -150,8 +150,9 @@ CREATE INDEX idx_activities_teacher ON activities(teacher_id);
 CREATE INDEX idx_activities_monitor ON activities(monitor_id);
 CREATE INDEX idx_activities_active ON activities(organization_id, is_active) WHERE is_active = true;
 CREATE INDEX idx_activities_days_gin ON activities USING GIN(days_of_week);
-CREATE INDEX idx_activities_term ON activities(term_id) WHERE term_id IS NOT NULL;
 ```
+
+**Term association:** Activities are associated with terms through the `activity_terms` junction table (see `docs/schema/02-academic-calendar.md`). An activity can belong to multiple terms — for example, a Kirkwood college course tagged with both "Kirkwood S2 #1" and "Semester 2." To query activities for a given term, join through `activity_terms`. The previous `term_id` FK column was removed in migration `20260320000000_terms_many_to_many.sql`.
 
 **Common activity scenarios:**
 

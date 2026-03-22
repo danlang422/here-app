@@ -31,6 +31,39 @@ Only one term can have `is_current = true` per organization, enforced by the uni
 
 ---
 
+## activity_terms
+
+Many-to-many association between activities and terms. An activity can belong to multiple terms — for example, a Kirkwood college course might be tagged with both "Kirkwood S2 #1" (the college's own term dates) and "Semester 2" (City View's semester for filtering purposes).
+
+Terms are used for filtering and organization, not for driving behavior. The `is_primary` flag identifies which term's dates were used to auto-populate the activity's `start_date`/`end_date` fields.
+
+```sql
+CREATE TABLE activity_terms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+  term_id UUID NOT NULL REFERENCES academic_terms(id) ON DELETE CASCADE,
+  is_primary BOOLEAN DEFAULT false,
+  -- The first term applied to an activity is marked is_primary = true.
+  -- The primary term's dates are used to auto-fill start_date/end_date on the activity
+  -- (if those fields are blank at the time of association). Additional terms are just
+  -- filtering/organizational tags and do not affect dates.
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+
+  CONSTRAINT unique_activity_term UNIQUE (activity_id, term_id)
+);
+
+CREATE INDEX idx_activity_terms_activity ON activity_terms(activity_id);
+CREATE INDEX idx_activity_terms_term ON activity_terms(term_id);
+```
+
+**Primary term and date auto-fill:** When the first term is associated with an activity (via the activity form's term picker), it is marked `is_primary = true` and its `start_date`/`end_date` are copied to the activity's own date fields — but only if those fields are currently blank. Subsequent terms added to the same activity are `is_primary = false` and do not affect dates.
+
+This supports workflows like: create a Kirkwood college course → add the "Kirkwood S2 #1" term (auto-fills dates from the college calendar) → also tag it with "Semester 2" for City View filtering. The activity's dates reflect the college's calendar, but staff can find it by filtering for either term.
+
+**Migration note:** This table was introduced in `20260320000000_terms_many_to_many.sql`, replacing the previous `term_id` FK column on the `activities` table. All existing term associations were migrated with `is_primary = true`.
+
+---
+
 ## schedule_templates
 
 Reusable block time definitions.

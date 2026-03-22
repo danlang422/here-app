@@ -14,7 +14,7 @@
 |------|--------|-----------|
 | Auth & navigation | Built | — |
 | **Admin** | | |
-| Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster) | Built | `activity-detail-and-form-redesign-spec.md` |
+| Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster) | Pending Re-Design | `activity-detail-and-form-redesign-spec.md`, `activity-management-overhaul-build-spec.md` |
 | User management (CRUD, bulk paste-from-spreadsheet entry) | Built | — |
 | Dashboard & agenda view (week grid, block grouping, adaptive cards, tooltips) | Built, polish deferred | `agenda-view-build-spec.md`, `admin-dashboard.md`, #3, #6 |
 | Enrollment — activity-centric (Entry A) | Built | `enrollment-panel-build-spec.md` |
@@ -89,3 +89,4 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `student-actions-build-spec.md` | **Implemented** | Student action buttons and check-in flow |
 | `teacher-roster-student-actions-build-spec.md` | **Implemented** | Teacher visibility of student actions | 
 | `student-schedule-view-build-spec.md` | **Pending Decisions** | Admin view of individual student schedule |
+| `activity-management-overhaul-build-spec.md` | **Ready to Build** | Admin activity page revamp + activity_term changes |

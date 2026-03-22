@@ -69,10 +69,98 @@ Discussed where this view should live. Users page is not ideal (Daniel rarely vi
 
 - `docs/user-flows/student-schedule-view-build-spec.md` — Build spec (status: near-final draft, pending integration placement decision)
 
-## Next Steps
+## Next Steps (from 3/20)
 
 - Discuss and spec adjacent features that affect integration placement: activity page improvements, admin search, agenda view fixes
 - Finalize Student Schedule View integration point and container
 - Build Student Schedule View (hand off to Claude Code)
 - Address agenda view blob problem (block-less activity grouping)
 - Consider block auto-assignment batch tool
+
+---
+
+# Session 15 (continued) — March 22, 2026
+
+## Focus
+
+Activity management infrastructure: terms many-to-many migration, activity page overhaul spec.
+
+## Context
+
+After a brief break (including a Notion/Tana cleanup and subscription cancellation), Daniel returned to address the adjacent features identified at the end of the 3/20 discussion. The Student Schedule View spec is near-final but blocked on integration placement decisions, which depend on making the activity page a real working surface.
+
+## What Happened
+
+### Activity data hygiene discussion
+
+Daniel described the state of his activity data after weeks of schedule entry: many activities missing blocks (entered times but not blocks), missing terms (created before terms were defined), and questions about how `duration_minutes` should relate to `start_time`/`end_time`. This surfaced three layers of work:
+
+1. **Data hygiene / bulk tidy-up** — activities with incomplete data that needs to be filled before filtering is useful
+2. **Activity page as a working surface** — search, filters, sort to actually navigate and triage 54+ activities
+3. **Features that build on a better activity page** — student schedule view, block auto-assignment, unplaced activity panel
+
+### Duration field semantics decided
+
+Agreed that `duration_minutes` is a planning-only field for unplaced activities (those that will be scheduled but don't have times yet). When an activity has `default_start_time` and `default_end_time`, the UI computes duration from the time range and the field is hidden/read-only. No schema change — just form behavior and a label change to "Planned Duration."
+
+### Terms many-to-many migration
+
+The key schema change in this session. Daniel identified that activities need multiple term associations — e.g., a Kirkwood college course should be tagged with both "Kirkwood S2 #1" (college's own dates) and "Semester 2" (City View's semester for filtering). The existing `term_id` FK on activities only allowed one.
+
+**Migration (`20260320000000_terms_many_to_many.sql`):**
+- Created `activity_terms` junction table with `is_primary` flag
+- Migrated all 44 existing `term_id` associations as `is_primary = true`
+- Dropped `term_id` column from activities
+- Added RLS policies (admin full access, staff read, student read via enrollment)
+- Hit a bug during migration: RLS policies used `up.role = 'admin'` instead of `'admin' = ANY(up.roles)` — the `roles` column is an array. Fixed and re-ran successfully.
+
+**Primary term semantics:** The first term added to an activity is marked `is_primary = true` and auto-fills the activity's `start_date`/`end_date` (if blank). Additional terms are filtering/organizational tags only.
+
+### Schema docs updated
+
+- `docs/schema/02-academic-calendar.md` — Added `activity_terms` section with full documentation of the junction table, `is_primary` behavior, and migration note
+- `docs/schema/03-activities.md` — Removed `term_id` from `CREATE TABLE` and index list, added "Term association" paragraph pointing to junction table, updated `duration_minutes` comment to reflect planned-duration semantics
+
+### Activity Management Page Overhaul spec
+
+The main deliverable. Covers four parts:
+
+1. **API and hook changes** — New `activityTerms.js` API and `useActivityTerms.js` hook for CRUD on term associations. Modified `getActivities()` to join through `activity_terms` and bring term data with each activity.
+
+2. **Activity page search, filters, and sort** — New `ActivityToolbar` component with text search (name, instructor, location, staff), filter dropdowns (block, term, schedule status, staff — each with "No X" option for data completeness discovery), and sort (name, block, time, enrolled). All client-side via `useMemo`.
+
+3. **Term tag picker** — Replaces the single `<select>` for `term_id` in `ActivityDetail` with a multi-select tag picker. Terms are added/removed via immediate mutations (not batched with form save). Known v1 inconsistency: term changes persist even if you cancel other form edits. Tracked for future improvement.
+
+4. **Duration field behavior** — Hide/disable `duration_minutes` input when times are present, show computed duration instead. Only persist the field for unplaced activities.
+
+### Implementation approach for term picker
+
+Discussed two options for how term add/remove should interact with the form's save/cancel flow:
+- **Option A (chosen):** Immediate mutations — simpler to build, term changes save on click independent of form save button
+- **Option B (deferred):** Batch with form save — more consistent UX, but more complexity. Tracked as future improvement.
+
+Chose Option A given the time pressure (aiming for school demo on Monday 3/23).
+
+## Decisions Made
+
+1. **Terms are many-to-many** via `activity_terms` junction table. First term is "primary" and auto-fills dates.
+2. **`duration_minutes` is a planning hint** for unplaced activities only. Computed from times when times exist.
+3. **Term picker uses immediate mutations** (Option A). Consistency with form save/cancel deferred to future issue.
+4. **Location column removed** from activity table — rarely populated, still in detail modal.
+5. **All filtering is client-side** — dataset is small enough (< 100 activities) that this is simpler than server-side.
+6. **Student Schedule View integration deferred** — will revisit after activity page overhaul is built.
+
+## Artifacts
+
+- `supabase/migrations/20260320000000_terms_many_to_many.sql` — Migration file
+- `docs/user-flows/activity-management-overhaul-build-spec.md` — Build spec (status: Ready to Build)
+- `docs/schema/02-academic-calendar.md` — Updated with `activity_terms` section
+- `docs/schema/03-activities.md` — Updated: `term_id` removed, term association docs, duration semantics
+
+## Next Steps
+
+- Hand off activity management overhaul spec to Claude Code (steps 1–2 are blockers to make app functional again after migration)
+- Create GitHub issue for batching term changes with form save/cancel
+- Enter remaining schedule data using improved activity page
+- Consider bug reporting feature before school demo
+- Circle back to Student Schedule View spec — finalize integration placement
