@@ -7,8 +7,7 @@ import {
 } from 'react-icons/fa'
 import { getBlocks, getBlockLabel, WEEKDAYS } from '@/lib/constants'
 import { useStaffUsers } from '@/hooks/useUsers'
-import { useAddActivityTerm, useRemoveActivityTerm } from '@/hooks/useActivityTerms'
-import { useUpdateActivity } from '@/hooks/useActivities'
+import { useActivityTerms, useAddActivityTerm, useRemoveActivityTerm } from '@/hooks/useActivityTerms'
 import useAuthStore from '@/store/authStore'
 import StaffRows from './StaffRows'
 import { buildStaffRows, staffRowsToFlat } from './staffUtils'
@@ -382,7 +381,7 @@ export default function ActivityDetail({
           {mode === 'view' ? (
             <DatesView activity={activity} />
           ) : (
-            <DatesEdit register={register} activity={activity} terms={terms} orgId={orgId} />
+            <DatesEdit register={register} setValue={setValue} getValues={getValues} activity={activity} terms={terms} orgId={orgId} />
           )}
         </div>
 
@@ -569,7 +568,9 @@ function SchedulingEdit({
 }
 
 function DatesView({ activity }) {
-  const activityTerms = activity?.activity_terms || []
+  const { data: liveTerms } = useActivityTerms(activity?.id)
+  // Fall back to the joined data from the activities query on first render
+  const activityTerms = liveTerms ?? activity?.activity_terms ?? []
   const parts = []
 
   if (activityTerms.length > 0) {
@@ -589,11 +590,11 @@ function DatesView({ activity }) {
   return <span className="text-sm text-base-content/70">{parts.join(' · ')}</span>
 }
 
-function DatesEdit({ register, activity, terms, orgId }) {
-  const activityTerms = activity?.activity_terms || []
+function DatesEdit({ register, setValue, getValues, activity, terms, orgId }) {
+  // Use the live query so tags update immediately after add/remove mutations
+  const { data: activityTerms = [] } = useActivityTerms(activity?.id)
   const addMutation = useAddActivityTerm(activity?.id, orgId)
   const removeMutation = useRemoveActivityTerm(activity?.id, orgId)
-  const updateActivity = useUpdateActivity(orgId)
 
   const availableTerms = terms.filter((t) =>
     !activityTerms.some((at) => at.term_id === t.id)
@@ -605,14 +606,16 @@ function DatesEdit({ register, activity, terms, orgId }) {
       { termId, isPrimary: isFirst },
       {
         onSuccess: (newAssoc) => {
-          // Auto-fill dates from first term if activity has no dates
-          if (isFirst && !activity?.start_date && !activity?.end_date) {
+          // Auto-fill form date fields from first term if dates are blank
+          if (isFirst) {
             const term = newAssoc.term
-            if (term?.start_date && term?.end_date && activity?.id) {
-              updateActivity.mutate({
-                id: activity.id,
-                updates: { start_date: term.start_date, end_date: term.end_date },
-              })
+            if (term?.start_date && term?.end_date) {
+              const currentStart = getValues('start_date')
+              const currentEnd = getValues('end_date')
+              if (!currentStart && !currentEnd) {
+                setValue('start_date', term.start_date)
+                setValue('end_date', term.end_date)
+              }
             }
           }
         },
