@@ -16,17 +16,25 @@ export async function getActivity(activityId) {
 export async function getActivities(organizationId, { termId, isActive = true } = {}) {
   let query = supabase
     .from('activities')
-    .select('*, teacher:user_profiles!teacher_id(first_name, last_name), monitor:user_profiles!monitor_id(first_name, last_name)')
+    .select(`
+      *,
+      teacher:user_profiles!teacher_id(first_name, last_name),
+      monitor:user_profiles!monitor_id(first_name, last_name),
+      activity_terms(id, term_id, is_primary, term:academic_terms(id, name, start_date, end_date))
+    `)
     .eq('organization_id', organizationId)
     .eq('is_active', isActive)
     .order('block', { ascending: true, nullsFirst: false })
     .order('name')
 
-  if (termId) {
-    query = query.eq('term_id', termId)
-  }
   const { data, error } = await query
   if (error) throw error
+
+  // Client-side term filter (PostgREST filters nested arrays but still returns all rows)
+  if (termId) {
+    return data.filter((a) => a.activity_terms?.some((at) => at.term_id === termId))
+  }
+
   return data
 }
 
