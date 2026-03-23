@@ -1,7 +1,7 @@
 # Activity Management Page Overhaul — Build Spec
 
 **Created:** March 22, 2026  
-**Status:** Ready to Build  
+**Status:** Implemented
 **Context:** The activity page is currently a flat alphabetical list with no sorting, filtering, or search. As the activity count has grown (54 and counting), the admin needs tools to navigate, triage, and act on activities efficiently. This spec also includes the app-layer changes required by the `activity_terms` many-to-many migration (`20260320000000_terms_many_to_many.sql`), which removed `term_id` from activities and replaced it with a junction table.
 
 ---
