@@ -138,12 +138,14 @@ export default function ActivityDetail({
 
   const [staffRows, setStaffRows] = useState(() => buildStaffRows(activity))
   const [showDescription, setShowDescription] = useState(!!(activity?.description))
+  const [pendingTerms, setPendingTerms] = useState([])
 
-  // Reset form and staff rows when activity changes
+  // Reset form, staff rows, and pending terms when activity changes
   useEffect(() => {
     reset(buildInitialValues(activity))
     setStaffRows(buildStaffRows(activity))
     setShowDescription(!!(activity?.description))
+    setPendingTerms([])
   }, [activity?.id ?? 'new']) // eslint-disable-line react-hooks/exhaustive-deps
 
   const watchedIsNotScheduled = watch('is_not_scheduled')
@@ -176,6 +178,22 @@ export default function ActivityDetail({
     // Mutual exclusion: is_release ↔ requires_attendance
     if (field === 'is_release' && next) setValue('requires_attendance', false)
     if (field === 'requires_attendance' && next) setValue('is_release', false)
+  }
+
+  // Pending term handlers — used for new (unsaved) activities only
+  function handleAddPendingTerm(term) {
+    const isFirst = pendingTerms.length === 0
+    setPendingTerms((prev) => [...prev, { termId: term.id, is_primary: isFirst, term }])
+    if (isFirst && term.start_date && term.end_date) {
+      if (!getValues('start_date') && !getValues('end_date')) {
+        setValue('start_date', term.start_date)
+        setValue('end_date', term.end_date)
+      }
+    }
+  }
+
+  function handleRemovePendingTerm(termId) {
+    setPendingTerms((prev) => prev.filter((pt) => pt.termId !== termId))
   }
 
   // Block → time auto-fill from default template
@@ -224,6 +242,8 @@ export default function ActivityDetail({
       requires_geofence: formValues.requires_geofence,
       is_release: formValues.is_release,
       is_not_scheduled: formValues.is_not_scheduled,
+      // For new activities: carry pending terms to the parent for post-create insertion
+      ...(!activity ? { _pendingTerms: pendingTerms } : {}),
     }
     onSave?.(data)
   }
@@ -381,7 +401,13 @@ export default function ActivityDetail({
           {mode === 'view' ? (
             <DatesView activity={activity} />
           ) : (
-            <DatesEdit register={register} setValue={setValue} getValues={getValues} activity={activity} terms={terms} orgId={orgId} />
+            <DatesEdit
+              register={register} setValue={setValue} getValues={getValues}
+              activity={activity} terms={terms} orgId={orgId}
+              pendingTerms={pendingTerms}
+              onAddPendingTerm={handleAddPendingTerm}
+              onRemovePendingTerm={handleRemovePendingTerm}
+            />
           )}
         </div>
 
@@ -590,41 +616,54 @@ function DatesView({ activity }) {
   return <span className="text-sm text-base-content/70">{parts.join(' · ')}</span>
 }
 
-function DatesEdit({ register, setValue, getValues, activity, terms, orgId }) {
-  // Use the live query so tags update immediately after add/remove mutations
-  const { data: activityTerms = [] } = useActivityTerms(activity?.id)
+function DatesEdit({ register, setValue, getValues, activity, terms, orgId, pendingTerms, onAddPendingTerm, onRemovePendingTerm }) {
+  const isNew = !activity?.id
+
+  // For existing activities: live query + immediate mutations
+  const { data: savedTerms = [] } = useActivityTerms(activity?.id)
   const addMutation = useAddActivityTerm(activity?.id, orgId)
   const removeMutation = useRemoveActivityTerm(activity?.id, orgId)
 
+  // Displayed terms depend on whether this is a new or existing activity
+  const activityTerms = isNew ? pendingTerms : savedTerms
+
   const availableTerms = terms.filter((t) =>
-    !activityTerms.some((at) => at.term_id === t.id)
+    !activityTerms.some((at) => (isNew ? at.termId : at.term_id) === t.id)
   )
 
   function handleAddTerm(termId) {
-    const isFirst = activityTerms.length === 0
-    addMutation.mutate(
-      { termId, isPrimary: isFirst },
-      {
-        onSuccess: (newAssoc) => {
-          // Auto-fill form date fields from first term if dates are blank
-          if (isFirst) {
-            const term = newAssoc.term
-            if (term?.start_date && term?.end_date) {
-              const currentStart = getValues('start_date')
-              const currentEnd = getValues('end_date')
-              if (!currentStart && !currentEnd) {
-                setValue('start_date', term.start_date)
-                setValue('end_date', term.end_date)
+    const term = terms.find((t) => t.id === termId)
+    if (!term) return
+
+    if (isNew) {
+      onAddPendingTerm(term)
+    } else {
+      const isFirst = savedTerms.length === 0
+      addMutation.mutate(
+        { termId, isPrimary: isFirst },
+        {
+          onSuccess: (newAssoc) => {
+            if (isFirst) {
+              const t = newAssoc.term
+              if (t?.start_date && t?.end_date) {
+                if (!getValues('start_date') && !getValues('end_date')) {
+                  setValue('start_date', t.start_date)
+                  setValue('end_date', t.end_date)
+                }
               }
             }
-          }
-        },
-      }
-    )
+          },
+        }
+      )
+    }
   }
 
-  function handleRemoveTerm(activityTermId) {
-    removeMutation.mutate(activityTermId)
+  function handleRemoveTerm(at) {
+    if (isNew) {
+      onRemovePendingTerm(at.termId)
+    } else {
+      removeMutation.mutate(at.id)
+    }
   }
 
   return (
@@ -634,13 +673,13 @@ function DatesEdit({ register, setValue, getValues, activity, terms, orgId }) {
         <label className="label-text text-xs text-base-content/50 mb-1 block">Terms</label>
         <div className="flex flex-wrap gap-1.5 items-center">
           {activityTerms.map((at) => (
-            <span key={at.id} className="badge badge-sm gap-1">
+            <span key={isNew ? at.termId : at.id} className="badge badge-sm gap-1">
               {at.term?.name}
               {at.is_primary && <span className="text-[9px] opacity-50">(primary)</span>}
               <button
                 type="button"
                 className="text-base-content/40 hover:text-error"
-                onClick={() => handleRemoveTerm(at.id)}
+                onClick={() => handleRemoveTerm(at)}
               >
                 ✕
               </button>
