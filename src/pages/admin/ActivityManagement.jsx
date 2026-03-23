@@ -5,6 +5,7 @@ import ActivityDetailModal from '@/components/activities/ActivityDetailModal'
 import FloatingPanel from '@/components/panels/FloatingPanel'
 import EnrollmentPanel from '@/components/enrollment/EnrollmentPanel'
 import { useActivities, useCreateActivity, useUpdateActivity } from '@/hooks/useActivities'
+import { addActivityTerm } from '@/api/activityTerms'
 import { useOrgEnrollments, useActivityEnrollments } from '@/hooks/useEnrollments'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
@@ -206,8 +207,12 @@ function ActivityManagement() {
         }
       )
     } else {
-      createMutation.mutate(formData, {
-        onSuccess: (created) => {
+      const { _pendingTerms = [], ...activityData } = formData
+      createMutation.mutate(activityData, {
+        onSuccess: async (created) => {
+          for (const pt of _pendingTerms) {
+            await addActivityTerm(created.id, pt.termId, { isPrimary: pt.is_primary })
+          }
           setSelectedActivity(created)
           setIsEditing(false)
         },
