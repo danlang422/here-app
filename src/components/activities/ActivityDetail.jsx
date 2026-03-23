@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fa'
 import { getBlocks, getBlockLabel, WEEKDAYS } from '@/lib/constants'
 import { useStaffUsers } from '@/hooks/useUsers'
+import { useActivityTerms, useAddActivityTerm, useRemoveActivityTerm } from '@/hooks/useActivityTerms'
 import useAuthStore from '@/store/authStore'
 import StaffRows from './StaffRows'
 import { buildStaffRows, staffRowsToFlat } from './staffUtils'
@@ -34,7 +35,6 @@ const DEFAULT_VALUES = {
   default_start_time: '',
   default_end_time: '',
   duration_minutes: '',
-  term_id: '',
   start_date: '',
   end_date: '',
   location: '',
@@ -59,7 +59,6 @@ function buildInitialValues(activity) {
     default_start_time: activity.default_start_time || '',
     default_end_time: activity.default_end_time || '',
     duration_minutes: activity.duration_minutes != null ? String(activity.duration_minutes) : '',
-    term_id: activity.term_id || '',
     start_date: activity.start_date || '',
     end_date: activity.end_date || '',
     location: activity.location || '',
@@ -104,6 +103,7 @@ const DAY_LABELS = { 1: 'M', 2: 'Tu', 3: 'W', 4: 'Th', 5: 'F', 0: 'Su', 6: 'Sa' 
  *   enrollments     - array of enrollment objects (with .student)
  *   defaultTemplate - default schedule template (for block→time auto-fill)
  *   terms           - array of academic term objects (for term selector)
+ *   orgId           - organization ID (for term mutation invalidation)
  *   onSave          - called with form data on save
  *   onCancel        - called when edit is cancelled (returns to view)
  *   onEditClick     - called when edit pencil icon is clicked
@@ -117,13 +117,14 @@ export default function ActivityDetail({
   enrollments = [],
   defaultTemplate = null,
   terms = [],
+  orgId: orgIdProp = null,
   onSave,
   onCancel,
   onEditClick,
   onEnrollClick,
 }) {
   const profile = useAuthStore((s) => s.profile)
-  const orgId = profile?.organization_id
+  const orgId = orgIdProp || profile?.organization_id
   const { data: staffUsers = [] } = useStaffUsers(orgId)
 
   const blockCount = orgSettings?.block_count ?? null
@@ -199,20 +200,6 @@ export default function ActivityDetail({
     }
   }, [watchedBlock]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Term → date auto-fill
-  const watchedTermId = watch('term_id')
-  useEffect(() => {
-    if (mode !== 'edit' || !watchedTermId || !terms.length) return
-    const term = terms.find((t) => t.id === watchedTermId)
-    if (!term) return
-    const currentStart = getValues('start_date')
-    const currentEnd = getValues('end_date')
-    if (!currentStart && !currentEnd) {
-      setValue('start_date', term.start_date)
-      setValue('end_date', term.end_date)
-    }
-  }, [watchedTermId]) // eslint-disable-line react-hooks/exhaustive-deps
-
   function onFormSubmit(formValues) {
     const staffFlat = staffRowsToFlat(staffRows)
     const data = {
@@ -224,8 +211,9 @@ export default function ActivityDetail({
       rotation_day_type: formValues.rotation_day_type || null,
       default_start_time: formValues.default_start_time || null,
       default_end_time: formValues.default_end_time || null,
-      duration_minutes: formValues.duration_minutes !== '' ? parseInt(formValues.duration_minutes, 10) : null,
-      term_id: formValues.term_id || null,
+      duration_minutes: (formValues.default_start_time && formValues.default_end_time)
+        ? null
+        : (formValues.duration_minutes !== '' ? parseInt(formValues.duration_minutes, 10) : null),
       start_date: formValues.start_date || null,
       end_date: formValues.end_date || null,
       location: formValues.location?.trim() || null,
@@ -382,6 +370,8 @@ export default function ActivityDetail({
               watchedRotation={watchedRotation}
               onDayToggle={handleDayToggle}
               onRotationChange={handleRotationChange}
+              watchedStartTime={watch('default_start_time')}
+              watchedEndTime={watch('default_end_time')}
             />
           )}
         </div>
@@ -389,9 +379,9 @@ export default function ActivityDetail({
         {/* Term + Dates */}
         <div>
           {mode === 'view' ? (
-            <DatesView activity={activity} terms={terms} />
+            <DatesView activity={activity} />
           ) : (
-            <DatesEdit register={register} terms={terms} />
+            <DatesEdit register={register} setValue={setValue} getValues={getValues} activity={activity} terms={terms} orgId={orgId} />
           )}
         </div>
 
@@ -441,9 +431,11 @@ function SchedulingView({ activity, blockLabels }) {
   const timeParts = []
   if (activity?.default_start_time) timeParts.push(formatTime(activity.default_start_time))
   if (activity?.default_end_time) timeParts.push(formatTime(activity.default_end_time))
-  if (timeParts.length) parts.push(timeParts.join('–'))
-
-  if (activity?.duration_minutes) parts.push(`${activity.duration_minutes} min`)
+  if (timeParts.length) {
+    parts.push(timeParts.join('–'))
+  } else if (activity?.duration_minutes) {
+    parts.push(`${activity.duration_minutes} min (planned)`)
+  }
 
   const scheduling = parts.length > 0 ? (
     <span className="text-sm">{parts.join(' · ')}</span>
@@ -477,7 +469,18 @@ function SchedulingEdit({
   daysSelected, rotationSelected, rotationDayNames,
   watchedDaysOfWeek, watchedRotation,
   onDayToggle, onRotationChange,
+  watchedStartTime, watchedEndTime,
 }) {
+  const hasTimesSet = !!(watchedStartTime && watchedEndTime)
+  const computedDuration = hasTimesSet
+    ? (() => {
+        const [sh, sm] = watchedStartTime.split(':').map(Number)
+        const [eh, em] = watchedEndTime.split(':').map(Number)
+        const mins = (eh * 60 + em) - (sh * 60 + sm)
+        return mins > 0 ? mins : null
+      })()
+    : null
+
   return (
     <div className={`space-y-3 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       {/* Block / Start / End / Duration */}
@@ -507,15 +510,26 @@ function SchedulingEdit({
         </div>
 
         <div>
-          <label className="label-text text-xs text-base-content/50 mb-1 block">Duration (min)</label>
-          <input
-            type="number"
-            className="input input-bordered input-sm w-full"
-            min="1"
-            placeholder="e.g. 90"
-            {...register('duration_minutes', { min: 1 })}
-            disabled={disabled}
-          />
+          <label className="label-text text-xs text-base-content/50 mb-1 block">
+            {hasTimesSet ? 'Duration' : 'Planned Duration (min)'}
+          </label>
+          {hasTimesSet ? (
+            <span className="text-sm text-base-content/70">
+              {computedDuration != null ? `${computedDuration} min` : '—'}
+            </span>
+          ) : (
+            <>
+              <input
+                type="number"
+                className="input input-bordered input-sm w-full"
+                min="1"
+                placeholder="e.g. 90"
+                {...register('duration_minutes', { min: 1 })}
+                disabled={disabled}
+              />
+              <p className="text-xs text-base-content/40 mt-0.5">How long this activity needs when scheduled</p>
+            </>
+          )}
         </div>
       </div>
 
@@ -553,12 +567,20 @@ function SchedulingEdit({
   )
 }
 
-function DatesView({ activity, terms }) {
+function DatesView({ activity }) {
+  const { data: liveTerms } = useActivityTerms(activity?.id)
+  // Fall back to the joined data from the activities query on first render
+  const activityTerms = liveTerms ?? activity?.activity_terms ?? []
   const parts = []
-  if (activity?.term_id && terms?.length) {
-    const term = terms.find((t) => t.id === activity.term_id)
-    if (term) parts.push(term.name)
+
+  if (activityTerms.length > 0) {
+    const termNames = activityTerms
+      .map((at) => at.term?.name)
+      .filter(Boolean)
+      .join(', ')
+    if (termNames) parts.push(termNames)
   }
+
   const dateParts = []
   if (activity?.start_date) dateParts.push(formatDate(activity.start_date))
   if (activity?.end_date) dateParts.push(formatDate(activity.end_date))
@@ -568,27 +590,92 @@ function DatesView({ activity, terms }) {
   return <span className="text-sm text-base-content/70">{parts.join(' · ')}</span>
 }
 
-function DatesEdit({ register, terms }) {
+function DatesEdit({ register, setValue, getValues, activity, terms, orgId }) {
+  // Use the live query so tags update immediately after add/remove mutations
+  const { data: activityTerms = [] } = useActivityTerms(activity?.id)
+  const addMutation = useAddActivityTerm(activity?.id, orgId)
+  const removeMutation = useRemoveActivityTerm(activity?.id, orgId)
+
+  const availableTerms = terms.filter((t) =>
+    !activityTerms.some((at) => at.term_id === t.id)
+  )
+
+  function handleAddTerm(termId) {
+    const isFirst = activityTerms.length === 0
+    addMutation.mutate(
+      { termId, isPrimary: isFirst },
+      {
+        onSuccess: (newAssoc) => {
+          // Auto-fill form date fields from first term if dates are blank
+          if (isFirst) {
+            const term = newAssoc.term
+            if (term?.start_date && term?.end_date) {
+              const currentStart = getValues('start_date')
+              const currentEnd = getValues('end_date')
+              if (!currentStart && !currentEnd) {
+                setValue('start_date', term.start_date)
+                setValue('end_date', term.end_date)
+              }
+            }
+          }
+        },
+      }
+    )
+  }
+
+  function handleRemoveTerm(activityTermId) {
+    removeMutation.mutate(activityTermId)
+  }
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+    <div className="space-y-3">
+      {/* Term tags */}
       <div>
-        <label className="label-text text-xs text-base-content/50 mb-1 block">Term</label>
-        <select className="select select-bordered select-sm w-full" {...register('term_id')}>
-          <option value="">—</option>
-          {terms?.map((term) => (
-            <option key={term.id} value={term.id}>
-              {term.name}{term.is_current ? ' (current)' : ''}
-            </option>
+        <label className="label-text text-xs text-base-content/50 mb-1 block">Terms</label>
+        <div className="flex flex-wrap gap-1.5 items-center">
+          {activityTerms.map((at) => (
+            <span key={at.id} className="badge badge-sm gap-1">
+              {at.term?.name}
+              {at.is_primary && <span className="text-[9px] opacity-50">(primary)</span>}
+              <button
+                type="button"
+                className="text-base-content/40 hover:text-error"
+                onClick={() => handleRemoveTerm(at.id)}
+              >
+                ✕
+              </button>
+            </span>
           ))}
-        </select>
+
+          {availableTerms.length > 0 && (
+            <select
+              className="select select-bordered select-xs"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) handleAddTerm(e.target.value)
+              }}
+            >
+              <option value="">+ Add term</option>
+              {availableTerms.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}{t.is_current ? ' (current)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
-      <div>
-        <label className="label-text text-xs text-base-content/50 mb-1 block">Start Date</label>
-        <input type="date" className="input input-bordered input-sm w-full" {...register('start_date')} />
-      </div>
-      <div>
-        <label className="label-text text-xs text-base-content/50 mb-1 block">End Date</label>
-        <input type="date" className="input input-bordered input-sm w-full" {...register('end_date')} />
+
+      {/* Dates */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="label-text text-xs text-base-content/50 mb-1 block">Start Date</label>
+          <input type="date" className="input input-bordered input-sm w-full" {...register('start_date')} />
+        </div>
+        <div>
+          <label className="label-text text-xs text-base-content/50 mb-1 block">End Date</label>
+          <input type="date" className="input input-bordered input-sm w-full" {...register('end_date')} />
+        </div>
       </div>
     </div>
   )
