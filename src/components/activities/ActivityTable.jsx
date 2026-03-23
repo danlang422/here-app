@@ -36,9 +36,9 @@ export default function ActivityTable({ activities = [], loading = false, onSele
             <th>Name</th>
             <th>Staff</th>
             <th>Block</th>
+            <th>Terms</th>
             <th>Days / Rotation</th>
             <th>Time</th>
-            <th>Location</th>
             <th className="text-right">Enrolled</th>
             <th></th>
           </tr>
@@ -63,13 +63,13 @@ export default function ActivityTable({ activities = [], loading = false, onSele
                   }
                 </td>
                 <td>
+                  <TermsDisplay activityTerms={activity.activity_terms} />
+                </td>
+                <td>
                   <DaysDisplay activity={activity} />
                 </td>
                 <td>
                   <TimeDisplay activity={activity} />
-                </td>
-                <td className="text-base-content/60">
-                  {activity.location || <span className="text-base-content/30">—</span>}
                 </td>
                 <td className="text-right text-base-content/60 tabular-nums">
                   {count > 0 ? count : <span className="text-base-content/30">—</span>}
@@ -83,6 +83,26 @@ export default function ActivityTable({ activities = [], loading = false, onSele
         </tbody>
       </table>
     </div>
+  )
+}
+
+/** Compact term display — primary term name + +N for extras */
+function TermsDisplay({ activityTerms = [] }) {
+  if (!activityTerms || activityTerms.length === 0) {
+    return <span className="text-base-content/40">—</span>
+  }
+
+  const primary = activityTerms.find((at) => at.is_primary)
+  const displayName = primary?.term?.name || activityTerms[0]?.term?.name
+  const extra = activityTerms.length - 1
+
+  return (
+    <span className="text-sm">
+      {displayName}
+      {extra > 0 && (
+        <span className="text-base-content/50 ml-1">+{extra}</span>
+      )}
+    </span>
   )
 }
 
