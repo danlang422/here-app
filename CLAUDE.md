@@ -112,3 +112,12 @@ Design decisions and feature planning happen in conversation with Daniel before 
 - Check `STATUS.md` for current priorities and next steps
 - Look for user flow docs in `docs/user-flows/` for feature-specific behavior specs (this directory is being built out incrementally, feature by feature)
 - The app is designed as a **schedule-building tool** — structure (blocks, templates) emerges from data (activities with real times), not the other way around. UI decisions should reflect this: don't gate features behind setup steps that haven't been completed yet.
+
+## Issue Tracking
+
+Issues are tracked in Linear (synced bidirectionally with GitHub Issues).
+
+- **Claude (chat / desktop app):** Use the Linear MCP integration to query issues directly.
+- **Claude Code:** Use the GitHub CLI or GitHub API to access issues from the repo.
+
+Linear workspace: `danlang422` | Team: `Danlang422` | GitHub repo: `danlang422/here-app`
