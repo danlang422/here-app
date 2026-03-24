@@ -45,13 +45,13 @@ Decisions that are settled live in CLAUDE.md (if they're lasting architectural p
 
 ## Known Issues / Tech Debt
 
-Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) and synced with Linear. See `CLAUDE.md` for access details. 
+Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) and synced with Linear. Claude (chat interface via Desktop app) can access issues through the Linear MCP integration. Claude Code access is detailed in `CLAUDE.md`.
 
 ## Next Steps
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Teacher and student agendas built and functional! Will need to spec and build teacher and student views and interaction options with check-in/out logs, status updates, and waves. Pivoting to focus on schedule entry until all student schedules are entered and verified. 
+**Current priority:** User feedback system (ready to build). Daniel is also working on getting all schedule data added to the app. 
 
 ---
 
@@ -85,3 +85,4 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `teacher-roster-student-actions-build-spec.md` | **Implemented** | Teacher visibility of student actions | 
 | `student-schedule-view-build-spec.md` | **Pending Decisions** | Admin view of individual student schedule |
 | `activity-management-overhaul-build-spec.md` | **Built** | Admin activity page revamp + activity_term changes |
+| `user-feedback-system-build-spec.md` | **Ready to Build** | New /Help page; bug reporting, schedule issue reporting, and feedback system |
