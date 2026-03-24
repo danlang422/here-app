@@ -15,6 +15,9 @@ import StudentTodayView from '@/pages/student/TodayView'
 // Teacher pages
 import TeacherDashboard from '@/pages/teacher/Dashboard'
 
+// Help page
+import HelpPage from '@/pages/HelpPage'
+
 // Admin pages
 import AdminDashboard from '@/pages/admin/Dashboard'
 import CalendarManagement from '@/pages/admin/CalendarManagement'
@@ -67,6 +70,15 @@ function App() {
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<OrgSettings />} />
       </Route>
+
+      {/* Help route — accessible to all authenticated users */}
+      <Route path="/help" element={
+        <ProtectedRoute>
+          <AppLayout>
+            <HelpPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
 
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

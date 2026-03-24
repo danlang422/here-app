@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { FaUser, FaChalkboardTeacher, FaCog, FaSignOutAlt } from 'react-icons/fa'
+import { MdHelpOutline } from 'react-icons/md'
 import { signOut } from '@/api/auth'
 import useAuthStore from '@/store/authStore'
 import { getDisplayName, getInitials } from '@/lib/utils'
@@ -52,6 +53,11 @@ function AppLayout({ children }) {
         </div>
 
         <div className="flex-none gap-2">
+          {/* Help link */}
+          <Link to="/help" className="btn btn-ghost btn-circle" aria-label="Help">
+            <MdHelpOutline className="w-5 h-5" />
+          </Link>
+
           {/* Role switcher — only show if user has multiple roles */}
           {availableRoles.length > 1 && (
             <div className="dropdown dropdown-end">
