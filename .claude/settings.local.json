@@ -8,7 +8,8 @@
       "Bash(grep -E \"^/.*\\\\.\\(jsx|js\\)$|error|warning\")",
       "Bash(npx eslint src/components/activities/ActivityDetail.jsx)",
       "Bash(git checkout:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(npx supabase:*)"
     ]
   }
 }
