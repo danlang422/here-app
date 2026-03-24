@@ -37,15 +37,23 @@ VITE_SUPABASE_URL=https://xxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGci...
 ```
 
-Copy `.env.example` to `.env.local` and fill in Supabase credentials.
-
 ## Project Structure
 
 ```
 src/
 ├── api/            # Supabase query functions, one file per domain
-├── components/     # Reusable components (activities/, layout/)
-├── hooks/          # Custom React hooks (useAuth, useActivities, useUsers, useOrgSettings)
+├── components/     # Reusable components
+│   ├── activities/ # ActivityDetailModal, ActivityTable, ActivityToolbar, ActivityDetail, StaffRows
+│   ├── agenda/     # AgendaView, AgendaGrid, AgendaCard, AgendaDayColumn, AgendaBlockOverlay,
+│   │               #   SingleDayAgenda, StudentActivityCard, TeacherActivityCard
+│   ├── calendar/   # CalendarGrid, DayPopover
+│   ├── enrollment/ # EnrollmentPanel
+│   ├── layout/     # AppLayout, AdminLayout, AuthProvider, ProtectedRoute
+│   ├── panels/     # FloatingPanel
+│   ├── roster/     # RosterModal, StudentDetailOverlay
+│   ├── student/    # ActionButton, FreeformTagSelector, StatusUpdateModal
+│   └── users/      # UserTable, UserForm, BulkUserEntry
+├── hooks/          # Custom React hooks (see below)
 ├── lib/            # Utilities and constants
 ├── pages/          # Route-level components (admin/, auth/, student/, teacher/)
 ├── store/          # Zustand stores (authStore.js, uiStore.js)
@@ -53,13 +61,15 @@ src/
 └── main.jsx        # Entry point
 ```
 
+**Hooks** (`src/hooks/`): `useAuth`, `useActivities`, `useActivityTerms`, `useEnrollments`, `useOrgSettings`, `useRoster`, `useScheduleTemplate`, `useSchoolDays`, `useStreakData`, `useStudentActions`, `useStudentAgenda`, `useStudentInstanceDetail`, `useTeacherActionSummary`, `useTeacherAgenda`, `useTerms`, `useUsers`
+
 ## Coding Conventions
 
 - **API layer:** One file per domain in `src/api/`. Functions use the shared Supabase client, throw on error, and return `data`. Query-building functions accept filter objects as a second parameter (see `getActivities` pattern).
 - **State:** Zustand stores in `src/store/` with `persist` middleware where needed (auth persists role selection only). No Redux.
 - **Components:** DaisyUI component classes as the baseline, extended with Tailwind utilities. Form components designed to be container-agnostic (work in pages, modals, or panels).
 - **Path aliases:** Use `@/` for `src/` imports (e.g., `import { supabase } from '@/api/supabase'`).
-- **React Query / React Hook Form:** Custom hooks in `src/hooks/` wrap API functions with TanStack Query (`useActivities`, `useUsers`, `useStaffUsers`, `useOrgSettings`). Pages use these hooks for server state. Forms use `useForm()` from React Hook Form with `register`, `watch`, and `setValue`. Mutations invalidate parent list queries on success.
+- **React Query / React Hook Form:** Custom hooks in `src/hooks/` wrap API functions with TanStack Query. Pages use these hooks for server state. Forms use `useForm()` from React Hook Form with `register`, `watch`, and `setValue`. Mutations invalidate parent list queries on success.
 
 ## Key Architectural Decisions
 
@@ -83,14 +93,20 @@ src/
 
 ## Database
 
-V2 schema with migrations in `supabase/migrations/`. Run them in order against your Supabase project's SQL editor. Key migrations:
+V2 schema with migrations in `supabase/migrations/`. Key migrations:
 
 - `20260225000001–0004` — V2 schema (4 phases: core, activities, attendance, social/RLS/indexes)
 - `20260301000000` — RLS fix for user_profiles
 - `20260301000001` — Dynamic block count (loosened constraints, removed `<= 5` ceiling)
 - `20260301000002` — Admin RLS policies
+- `20260304000000` — Add `duration_minutes` to activities
 - `20260309000000` — Remove activity type column
 - `20260309000001` — Block cascade trigger (syncs enrollment block on activity edit)
+- `20260310000000` — Term FK cascade
+- `20260313000000` — Comprehensive RLS policies (all tables, all roles)
+- `20260314000000` — Ensure `activity_instance` function
+- `20260320000000` — Terms many-to-many (activities ↔ terms)
+- `20260324000000` — Feedback/reports table
 
 Schema docs are in `docs/schema/` — these are the authoritative source for table structure, constraints, and RLS policies.
 
@@ -115,9 +131,6 @@ Design decisions and feature planning happen in conversation with Daniel before 
 
 ## Issue Tracking
 
-Issues are tracked in Linear (synced bidirectionally with GitHub Issues).
-
-- **Claude (chat / desktop app):** Use the Linear MCP integration to query issues directly.
-- **Claude Code:** Use the GitHub CLI or GitHub API to access issues from the repo.
+Issues are tracked in Linear (synced bidirectionally with GitHub Issues). Use the GitHub CLI or GitHub API to access issues from the repo.
 
 Linear workspace: `danlang422` | Team: `Danlang422` | GitHub repo: `danlang422/here-app`
