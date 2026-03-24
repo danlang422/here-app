@@ -45,12 +45,7 @@ Decisions that are settled live in CLAUDE.md (if they're lasting architectural p
 
 ## Known Issues / Tech Debt
 
-Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Items that affect day-to-day development:
-
-- **Raw fetch in useAuthListener (#9):** Don't refactor this until supabase-js upgrade. See CLAUDE.md.
-- **Cross-month date ranges fail in calendar (#12):** Adding exception ranges that span e.g. Dec–Jan doesn't work.
-- **Block label filter placement (#13):** Layout issue in agenda view.
-- **Block overlay visibility in student agenda (#16):** Block overlay is not visible behind agenda cards
+Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) and synced with Linear. See `CLAUDE.md` for access details. 
 
 ## Next Steps
 
