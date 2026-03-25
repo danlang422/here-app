@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** March 23, 2026
+**Last updated:** March 24, 2026
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed with migrations through comprehensive RLS policies (`20260313000000`). Additional migrations in `supabase/migrations/` Real data: City View org with admin account (Daniel Lang), staff users, and multiple activities.
+**Database:** V2 schema deployed. Migrations through `20260324000000_feedback_reports` (feedback/reports table, storage bucket). Real data: City View org with admin account (Daniel Lang), staff users, and multiple activities.
 
 **Application:**
 
@@ -22,6 +22,7 @@
 | Org settings (block schedule, terms, rotation days) | Built | `org-settings-build-spec.md` |
 | Calendar management (school days, exceptions, per-reason rotation) | Built | `calendar-management-build-spec.md`, #12 |
 | Student schedule view | Designed, waiting on decisions to finalize | `student-schedule-view-build-spec.md` |
+| User feedback & bug reporting (/help page, FeedbackModal, Edge Function) | Built | `user-feedback-system-build-spec.md` |
 | Reports | Placeholder | — |
 | **Student** | | |
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
@@ -35,6 +36,7 @@
 | Zustand stores (auth, UI/agenda focus) | Built | — |
 | Enrollment validation (block-based + time-based) | Built | `src/lib/enrollmentValidation.js` |
 | RLS policies | Comprehensive--all tables, all roles | `2026031300000_comprehensive_rls_policies.sql`, `10-rls-policies.md` |
+| Edge Functions (`submit-feedback`, `create-user`) | Deployed with `--no-verify-jwt`; config in `supabase/config.toml` | Session 16 |
 | Realtime subscriptions | Not started | — |
 
 ## Active Decisions
@@ -45,13 +47,13 @@ Decisions that are settled live in CLAUDE.md (if they're lasting architectural p
 
 ## Known Issues / Tech Debt
 
-Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) and synced with Linear. Claude (chat interface via Desktop app) can access issues through the Linear MCP integration. Claude Code access is detailed in `CLAUDE.md`.
+Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) and synced with Linear. Claude.ai can access issues through the Linear MCP integration. Claude Code access is detailed in `CLAUDE.md`.
 
 ## Next Steps
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** User feedback system (ready to build). Daniel is also working on getting all schedule data added to the app. 
+**Current priority:** User feedback system is complete. Daniel is entering remaining schedule data. Next major feature TBD — candidates include Student Schedule View integration placement, activity page polish, and agenda blob fix.
 
 ---
 
@@ -85,4 +87,4 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `teacher-roster-student-actions-build-spec.md` | **Implemented** | Teacher visibility of student actions | 
 | `student-schedule-view-build-spec.md` | **Pending Decisions** | Admin view of individual student schedule |
 | `activity-management-overhaul-build-spec.md` | **Built** | Admin activity page revamp + activity_term changes |
-| `user-feedback-system-build-spec.md` | **Ready to Build** | New /Help page; bug reporting, schedule issue reporting, and feedback system |
+| `user-feedback-system-build-spec.md` | **Implemented** | /Help page, FeedbackModal, submit-feedback Edge Function. Built session 16. |
