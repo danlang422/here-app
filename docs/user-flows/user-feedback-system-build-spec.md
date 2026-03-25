@@ -1,7 +1,7 @@
 # User Feedback System — Build Spec
 
 **Date:** March 23, 2026
-**Status:** Ready to build
+**Status:** Built - testing
 **Related:** `create-user` Edge Function (pattern reference), `AppLayout.jsx` (nav integration)
 
 **Context:** The app is approaching user testing with real students and teachers at City View. Before that starts, we need a way for all users to report bugs, flag schedule inaccuracies, and submit general feedback. Reports are stored locally in Supabase and forwarded to Linear (synced to GitHub) for triage.
