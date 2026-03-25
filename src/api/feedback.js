@@ -5,27 +5,21 @@ import { supabase } from '@/api/supabase'
  * The Edge Function handles: saving to DB, uploading screenshot, creating Linear issue.
  */
 export async function submitFeedback(reportData) {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error('Not authenticated')
+  const { data, error } = await supabase.functions.invoke('submit-feedback', {
+    body: reportData,
+  })
 
-  const response = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-feedback`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify(reportData),
+  if (error) {
+    try {
+      const body = await error.context.json()
+      if (body?.error) throw new Error(body.error)
+    } catch (parseErr) {
+      if (parseErr.message && parseErr.message !== error.message) throw parseErr
     }
-  )
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to submit feedback')
+    throw error
   }
-
-  return response.json()
+  if (data?.error) throw new Error(data.error)
+  return data
 }
 
 /**
