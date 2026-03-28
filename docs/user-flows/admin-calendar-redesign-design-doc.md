@@ -78,7 +78,6 @@ See migration `20260328000001_activity_recurrence_interval.sql`.
 
 - The current `AgendaView` (admin dashboard centerpiece)
 - The specced but unbuilt `StudentScheduleView`
-- Any future "teacher schedule overview"
 
 They all become the same view with different filters applied.
 
