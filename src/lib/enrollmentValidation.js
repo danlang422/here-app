@@ -69,6 +69,10 @@ function computeTimeOverlap(startA, endA, startB, endB) {
  * Determine whether two activities could meet on any shared day,
  * considering days_of_week and rotation_day_type.
  *
+ * NOTE: Does not account for recurrence_interval — two activities with different anchor
+ * weeks will still be flagged as conflicting if they share a block and day-of-week.
+ * This is intentionally conservative (false positives are safe). Layer 2 will refine this.
+ *
  * Returns { couldMeetSameDay, reason }
  *   - couldMeetSameDay: true if there's any day both activities would meet
  *   - reason: human-readable explanation of why/why not

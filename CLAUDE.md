@@ -61,7 +61,7 @@ src/
 └── main.jsx        # Entry point
 ```
 
-**Hooks** (`src/hooks/`): `useAuth`, `useActivities`, `useActivityTerms`, `useEnrollments`, `useOrgSettings`, `useRoster`, `useScheduleTemplate`, `useSchoolDays`, `useStreakData`, `useStudentActions`, `useStudentAgenda`, `useStudentInstanceDetail`, `useTeacherActionSummary`, `useTeacherAgenda`, `useTerms`, `useUsers`
+**Hooks** (`src/hooks/`): `useAuth`, `useActivities`, `useActivityTerms`, `useCalendars`, `useEnrollments`, `useOrgSettings`, `useRoster`, `useScheduleTemplate`, `useSchoolDays`, `useStreakData`, `useStudentActions`, `useStudentAgenda`, `useStudentInstanceDetail`, `useTeacherActionSummary`, `useTeacherAgenda`, `useTerms`, `useUsers`
 
 ## Coding Conventions
 

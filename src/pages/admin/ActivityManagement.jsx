@@ -10,6 +10,7 @@ import { useOrgEnrollments, useActivityEnrollments } from '@/hooks/useEnrollment
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
 import { useTerms } from '@/hooks/useTerms'
+import { useCalendars } from '@/hooks/useCalendars'
 import { useStaffUsers } from '@/hooks/useUsers'
 import useAuthStore from '@/store/authStore'
 
@@ -30,6 +31,7 @@ function ActivityManagement() {
   const { data: orgSettings = {} } = useOrgSettings(orgId)
   const { data: defaultTemplate = null } = useDefaultScheduleTemplate(orgId)
   const { data: terms = [] } = useTerms(orgId)
+  const { data: calendars = [] } = useCalendars(orgId)
   const { data: orgEnrollments = [] } = useOrgEnrollments(orgId)
   const { data: staffUsers = [] } = useStaffUsers(orgId)
   const createMutation = useCreateActivity(orgId)
@@ -305,6 +307,7 @@ function ActivityManagement() {
         enrollments={activityEnrollments}
         defaultTemplate={defaultTemplate}
         terms={terms}
+        calendars={calendars}
         orgId={orgId}
         onClose={handleCloseModal}
         onEditClick={handleEditClick}

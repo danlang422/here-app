@@ -65,5 +65,21 @@ export function activityMeetsToday(activity, date, schoolDay) {
     if (!activity.days_of_week.includes(dayNumber)) return false
   }
 
+  // Recurrence interval (every-other-week, every-third-week, etc.)
+  if (activity.recurrence_interval > 1 && activity.recurrence_anchor_date) {
+    // Compute how many whole weeks have passed since the anchor date
+    const anchor = new Date(activity.recurrence_anchor_date + 'T00:00:00')
+    const target = new Date(formatDateISO(date) + 'T00:00:00')
+    const msPerDay = 24 * 60 * 60 * 1000
+    const daysDiff = Math.round((target - anchor) / msPerDay)
+    const weeksSinceAnchor = Math.floor(daysDiff / 7)
+
+    // Dates before the anchor are always off-weeks
+    if (weeksSinceAnchor < 0) return false
+
+    // Only return true for weeks that are multiples of the interval
+    if (weeksSinceAnchor % activity.recurrence_interval !== 0) return false
+  }
+
   return true
 }
