@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getTeacherActivitiesForDate } from '@/api/agenda'
-import { getSchoolDays } from '@/api/calendar'
+import { getSchoolDays } from '@/api/schoolDays'
 import { activityMeetsToday, formatDateISO } from '@/lib/scheduleUtils'
 
 export function useTeacherAgenda(teacherId, date, orgId) {

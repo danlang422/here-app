@@ -46,7 +46,7 @@ src/
 │   ├── activities/ # ActivityDetailModal, ActivityTable, ActivityToolbar, ActivityDetail, StaffRows
 │   ├── agenda/     # AgendaView, AgendaGrid, AgendaCard, AgendaDayColumn, AgendaBlockOverlay,
 │   │               #   SingleDayAgenda, StudentActivityCard, TeacherActivityCard
-│   ├── calendar/   # CalendarGrid, DayPopover
+│   ├── school-calendar/ # CalendarGrid, DayPopover
 │   ├── enrollment/ # EnrollmentPanel
 │   ├── layout/     # AppLayout, AdminLayout, AuthProvider, ProtectedRoute
 │   ├── panels/     # FloatingPanel

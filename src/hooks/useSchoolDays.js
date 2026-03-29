@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getSchoolDays } from '@/api/calendar'
+import { getSchoolDays } from '@/api/schoolDays'
 
 export function useSchoolDays(orgId, startDate, endDate) {
   return useQuery({

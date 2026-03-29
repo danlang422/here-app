@@ -8,11 +8,11 @@ import { useTerms } from '@/hooks/useTerms'
 import { updateOrgSettings } from '@/api/organizations'
 import { upsertDefaultTemplate } from '@/api/scheduleTemplates'
 import { createTerm, updateTerm, deleteTerm, setCurrentTerm } from '@/api/terms'
-import { getSchoolDays, bulkUpsertSchoolDays, deleteSchoolDaysInRange } from '@/api/calendar'
+import { getSchoolDays, bulkUpsertSchoolDays, deleteSchoolDaysInRange } from '@/api/schoolDays'
 import { getBlocks } from '@/lib/constants'
 import { generateSchoolDays } from '@/lib/business-logic/schoolDayGeneration'
 import { recalculateRotationDays } from '@/lib/business-logic/rotation'
-import CalendarGrid from '@/components/calendar/CalendarGrid'
+import CalendarGrid from '@/components/school-calendar/CalendarGrid'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
