@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 24, 2026
+**Last updated:** March 29, 2026
 
 ---
 
@@ -16,7 +16,9 @@
 | **Admin** | | |
 | Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster) | Built | `activity-detail-and-form-redesign-spec.md`, `activity-management-overhaul-build-spec.md` |
 | User management (CRUD, bulk paste-from-spreadsheet entry) | Built | — |
-| Dashboard & agenda view (week grid, block grouping, adaptive cards, tooltips) | Built, polish deferred | `agenda-view-build-spec.md`, `admin-dashboard.md`, #3, #6 |
+| Dashboard & agenda view (week grid, block grouping, adaptive cards, tooltips) | Replaced — see calendar redesign below | `agenda-view-build-spec.md`, `admin-dashboard.md`, #3, #6 |
+| Admin calendar redesign — Layer 0 (schema, recurrence, calendar CRUD API/hooks) | Built | `layer-0-build-spec.md` |
+| Admin calendar redesign — Layer 1 (week view, sidebar, event cards, block overlay fix) | Built | `layer-1-build-spec.md` |
 | Enrollment — activity-centric (Entry A) | Built | `enrollment-panel-build-spec.md` |
 | Enrollment — student-centric (Entry B) | Designed, not built | #7 |
 | Org settings (block schedule, terms, rotation days) | Built | `org-settings-build-spec.md` |
@@ -33,7 +35,7 @@
 | Student action visibility | Built | `teacher-roster-student-actions-build-spec.md` |
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
-| Zustand stores (auth, UI/agenda focus) | Built | — |
+| Zustand stores (auth, UI, calendar UI) | Built | — |
 | Enrollment validation (block-based + time-based) | Built | `src/lib/enrollmentValidation.js` |
 | RLS policies | Comprehensive--all tables, all roles | `2026031300000_comprehensive_rls_policies.sql`, `10-rls-policies.md` |
 | Edge Functions (`submit-feedback`, `create-user`) | Deployed with `--no-verify-jwt`; config in `supabase/config.toml` | Session 16 |
@@ -53,7 +55,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) and sy
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** User feedback system is complete. Daniel is entering remaining schedule data. Next major feature TBD — candidates include Student Schedule View integration placement, activity page polish, and agenda blob fix.
+**Current priority:** Admin calendar redesign Layers 0 and 1 are complete and merged to main. Layer 2 (filter bar, recurrence-aware conflict detection, aggregate card expansion) is the next candidate. The `admin-calendar-redesign-design-doc.md` describes the full layer breakdown.
 
 ---
 
@@ -88,3 +90,6 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `student-schedule-view-build-spec.md` | **Pending Decisions** | Admin view of individual student schedule |
 | `activity-management-overhaul-build-spec.md` | **Built** | Admin activity page revamp + activity_term changes |
 | `user-feedback-system-build-spec.md` | **Implemented** | /Help page, FeedbackModal, submit-feedback Edge Function. Built session 16. |
+| `admin-calendar-redesign-design-doc.md` | **Current** | Full design doc for the calendar redesign feature. Layer breakdown, data model, UI patterns. |
+| `layer-0-build-spec.md` | **Implemented** | Schema integration, recurrence predicate, calendar CRUD API/hooks, ActivityDetail form fields. Built session 17. |
+| `layer-1-build-spec.md` | **Implemented** | Week view, calendar sidebar, event cards, block overlay fix, empty-slot create. Built session 17. |
