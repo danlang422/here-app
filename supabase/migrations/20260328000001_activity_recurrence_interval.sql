@@ -1,5 +1,6 @@
 -- Migration: Activity recurrence interval
 -- Created: March 28, 2026
+-- Run: March 29, 2026
 -- Description: Adds `recurrence_interval` and `recurrence_anchor_date` to activities
 --              to support every-other-week (and similar) scheduling patterns.
 --
