@@ -43,7 +43,8 @@ VITE_SUPABASE_ANON_KEY=eyJhbGci...
 src/
 ├── api/            # Supabase query functions, one file per domain
 ├── components/     # Reusable components
-│   ├── activities/ # ActivityDetailModal, ActivityTable, ActivityToolbar, ActivityDetail, StaffRows
+│   ├── activities/ # ActivityDetailModal, ActivityTable, ActivityToolbar, ActivityDetail, StaffRows,
+│   │               #   ActivitySelectionBar, BulkEditModal
 │   ├── agenda/     # AgendaView, AgendaGrid, AgendaCard, AgendaDayColumn, AgendaBlockOverlay,
 │   │               #   SingleDayAgenda, StudentActivityCard, TeacherActivityCard
 │   ├── school-calendar/ # CalendarGrid, DayPopover
@@ -61,7 +62,7 @@ src/
 └── main.jsx        # Entry point
 ```
 
-**Hooks** (`src/hooks/`): `useAuth`, `useActivities`, `useActivityTerms`, `useCalendars`, `useEnrollments`, `useOrgSettings`, `useRoster`, `useScheduleTemplate`, `useSchoolDays`, `useStreakData`, `useStudentActions`, `useStudentAgenda`, `useStudentInstanceDetail`, `useTeacherActionSummary`, `useTeacherAgenda`, `useTerms`, `useUsers`
+**Hooks** (`src/hooks/`): `useAuth`, `useActivities`, `useActivityTerms`, `useBulkEditActivities`, `useCalendars`, `useEnrollments`, `useOrgSettings`, `useRoster`, `useScheduleTemplate`, `useSchoolDays`, `useStreakData`, `useStudentActions`, `useStudentAgenda`, `useStudentInstanceDetail`, `useTeacherActionSummary`, `useTeacherAgenda`, `useTerms`, `useUsers`
 
 ## Coding Conventions
 

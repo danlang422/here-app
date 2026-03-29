@@ -41,3 +41,32 @@ export async function removeActivityTerm(activityTermId) {
 
   if (error) throw error
 }
+
+/**
+ * Replace all term associations for an activity.
+ * Deletes existing terms and inserts the new set.
+ * The first termId in the array is marked as primary.
+ * Passing an empty array clears all terms.
+ */
+export async function replaceActivityTerms(activityId, termIds) {
+  const { error: deleteError } = await supabase
+    .from('activity_terms')
+    .delete()
+    .eq('activity_id', activityId)
+
+  if (deleteError) throw deleteError
+
+  if (termIds.length === 0) return
+
+  const rows = termIds.map((termId, i) => ({
+    activity_id: activityId,
+    term_id: termId,
+    is_primary: i === 0,
+  }))
+
+  const { error: insertError } = await supabase
+    .from('activity_terms')
+    .insert(rows)
+
+  if (insertError) throw insertError
+}

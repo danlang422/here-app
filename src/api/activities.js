@@ -111,6 +111,18 @@ export async function getStudentActivities(studentId) {
   return data
 }
 
+// Bulk update scalar fields (block, times, flags) across multiple activities
+export async function bulkUpdateActivityFields(ids, updates) {
+  const { data, error } = await supabase
+    .from('activities')
+    .update(updates)
+    .in('id', ids)
+    .select()
+
+  if (error) throw error
+  return data
+}
+
 // Get internship opportunities for an organization
 export async function getInternshipOpportunities(organizationId, { isAvailable = true } = {}) {
   let query = supabase
