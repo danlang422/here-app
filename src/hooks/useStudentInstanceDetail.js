@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getStudentInstanceDetail, getWaveHistory } from '@/api/agenda'
-import { getSchoolDays } from '@/api/calendar'
+import { getSchoolDays } from '@/api/schoolDays'
 import { formatDateISO, subDays } from '@/lib/scheduleUtils'
 import { calculateStreak } from '@/lib/streakUtils'
 
