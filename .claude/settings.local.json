@@ -19,7 +19,13 @@
       "mcp__playwright__browser_take_screenshot",
       "mcp__playwright__browser_type",
       "mcp__playwright__browser_run_code",
-      "mcp__playwright__browser_console_messages"
+      "mcp__playwright__browser_console_messages",
+      "Read(//c/Users/dansl/.claude/**)",
+      "Read(//c/Users/dansl/AppData/Roaming/Claude/**)",
+      "Read(//c/Users/dansl/**)",
+      "Bash(npx @playwright/mcp@latest --help)",
+      "Bash(tasklist /FI \"PID eq 34916\")",
+      "Bash(wmic process:*)"
     ]
   }
 }
