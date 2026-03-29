@@ -243,7 +243,7 @@ In the view/edit rendering for the scheduling section (around line 375), add a c
 {activity?.calendar && (
   <div className="flex items-center gap-2 text-sm">
     <span
-      className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+      className="inline-block w-3 h-3 rounded-full shrink-0"
       style={{ backgroundColor: activity.calendar.color }}
     />
     <span className="text-base-content/70">{activity.calendar.name}</span>
