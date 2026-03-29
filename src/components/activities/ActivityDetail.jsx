@@ -45,6 +45,9 @@ const DEFAULT_VALUES = {
   requires_geofence: false,
   is_release: false,
   is_not_scheduled: false,
+  calendar_id: null,
+  recurrence_interval: 1,
+  recurrence_anchor_date: '',
 }
 
 function buildInitialValues(activity) {
@@ -69,6 +72,9 @@ function buildInitialValues(activity) {
     requires_geofence: activity.requires_geofence ?? false,
     is_release: activity.is_release ?? false,
     is_not_scheduled: activity.is_not_scheduled ?? false,
+    calendar_id: activity.calendar_id ?? null,
+    recurrence_interval: activity.recurrence_interval ?? 1,
+    recurrence_anchor_date: activity.recurrence_anchor_date || '',
   }
 }
 
@@ -117,6 +123,7 @@ export default function ActivityDetail({
   enrollments = [],
   defaultTemplate = null,
   terms = [],
+  calendars = [],
   orgId: orgIdProp = null,
   onSave,
   onCancel,
@@ -152,6 +159,7 @@ export default function ActivityDetail({
   const watchedDaysOfWeek = watch('days_of_week')
   const watchedRotation = watch('rotation_day_type')
   const watchedName = watch('name')
+  const watchedRecurrenceInterval = watch('recurrence_interval')
 
   // Derived scheduling UI state
   const daysSelected = watchedDaysOfWeek?.length > 0
@@ -242,6 +250,9 @@ export default function ActivityDetail({
       requires_geofence: formValues.requires_geofence,
       is_release: formValues.is_release,
       is_not_scheduled: formValues.is_not_scheduled,
+      calendar_id: formValues.calendar_id || null,
+      recurrence_interval: formValues.recurrence_interval,
+      recurrence_anchor_date: formValues.recurrence_anchor_date || null,
       // For new activities: carry pending terms to the parent for post-create insertion
       ...(!activity ? { _pendingTerms: pendingTerms } : {}),
     }
@@ -371,6 +382,29 @@ export default function ActivityDetail({
           />
         </div>
 
+        {/* Calendar */}
+        {mode === 'view' ? (
+          activity?.calendar && (
+            <div className="flex items-center gap-2 text-sm">
+              <span
+                className="inline-block w-3 h-3 rounded-full shrink-0"
+                style={{ backgroundColor: activity.calendar.color }}
+              />
+              <span className="text-base-content/70">{activity.calendar.name}</span>
+            </div>
+          )
+        ) : (
+          <div>
+            <label className="label-text text-xs text-base-content/50 mb-1 block">Calendar</label>
+            <select className="select select-bordered select-sm w-full" {...register('calendar_id')}>
+              <option value="">Unassigned</option>
+              {calendars.map((cal) => (
+                <option key={cal.id} value={cal.id}>{cal.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Block / Time / Duration */}
         <div>
           {mode === 'view' ? (
@@ -392,6 +426,7 @@ export default function ActivityDetail({
               onRotationChange={handleRotationChange}
               watchedStartTime={watch('default_start_time')}
               watchedEndTime={watch('default_end_time')}
+              watchedRecurrenceInterval={watchedRecurrenceInterval}
             />
           )}
         </div>
@@ -496,6 +531,7 @@ function SchedulingEdit({
   watchedDaysOfWeek, watchedRotation,
   onDayToggle, onRotationChange,
   watchedStartTime, watchedEndTime,
+  watchedRecurrenceInterval,
 }) {
   const hasTimesSet = !!(watchedStartTime && watchedEndTime)
   const computedDuration = hasTimesSet
@@ -589,6 +625,44 @@ function SchedulingEdit({
           ))}
         </select>
       </div>
+
+      {/* Recurrence interval — only shown when days or rotation is set */}
+      {(daysSelected || rotationSelected) && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="label-text text-xs text-base-content/50 whitespace-nowrap">
+              Repeats every
+            </label>
+            <select
+              className="select select-bordered select-sm w-20"
+              {...register('recurrence_interval', { valueAsNumber: true })}
+              disabled={disabled}
+            >
+              {[1, 2, 3, 4].map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <span className="label-text text-xs text-base-content/50">week(s)</span>
+          </div>
+
+          {/* Anchor date — only shown when interval > 1 */}
+          {watchedRecurrenceInterval > 1 && (
+            <div className="flex items-center gap-2">
+              <label className="label-text text-xs text-base-content/50 whitespace-nowrap">
+                Starting week of
+              </label>
+              <input
+                type="date"
+                className="input input-bordered input-sm"
+                {...register('recurrence_anchor_date', {
+                  required: watchedRecurrenceInterval > 1,
+                })}
+                disabled={disabled}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

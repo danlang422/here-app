@@ -20,7 +20,8 @@ export async function getActivities(organizationId, { termId, isActive = true } 
       *,
       teacher:user_profiles!teacher_id(first_name, last_name),
       monitor:user_profiles!monitor_id(first_name, last_name),
-      activity_terms(id, term_id, is_primary, term:academic_terms(id, name, start_date, end_date))
+      activity_terms(id, term_id, is_primary, term:academic_terms(id, name, start_date, end_date)),
+      calendar:calendars(id, name, color)
     `)
     .eq('organization_id', organizationId)
     .eq('is_active', isActive)

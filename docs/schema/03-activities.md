@@ -125,6 +125,17 @@ CREATE TABLE activities (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   duration_minutes INTEGER CHECK (duration_minutes IS NULL OR duration_minutes > 0),
+
+  -- Calendar assignment (optional grouping for the admin calendar view)
+  calendar_id UUID REFERENCES calendars(id) ON DELETE SET NULL,
+  -- FK to calendars table. NULL = unassigned. Deleting a calendar sets this to NULL.
+
+  -- Recurrence (for every-other-week or less-frequent activities)
+  recurrence_interval INTEGER DEFAULT 1 CHECK (recurrence_interval >= 1),
+  -- Weeks between occurrences. 1 = every week (default). 2 = every other week, etc.
+  recurrence_anchor_date DATE,
+  -- A date in an "on" week. Required when recurrence_interval > 1.
+  -- The predicate computes whole weeks elapsed since this date and checks divisibility.
   -- Planned duration in minutes. Used for unplaced activities (activities that will be scheduled
   -- but don't have times yet) to size their cards in the future schedule canvas/placement tool.
   -- For activities with default_start_time and default_end_time, the UI computes duration from

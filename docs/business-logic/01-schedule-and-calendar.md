@@ -183,6 +183,17 @@ function activityMeetsToday(activity, date, organizationId):
     if dayNumber not in activity.days_of_week:
       return false
 
+  // 7. Check recurrence interval (if interval > 1 and anchor date is set)
+  // Compute whole weeks elapsed since recurrence_anchor_date. If elapsed weeks is negative
+  // (date before anchor) or not evenly divisible by recurrence_interval, return false.
+  if activity.recurrence_interval > 1 and activity.recurrence_anchor_date is not null:
+    daysDiff = (date - recurrence_anchor_date).days  // whole-day difference
+    weeksSinceAnchor = floor(daysDiff / 7)
+    if weeksSinceAnchor < 0:
+      return false
+    if weeksSinceAnchor % activity.recurrence_interval != 0:
+      return false
+
   // Release activities have a schedule but don't generate attendance/interaction
   // They still "meet" for visual blocking on the admin schedule
   // (Caller decides how to handle is_release)
