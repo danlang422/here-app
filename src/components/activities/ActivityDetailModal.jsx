@@ -27,6 +27,7 @@ export default function ActivityDetailModal({
   enrollments,
   defaultTemplate,
   terms,
+  calendars,
   orgId,
   onClose,
   onEditClick,
@@ -67,6 +68,7 @@ export default function ActivityDetailModal({
           enrollments={enrollments ?? []}
           defaultTemplate={defaultTemplate}
           terms={terms}
+          calendars={calendars}
           orgId={orgId}
           onSave={onSave}
           onCancel={onCancel}
