@@ -225,7 +225,7 @@ Display order within each group: alphabetical (already sorted by API).
     onChange={() => toggleCalendar(cal.id)}
   />
   <span
-    className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+    className="inline-block w-3 h-3 rounded-full shrink-0"
     style={{ backgroundColor: cal.color }}
   />
   <button
