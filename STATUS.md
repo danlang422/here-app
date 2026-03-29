@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 29, 2026
+**Last updated:** March 29, 2026 (session 17.2)
 
 ---
 
@@ -14,7 +14,7 @@
 |------|--------|-----------|
 | Auth & navigation | Built | — |
 | **Admin** | | |
-| Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster) | Built | `activity-detail-and-form-redesign-spec.md`, `activity-management-overhaul-build-spec.md` |
+| Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster, bulk edit) | Built | `activity-detail-and-form-redesign-spec.md`, `activity-management-overhaul-build-spec.md` |
 | User management (CRUD, bulk paste-from-spreadsheet entry) | Built | — |
 | Dashboard & agenda view (week grid, block grouping, adaptive cards, tooltips) | Replaced — see calendar redesign below | `agenda-view-build-spec.md`, `admin-dashboard.md`, #3, #6 |
 | Admin calendar redesign — Layer 0 (schema, recurrence, calendar CRUD API/hooks) | Built | `layer-0-build-spec.md` |

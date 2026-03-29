@@ -108,3 +108,39 @@ All 5 Layer 0 checks passed:
 - Layer 2 is the next candidate: filter bar (search/filter activities by name or staff), recurrence-aware conflict detection in `couldMeetOnSameDay`, and aggregate card expand-on-click
 - The "Core Classes" test calendar created during verification is live in the DB — can be deleted or repurposed for testing Layer 2 sidebar toggle behavior with real activity assignments
 - The `admin-calendar-redesign-design-doc.md` describes Layer 2+ scope
+
+---
+
+## 17.2 — Bulk Edit for Admin Activity Table
+
+**What happened:** Multi-select + bulk edit capability added to the admin activities table view. No build spec existed; the feature was implemented from a direct task description.
+
+### What was built
+
+**New files:**
+
+- **`src/components/activities/ActivitySelectionBar.jsx`** — Contextual toolbar that replaces `ActivityToolbar` when one or more rows are selected. Shows selected count, "Select all N" (all matching the current filter/search), "Deselect all", and "Edit selected" button.
+- **`src/components/activities/BulkEditModal.jsx`** — Modal with four opt-in sections: block, time (start/end), terms, and behavior flags. Each section has an enable toggle so only explicitly activated sections apply changes. Flags use tri-state (no change / on / off) so untouched flags are never modified. Enforces `is_release` ↔ `requires_attendance` mutual exclusion. Shows a progress bar during the bulk operation; stays open on partial failure to display per-activity error detail.
+- **`src/hooks/useBulkEditActivities.js`** — Orchestrates the bulk mutation in two phases: (1) scalar field updates (block, time, flags) via a single `.in()` Supabase round trip using `bulkUpdateActivityFields`; (2) term replacements per activity sequentially using `replaceActivityTerms`. Returns progress state and per-item results for the modal's progress/error display.
+
+**Modified files:**
+
+- **`src/api/activities.js`** — Added `bulkUpdateActivityFields(ids, updates)`: single Supabase update with `.in('id', ids)` for scalar fields.
+- **`src/api/activityTerms.js`** — Added `replaceActivityTerms(activityId, termIds)`: delete all existing term rows for the activity, then insert the new set. First `termId` in the array becomes `is_primary = true`.
+- **`src/components/activities/ActivityTable.jsx`** — Added checkbox column. Header checkbox is tri-state (none / some / all) via `indeterminate` ref. Selected rows get a highlight class. `stopPropagation` on the checkbox cell prevents the row-click handler (which opens the detail modal) from firing when selecting. New optional props: `selectedIds` (Set), `onToggleSelect`, `onToggleSelectAll`.
+- **`src/pages/admin/ActivityManagement.jsx`** — Added `selectedIds` state (JavaScript `Set`), `bulkEditOpen` boolean state, selection handlers, conditional toolbar swap (renders `ActivitySelectionBar` instead of `ActivityToolbar` when `selectedIds.size > 0`), and `BulkEditModal` wired to selection and bulk hook. A `useEffect` clears selection whenever the filter object or search query changes.
+
+### Key decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Terms bulk edit = replace semantics | Merging term sets across heterogeneous activities would be unpredictable. Replace is explicit and reversible — admin sets exactly what terms should apply. |
+| Tri-state flags (no change / on / off) | A two-state toggle would forcibly set every flag on every selected activity. Tri-state lets admins change only the flags they intend to touch, leaving the rest untouched. |
+| Two-phase mutation (scalar `.in()` + sequential terms) | Supabase doesn't support per-row conditional updates in a single call. Scalar fields can be batched cheaply; term replacement must be per-activity because it's delete-then-insert. Sequential (not concurrent) term updates avoids thundering-herd issues on larger selections. |
+| Selection clears on filter/search change | Avoids the silent footgun of applying a bulk edit to rows no longer visible in the current filter view. |
+| Modal stays open on partial failure | Surfacing which activities failed (and why) lets the admin take corrective action. Closing on partial success would lose that information. |
+
+### What's ready for the next session
+
+- Bulk edit is fully functional; no known gaps
+- Layer 2 of the admin calendar redesign remains the next planned feature

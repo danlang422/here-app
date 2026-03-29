@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react'
 import { getBlockLabel } from '@/lib/constants'
 import { FaChevronRight } from 'react-icons/fa'
 
@@ -9,8 +10,22 @@ import { FaChevronRight } from 'react-icons/fa'
  *   loading          - boolean, show loading state
  *   onSelect         - called with activity object when row is clicked
  *   enrollmentCounts - Map<activity_id, count> of active enrollment counts
+ *   selectedIds      - Set<string> of selected activity IDs (optional)
+ *   onToggleSelect   - called with activity.id when checkbox toggled (optional)
+ *   onToggleSelectAll - called with array of filtered activity IDs (optional)
  */
-export default function ActivityTable({ activities = [], loading = false, onSelect, enrollmentCounts = new Map(), blockLabels }) {
+export default function ActivityTable({
+  activities = [],
+  loading = false,
+  onSelect,
+  enrollmentCounts = new Map(),
+  blockLabels,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
+}) {
+  const selectable = selectedIds != null
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -28,11 +43,23 @@ export default function ActivityTable({ activities = [], loading = false, onSele
     )
   }
 
+  const allSelected = selectable && activities.length > 0 && activities.every((a) => selectedIds.has(a.id))
+  const someSelected = selectable && activities.some((a) => selectedIds.has(a.id))
+
   return (
     <div className="overflow-x-auto">
       <table className="table table-sm">
         <thead>
           <tr>
+            {selectable && (
+              <th className="w-8">
+                <SelectAllCheckbox
+                  allSelected={allSelected}
+                  someSelected={someSelected}
+                  onToggle={() => onToggleSelectAll?.(activities.map((a) => a.id))}
+                />
+              </th>
+            )}
             <th>Name</th>
             <th>Staff</th>
             <th>Block</th>
@@ -46,12 +73,23 @@ export default function ActivityTable({ activities = [], loading = false, onSele
         <tbody>
           {activities.map((activity) => {
             const count = enrollmentCounts.get(activity.id)
+            const isSelected = selectable && selectedIds.has(activity.id)
             return (
               <tr
                 key={activity.id}
-                className="hover cursor-pointer"
+                className={`hover cursor-pointer${isSelected ? ' bg-primary/5' : ''}`}
                 onClick={() => onSelect?.(activity)}
               >
+                {selectable && (
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm"
+                      checked={isSelected}
+                      onChange={() => onToggleSelect?.(activity.id)}
+                    />
+                  </td>
+                )}
                 <td className="font-medium">{activity.name}</td>
                 <td>
                   <StaffDisplay activity={activity} />
@@ -83,6 +121,27 @@ export default function ActivityTable({ activities = [], loading = false, onSele
         </tbody>
       </table>
     </div>
+  )
+}
+
+/** Header checkbox that renders as indeterminate when only some rows are selected */
+function SelectAllCheckbox({ allSelected, someSelected, onToggle }) {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = someSelected && !allSelected
+    }
+  }, [someSelected, allSelected])
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      className="checkbox checkbox-sm"
+      checked={allSelected}
+      onChange={onToggle}
+    />
   )
 }
 

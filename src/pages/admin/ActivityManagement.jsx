@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import ActivityTable from '@/components/activities/ActivityTable'
 import ActivityToolbar from '@/components/activities/ActivityToolbar'
+import ActivitySelectionBar from '@/components/activities/ActivitySelectionBar'
 import ActivityDetailModal from '@/components/activities/ActivityDetailModal'
+import BulkEditModal from '@/components/activities/BulkEditModal'
 import FloatingPanel from '@/components/panels/FloatingPanel'
 import EnrollmentPanel from '@/components/enrollment/EnrollmentPanel'
 import { useActivities, useCreateActivity, useUpdateActivity } from '@/hooks/useActivities'
@@ -55,6 +57,15 @@ function ActivityManagement() {
   })
   const [sortField, setSortField] = useState('block')
   const [sortDir, setSortDir] = useState('asc')
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [bulkEditOpen, setBulkEditOpen] = useState(false)
+
+  // Clear selection when filters or search change
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [filters, searchQuery])
 
   // Enrollment counts for the table (Map<activity_id, count>)
   const enrollmentCountByActivity = useMemo(() => {
@@ -233,6 +244,29 @@ function ActivityManagement() {
     setFilters({ block: 'all', term: 'all', status: 'all', staff: 'all' })
   }
 
+  function handleToggleSelect(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function handleToggleSelectAll(filteredIds) {
+    const allSelected = filteredIds.every((id) => selectedIds.has(id))
+    if (allSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredIds))
+    }
+  }
+
+  function handleBulkEditClose() {
+    setBulkEditOpen(false)
+    setSelectedIds(new Set())
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -270,25 +304,35 @@ function ActivityManagement() {
         </div>
       )}
 
-      <ActivityToolbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        filters={filters}
-        onFiltersChange={setFilters}
-        sortField={sortField}
-        sortDir={sortDir}
-        onSortChange={(field) => {
-          if (field === sortField) {
-            setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-          } else {
-            setSortField(field)
-            setSortDir(field === 'enrolled' ? 'desc' : 'asc')
-          }
-        }}
-        terms={terms}
-        staffUsers={staffUsers}
-        orgSettings={orgSettings}
-      />
+      {selectedIds.size > 0 ? (
+        <ActivitySelectionBar
+          selectedCount={selectedIds.size}
+          totalFilteredCount={filteredActivities.length}
+          onDeselectAll={() => setSelectedIds(new Set())}
+          onSelectAll={() => handleToggleSelectAll(filteredActivities.map((a) => a.id))}
+          onBulkEdit={() => setBulkEditOpen(true)}
+        />
+      ) : (
+        <ActivityToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filters={filters}
+          onFiltersChange={setFilters}
+          sortField={sortField}
+          sortDir={sortDir}
+          onSortChange={(field) => {
+            if (field === sortField) {
+              setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+            } else {
+              setSortField(field)
+              setSortDir(field === 'enrolled' ? 'desc' : 'asc')
+            }
+          }}
+          terms={terms}
+          staffUsers={staffUsers}
+          orgSettings={orgSettings}
+        />
+      )}
 
       <ActivityTable
         activities={filteredActivities}
@@ -296,6 +340,9 @@ function ActivityManagement() {
         onSelect={handleSelect}
         enrollmentCounts={enrollmentCountByActivity}
         blockLabels={orgSettings?.block_labels}
+        selectedIds={selectedIds}
+        onToggleSelect={handleToggleSelect}
+        onToggleSelectAll={handleToggleSelectAll}
       />
 
       <ActivityDetailModal
@@ -326,6 +373,16 @@ function ActivityManagement() {
             initialActivityId={enrollingActivity.id}
           />
         </FloatingPanel>
+      )}
+
+      {bulkEditOpen && (
+        <BulkEditModal
+          selectedIds={selectedIds}
+          terms={terms}
+          orgSettings={orgSettings}
+          orgId={orgId}
+          onClose={handleBulkEditClose}
+        />
       )}
     </div>
   )
