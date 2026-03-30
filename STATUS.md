@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 29, 2026 (session 17.2)
+**Last updated:** March 30, 2026 (session 18.1)
 
 ---
 
@@ -19,6 +19,7 @@
 | Dashboard & agenda view (week grid, block grouping, adaptive cards, tooltips) | Replaced — see calendar redesign below | `agenda-view-build-spec.md`, `admin-dashboard.md`, #3, #6 |
 | Admin calendar redesign — Layer 0 (schema, recurrence, calendar CRUD API/hooks) | Built | `layer-0-build-spec.md` |
 | Admin calendar redesign — Layer 1 (week view, sidebar, event cards, block overlay fix) | Built | `layer-1-build-spec.md` |
+| Admin calendar redesign — Layer 2 (time-slot clustering, inter-group layout, aggregate expansion, filter bar, recurrence-aware conflict detection) | Built | `layer-2-build-spec.md` |
 | Enrollment — activity-centric (Entry A) | Built | `enrollment-panel-build-spec.md` |
 | Enrollment — student-centric (Entry B) | Designed, not built | #7 |
 | Org settings (block schedule, terms, rotation days) | Built | `org-settings-build-spec.md` |
@@ -55,7 +56,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) and sy
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
-**Current priority:** Admin calendar redesign Layers 0 and 1 are complete and merged to main. Layer 2 (filter bar, recurrence-aware conflict detection, aggregate card expansion) is the next candidate. The `admin-calendar-redesign-design-doc.md` describes the full layer breakdown.
+**Current priority:** Admin calendar redesign Layers 0, 1, and 2 are complete and merged to main. Layer 3 (if scoped) or student-centric enrollment (Entry B, Issue #7) are the next candidates. The `admin-calendar-redesign-design-doc.md` describes any remaining layer scope.
 
 ---
 
@@ -93,3 +94,4 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `admin-calendar-redesign-design-doc.md` | **Current** | Full design doc for the calendar redesign feature. Layer breakdown, data model, UI patterns. |
 | `layer-0-build-spec.md` | **Implemented** | Schema integration, recurrence predicate, calendar CRUD API/hooks, ActivityDetail form fields. Built session 17. |
 | `layer-1-build-spec.md` | **Implemented** | Week view, calendar sidebar, event cards, block overlay fix, empty-slot create. Built session 17. |
+| `layer-2-build-spec.md` | **Implemented** | Time-slot clustering, inter-group column layout, aggregate card expansion, filter bar, recurrence-aware conflict detection. Built session 18. |
