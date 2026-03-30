@@ -11,8 +11,9 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
     const titleStr = aggregateData.activities?.map((a) => a.name).join('\n') ?? ''
     return (
       <div
-        className="absolute inset-0 rounded bg-base-200 overflow-hidden flex flex-col items-center justify-center"
+        className="absolute inset-0 rounded bg-base-200 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:bg-base-300 transition-colors"
         title={titleStr}
+        onClick={(e) => onClick(e)}
       >
         <span className="text-xs font-semibold">
           {aggregateData.count} activit{aggregateData.count !== 1 ? 'ies' : 'y'}
