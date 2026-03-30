@@ -67,11 +67,11 @@ function computeTimeOverlap(startA, endA, startB, endB) {
 
 /**
  * Determine whether two activities could meet on any shared day,
- * considering days_of_week and rotation_day_type.
+ * considering days_of_week, rotation_day_type, and recurrence_interval.
  *
- * NOTE: Does not account for recurrence_interval — two activities with different anchor
- * weeks will still be flagged as conflicting if they share a block and day-of-week.
- * This is intentionally conservative (false positives are safe). Layer 2 will refine this.
+ * NOTE: Recurrence awareness handles the equal-interval alternating-week case.
+ * Unequal intervals or missing anchor dates fall through conservatively (false positive).
+ * False positives (flagging a non-conflict) are acceptable; false negatives are not.
  *
  * Returns { couldMeetSameDay, reason }
  *   - couldMeetSameDay: true if there's any day both activities would meet
@@ -86,12 +86,35 @@ function couldMeetOnSameDay(activityA, activityB) {
   // Case 1: Both use days_of_week — conflict if any shared day
   if (aHasDays && bHasDays) {
     const shared = daysOverlap(activityA.days_of_week, activityB.days_of_week)
-    return {
-      couldMeetSameDay: shared,
-      reason: shared
-        ? 'Both activities meet on overlapping weekdays'
-        : 'Activities meet on different weekdays',
+    if (!shared) {
+      return { couldMeetSameDay: false, reason: 'Activities meet on different weekdays' }
     }
+
+    // Both share at least one weekday — check whether recurrence intervals guarantee
+    // they never land on the same week. Only applied when both have interval > 1 and
+    // anchor dates. If either is missing, fall through conservatively.
+    const aInterval = activityA.recurrence_interval ?? 1
+    const bInterval = activityB.recurrence_interval ?? 1
+    const aAnchor = activityA.recurrence_anchor_date
+    const bAnchor = activityB.recurrence_anchor_date
+
+    if (aInterval > 1 && bInterval > 1 && aAnchor && bAnchor && aInterval === bInterval) {
+      const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
+      const epochMs = new Date('2024-01-01').getTime()
+      const aWeekOffset = Math.round((new Date(aAnchor).getTime() - epochMs) / MS_PER_WEEK)
+      const bWeekOffset = Math.round((new Date(bAnchor).getTime() - epochMs) / MS_PER_WEEK)
+      const aPhase = ((aWeekOffset % aInterval) + aInterval) % aInterval
+      const bPhase = ((bWeekOffset % bInterval) + bInterval) % bInterval
+
+      if (aPhase !== bPhase) {
+        return {
+          couldMeetSameDay: false,
+          reason: `Activities meet on the same weekday(s) but on alternating weeks (interval ${aInterval}, different phases)`,
+        }
+      }
+    }
+
+    return { couldMeetSameDay: true, reason: 'Both activities meet on overlapping weekdays' }
   }
 
   // Case 2: Both use rotation_day_type — conflict only if same rotation day

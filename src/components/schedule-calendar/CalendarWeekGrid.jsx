@@ -28,6 +28,7 @@ export function CalendarWeekGrid({
   blockLabels,
   onEmptyClick,
   onActivityClick,
+  onAggregateClick,
 }) {
   const totalMinutes = gridEndMinutes - gridStartMinutes
   const gridHeight = minutesToPx(totalMinutes) + GRID_PAD_Y * 2
@@ -135,6 +136,7 @@ export function CalendarWeekGrid({
                   gridStartMinutes={gridStartMinutes}
                   onEmptyClick={onEmptyClick}
                   onActivityClick={onActivityClick}
+                  onAggregateClick={onAggregateClick}
                 />
               </div>
             )
