@@ -59,13 +59,56 @@ export function activityMeetsDay(activity, dayValue) {
   return true
 }
 
-export function groupActivitiesByBlock(activities, dayValue) {
+export function groupActivitiesForLayout(activities, dayValue) {
   const map = new Map()
+  const nullGroup = []
+
   for (const a of activities) {
     if (!activityMeetsDay(a, dayValue)) continue
-    const key = a.block ?? 'null'
-    if (!map.has(key)) map.set(key, [])
-    map.get(key).push(a)
+    if (a.block != null) {
+      const key = a.block
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(a)
+    } else {
+      nullGroup.push(a)
+    }
   }
+
+  // Cluster null-block activities by time overlap (gap tolerance: 15 minutes)
+  if (nullGroup.length > 0) {
+    const sorted = [...nullGroup].sort((a, b) =>
+      (a.default_start_time ?? '').localeCompare(b.default_start_time ?? '')
+    )
+
+    const GAP_TOLERANCE_MINUTES = 15
+    let clusterIndex = 0
+    let clusterEnd = sorted[0].default_end_time ?? sorted[0].default_start_time ?? ''
+    let currentCluster = [sorted[0]]
+
+    for (let i = 1; i < sorted.length; i++) {
+      const activity = sorted[i]
+      const actStart = activity.default_start_time ?? ''
+      const clusterEndMin = timeToMinutes(clusterEnd)
+      const actStartMin = timeToMinutes(actStart)
+
+      if (
+        clusterEndMin !== null &&
+        actStartMin !== null &&
+        actStartMin < clusterEndMin + GAP_TOLERANCE_MINUTES &&
+        actStartMin !== clusterEndMin
+      ) {
+        currentCluster.push(activity)
+        const actEnd = activity.default_end_time ?? ''
+        if (actEnd > clusterEnd) clusterEnd = actEnd
+      } else {
+        map.set(`time-${clusterIndex}`, currentCluster)
+        clusterIndex++
+        currentCluster = [activity]
+        clusterEnd = activity.default_end_time ?? activity.default_start_time ?? ''
+      }
+    }
+    map.set(`time-${clusterIndex}`, currentCluster)
+  }
+
   return map
 }

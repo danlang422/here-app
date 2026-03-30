@@ -23,6 +23,7 @@ import { CalendarFilterBar } from './CalendarFilterBar'
 import { CalendarSidebar } from './CalendarSidebar'
 import { CalendarWeekGrid } from './CalendarWeekGrid'
 import { CalendarEventPopover } from './CalendarEventPopover'
+import { CalendarAggregatePopover } from './CalendarAggregatePopover'
 
 export function CalendarView() {
   const orgId = useAuthStore((s) => s.profile?.organization_id)
@@ -59,6 +60,19 @@ export function CalendarView() {
     [activities, isCalendarVisible]
   )
 
+  // Text filter
+  const [filterText, setFilterText] = useState('')
+  const filteredActivities = useMemo(() => {
+    if (!filterText.trim()) return visibleActivities
+    const lower = filterText.trim().toLowerCase()
+    return visibleActivities.filter((a) => {
+      if (a.name?.toLowerCase().includes(lower)) return true
+      if (a.teacher?.first_name?.toLowerCase().includes(lower)) return true
+      if (a.teacher?.last_name?.toLowerCase().includes(lower)) return true
+      return false
+    })
+  }, [visibleActivities, filterText])
+
   // Enrollment count map
   const enrollmentCountByActivity = useMemo(() => {
     const map = {}
@@ -90,6 +104,8 @@ export function CalendarView() {
   // Popover state
   const [popover, setPopover] = useState(null)
   // null | { activity } | { prefillData: { date, startTime, calendarId } }
+  const [aggregatePopover, setAggregatePopover] = useState(null)
+  // null | { aggregateData: { count, totalEnrollment, activities }, position: { x, y } }
 
   function handleActivityClick(activity) {
     setPopover({ activity })
@@ -99,10 +115,14 @@ export function CalendarView() {
     setPopover({ prefillData: { date, startTime, calendarId: null } })
   }
 
+  function handleAggregateClick(aggregateData, event) {
+    setAggregatePopover({ aggregateData, position: { x: event.clientX, y: event.clientY } })
+  }
+
   return (
     <div className="flex flex-col h-full">
       <CalendarWeekNav />
-      <CalendarFilterBar />
+      <CalendarFilterBar filterText={filterText} onFilterChange={setFilterText} />
 
       <div className="flex flex-1 overflow-hidden">
         <CalendarSidebar
@@ -114,7 +134,7 @@ export function CalendarView() {
         <CalendarWeekGrid
           weekDates={weekDates}
           schoolDaysByDate={schoolDaysByDate}
-          activities={visibleActivities}
+          activities={filteredActivities}
           enrollmentCountByActivity={enrollmentCountByActivity}
           gridStartMinutes={gridStartMinutes}
           gridEndMinutes={gridEndMinutes}
@@ -122,8 +142,22 @@ export function CalendarView() {
           blockLabels={orgSettings?.block_labels}
           onEmptyClick={handleEmptyClick}
           onActivityClick={handleActivityClick}
+          onAggregateClick={handleAggregateClick}
         />
       </div>
+
+      {aggregatePopover && (
+        <CalendarAggregatePopover
+          aggregateData={aggregatePopover.aggregateData}
+          position={aggregatePopover.position}
+          onClose={() => setAggregatePopover(null)}
+          onActivityClick={(activity) => {
+            setAggregatePopover(null)
+            handleActivityClick(activity)
+          }}
+          enrollmentCountByActivity={enrollmentCountByActivity}
+        />
+      )}
 
       {popover && (
         <CalendarEventPopover

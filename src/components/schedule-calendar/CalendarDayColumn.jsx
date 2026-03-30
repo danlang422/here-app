@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { CalendarEventCard } from './CalendarEventCard'
 import { activityMeetsToday } from '@/lib/scheduleUtils'
 import {
-  groupActivitiesByBlock,
+  groupActivitiesForLayout,
   activityTop,
   activityHeight,
   timeToMinutes,
@@ -21,6 +21,7 @@ export function CalendarDayColumn({
   gridStartMinutes,
   onEmptyClick,
   onActivityClick,
+  onAggregateClick,
 }) {
   const todayActivities = useMemo(
     () =>
@@ -34,7 +35,7 @@ export function CalendarDayColumn({
   )
 
   const blockGroups = useMemo(
-    () => groupActivitiesByBlock(todayActivities, date.getDay()),
+    () => groupActivitiesForLayout(todayActivities, date.getDay()),
     [todayActivities, date]
   )
 
@@ -51,9 +52,54 @@ export function CalendarDayColumn({
     onEmptyClick(date, `${hours}:${mins}`)
   }
 
+  // Compute horizontal column layout across all groups.
+  // Groups whose time ranges overlap are assigned side-by-side columns so they
+  // don't stack on top of each other. Non-overlapping groups stay full-width.
+  const slotList = []
+  for (const [blockKey, groupActivities] of blockGroups) {
+    const starts = groupActivities
+      .map((a) => timeToMinutes(a.default_start_time))
+      .filter((v) => v !== null)
+    const ends = groupActivities
+      .map((a) => timeToMinutes(a.default_end_time))
+      .filter((v) => v !== null)
+    if (starts.length === 0) continue
+    slotList.push({
+      key: blockKey,
+      startMin: Math.min(...starts),
+      endMin: Math.max(...ends),
+      col: 0,
+    })
+  }
+  slotList.sort((a, b) => a.startMin - b.startMin)
+
+  // Greedy interval coloring: assign each slot to the first column where
+  // the previous occupant has already ended.
+  const colEnds = []
+  for (const slot of slotList) {
+    let c = colEnds.findIndex((end) => end <= slot.startMin)
+    if (c === -1) c = colEnds.length
+    slot.col = c
+    colEnds[c] = slot.endMin
+  }
+
+  // totalCols for each slot = max col index among all concurrent slots + 1
+  const columnLayout = new Map()
+  for (const slot of slotList) {
+    const concurrent = slotList.filter(
+      (s) => s.startMin < slot.endMin && s.endMin > slot.startMin
+    )
+    const maxCol = Math.max(...concurrent.map((s) => s.col))
+    columnLayout.set(slot.key, { col: slot.col, totalCols: maxCol + 1 })
+  }
+
   const cards = []
 
   for (const [blockKey, groupActivities] of blockGroups) {
+    const { col = 0, totalCols = 1 } = columnLayout.get(blockKey) ?? {}
+    const groupWidthFrac = 1 / totalCols
+    const groupLeftFrac = col / totalCols
+
     const count = groupActivities.length
 
     if (count === 1) {
@@ -69,8 +115,8 @@ export function CalendarDayColumn({
           style={{
             top: `${top}px`,
             height: `${Math.max(height, 24)}px`,
-            width: '100%',
-            left: '0%',
+            width: `${groupWidthFrac * 100}%`,
+            left: `${groupLeftFrac * 100}%`,
             zIndex: 2,
           }}
         >
@@ -87,8 +133,8 @@ export function CalendarDayColumn({
         const top = activityTop(activity, gridStartMinutes) + GRID_PAD_Y
         const height = activityHeight(activity)
         const enrollCount = enrollmentCountByActivity[activity.id] ?? 0
-        const widthPercent = 100 / count
-        const leftPercent = slotIndex * widthPercent
+        const cardWidthFrac = groupWidthFrac / count
+        const cardLeftFrac = groupLeftFrac + slotIndex * cardWidthFrac
 
         cards.push(
           <div
@@ -97,8 +143,8 @@ export function CalendarDayColumn({
             style={{
               top: `${top}px`,
               height: `${Math.max(height, 24)}px`,
-              width: `${widthPercent}%`,
-              left: `${leftPercent}%`,
+              width: `${cardWidthFrac * 100}%`,
+              left: `${cardLeftFrac * 100}%`,
               zIndex: 2,
             }}
           >
@@ -125,6 +171,7 @@ export function CalendarDayColumn({
         (sum, a) => sum + (enrollmentCountByActivity[a.id] ?? 0),
         0
       )
+      const aggregateData = { count, totalEnrollment, activities: groupActivities }
 
       cards.push(
         <div
@@ -133,8 +180,8 @@ export function CalendarDayColumn({
           style={{
             top: `${top}px`,
             height: `${height}px`,
-            width: '100%',
-            left: '0%',
+            width: `${groupWidthFrac * 100}%`,
+            left: `${groupLeftFrac * 100}%`,
             zIndex: 1,
           }}
         >
@@ -142,12 +189,8 @@ export function CalendarDayColumn({
             activity={groupActivities[0]}
             enrollmentCount={totalEnrollment}
             mode="aggregate"
-            aggregateData={{
-              count,
-              totalEnrollment,
-              activities: groupActivities,
-            }}
-            onClick={() => {}}
+            aggregateData={aggregateData}
+            onClick={(e) => onAggregateClick(aggregateData, e)}
           />
         </div>
       )
