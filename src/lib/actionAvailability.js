@@ -1,21 +1,25 @@
 import { timeToMinutes } from '@/components/agenda/agendaUtils'
 
+const ACTION_WINDOW_LEADTIME_MINUTES = 10
+const CHECKOUT_LEADTIME_MINUTES = 8
+
 /**
  * Check if the current time is within the action window for an activity.
- * Actions become available 10 minutes before start and remain until midnight.
+ * Actions become available ACTION_WINDOW_LEADTIME_MINUTES before start and remain until midnight.
  */
 export function isWithinActionWindow(activity, now = new Date()) {
   if (!activity.default_start_time) return false
 
   const startMinutes = timeToMinutes(activity.default_start_time)
-  const availableFromMinutes = startMinutes - 10
+  const availableFromMinutes = startMinutes - ACTION_WINDOW_LEADTIME_MINUTES
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
 
   return nowMinutes >= availableFromMinutes
 }
 
 /**
- * Check if the activity's end time has passed (for check-out availability).
+ * Check if the activity's end time is within the check-out window.
+ * Check-out becomes available CHECKOUT_LEADTIME_MINUTES before end time.
  */
 export function isPastEndTime(activity, now = new Date()) {
   if (!activity.default_end_time) return false
@@ -23,7 +27,7 @@ export function isPastEndTime(activity, now = new Date()) {
   const endMinutes = timeToMinutes(activity.default_end_time)
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
 
-  return nowMinutes >= endMinutes
+  return nowMinutes >= endMinutes - CHECKOUT_LEADTIME_MINUTES
 }
 
 /**

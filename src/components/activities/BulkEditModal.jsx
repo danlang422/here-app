@@ -71,6 +71,9 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
       // Mutual exclusion: is_release ↔ requires_attendance
       if (field === 'is_release' && next === true) updated.requires_attendance = false
       if (field === 'requires_attendance' && next === true) updated.is_release = false
+      // Mutual exclusion: allows_presence_wave ↔ requires_checkin
+      if (field === 'allows_presence_wave' && next === true) updated.requires_checkin = null
+      if (field === 'requires_checkin' && next === true) updated.allows_presence_wave = null
 
       return updated
     })

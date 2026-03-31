@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** March 31, 2026 (session 20.1)
+**Last updated:** March 31, 2026 (session 20.2)
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed. Migrations through `20260324000000_feedback_reports` (feedback/reports table, storage bucket). Real data: City View org with admin account (Daniel Lang), staff users, and multiple activities.
+**Database:** V2 schema deployed. Migrations through `20260331000001_presence_wave_checkin_constraint` (mutual exclusivity constraint on `allows_presence_wave` / `requires_checkin`). Real data: City View org with admin account (Daniel Lang), staff users, and multiple activities.
 
 **Application:**
 
@@ -52,6 +52,8 @@ Decisions that are settled live in CLAUDE.md (if they're lasting architectural p
 ## Known Issues / Tech Debt
 
 Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). User-submitted feedback is now posted directly to GitHub Issues via the `submit-feedback` Edge Function (Linear integration removed). Claude.ai access to issues available through GitHub MCP on Desktop. Claude Code access to issues is detailed in `CLAUDE.md`.
+
+**Resolved in session 20.2 (2026-03-31):** #19 (cannot deselect attendance indicator), #23 (check-out button timing), #20 (allows_presence_wave / requires_checkin must be mutually exclusive).
 
 ## Next Steps
 
