@@ -132,6 +132,6 @@ Design decisions and feature planning happen in conversation with Daniel before 
 
 ## Issue Tracking
 
-Issues are tracked in Linear (synced bidirectionally with GitHub Issues). Use the GitHub CLI or GitHub API to access issues from the repo.
+Issues are tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Use the GitHub CLI or GitHub API to access issues from the repo. User-submitted feedback (via the /help page) posts directly to GitHub Issues through the `submit-feedback` Edge Function.
 
-Linear workspace: `danlang422` | Team: `Danlang422` | GitHub repo: `danlang422/here-app`
+GitHub repo: `danlang422/here-app`
