@@ -6,12 +6,12 @@ function formatTime(timeStr) {
   return m === 0 ? `${hour12}${suffix}` : `${hour12}:${String(m).padStart(2, '0')}${suffix}`
 }
 
-export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateData, onClick }) {
+export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateData, onClick, isDimmed = false }) {
   if (mode === 'aggregate') {
     const titleStr = aggregateData.activities?.map((a) => a.name).join('\n') ?? ''
     return (
       <div
-        className="absolute inset-0 rounded bg-base-200 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:bg-base-300 transition-colors"
+        className={`absolute inset-0 rounded bg-base-200 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:bg-base-300 transition-all ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
         title={titleStr}
         onClick={(e) => onClick(e)}
       >
@@ -30,7 +30,7 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
   if (mode === 'few') {
     return (
       <div
-        className="absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-colors"
+        className={`absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-all ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
         style={{ borderLeftColor: borderColor }}
         onClick={() => onClick(activity)}
       >
@@ -47,7 +47,7 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
   // single mode
   return (
     <div
-      className="absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-colors"
+      className={`absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-all ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
       style={{ borderLeftColor: borderColor }}
       onClick={() => onClick(activity)}
     >
