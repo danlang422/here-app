@@ -23,6 +23,7 @@ export default function ActivityDetailModal({
   activity,
   isEditing,
   saving,
+  deleting,
   orgSettings,
   enrollments,
   defaultTemplate,
@@ -33,6 +34,7 @@ export default function ActivityDetailModal({
   onEditClick,
   onCancel,
   onSave,
+  onDelete,
   onEnrollClick,
 }) {
   // Close on Escape key
@@ -64,6 +66,7 @@ export default function ActivityDetailModal({
           activity={activity}
           mode={isEditing ? 'edit' : 'view'}
           saving={saving}
+          deleting={deleting}
           orgSettings={orgSettings}
           enrollments={enrollments ?? []}
           defaultTemplate={defaultTemplate}
@@ -73,6 +76,7 @@ export default function ActivityDetailModal({
           onSave={onSave}
           onCancel={onCancel}
           onEditClick={onEditClick}
+          onDelete={onDelete}
           onEnrollClick={onEnrollClick}
         />
       </div>

@@ -6,7 +6,7 @@ import ActivityDetailModal from '@/components/activities/ActivityDetailModal'
 import BulkEditModal from '@/components/activities/BulkEditModal'
 import FloatingPanel from '@/components/panels/FloatingPanel'
 import EnrollmentPanel from '@/components/enrollment/EnrollmentPanel'
-import { useActivities, useCreateActivity, useUpdateActivity } from '@/hooks/useActivities'
+import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities'
 import { addActivityTerm } from '@/api/activityTerms'
 import { useOrgEnrollments, useActivityEnrollments } from '@/hooks/useEnrollments'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
@@ -38,6 +38,7 @@ function ActivityManagement() {
   const { data: staffUsers = [] } = useStaffUsers(orgId)
   const createMutation = useCreateActivity(orgId)
   const updateMutation = useUpdateActivity(orgId)
+  const deleteMutation = useDeleteActivity(orgId)
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -170,7 +171,8 @@ function ActivityManagement() {
   const hasActiveFilters = searchQuery.trim() || Object.values(filters).some((v) => v !== 'all')
 
   const saving = createMutation.isPending || updateMutation.isPending
-  const mutationError = createMutation.error || updateMutation.error
+  const deleting = deleteMutation.isPending
+  const mutationError = createMutation.error || updateMutation.error || deleteMutation.error
   const error = loadError?.message || mutationError?.message
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -193,6 +195,15 @@ function ActivityManagement() {
     setSelectedActivity(null)
     createMutation.reset()
     updateMutation.reset()
+    deleteMutation.reset()
+  }
+
+  function handleDelete(activityId) {
+    deleteMutation.mutate(activityId, {
+      onSuccess: () => {
+        handleCloseModal()
+      },
+    })
   }
 
   function handleEditClick() {
@@ -297,7 +308,7 @@ function ActivityManagement() {
           <span>{error}</span>
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => { createMutation.reset(); updateMutation.reset() }}
+            onClick={() => { createMutation.reset(); updateMutation.reset(); deleteMutation.reset() }}
           >
             ✕
           </button>
@@ -350,6 +361,7 @@ function ActivityManagement() {
         activity={selectedActivity}
         isEditing={isEditing}
         saving={saving}
+        deleting={deleting}
         orgSettings={orgSettings}
         enrollments={activityEnrollments}
         defaultTemplate={defaultTemplate}
@@ -360,6 +372,7 @@ function ActivityManagement() {
         onEditClick={handleEditClick}
         onCancel={handleCancel}
         onSave={handleSave}
+        onDelete={handleDelete}
         onEnrollClick={handleEnrollClick}
       />
 
