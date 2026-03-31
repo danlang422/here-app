@@ -197,16 +197,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 3: Create Linear issue
-    const linearApiKey = Deno.env.get("LINEAR_API_KEY");
-    const linearTeamId = Deno.env.get("LINEAR_TEAM_ID");
-    const linearLabelBug = Deno.env.get("LINEAR_LABEL_BUG");
-    const linearLabelSchedule = Deno.env.get("LINEAR_LABEL_SCHEDULE");
-    const linearLabelFeedback = Deno.env.get("LINEAR_LABEL_FEEDBACK");
+    // Step 3: Create GitHub issue
+    const githubPat = Deno.env.get("GITHUB_PAT");
+    const githubRepo = Deno.env.get("GITHUB_REPO") || "danlang422/here-app";
 
-    let linearSynced = false;
+    let githubSynced = false;
 
-    if (linearApiKey && linearTeamId) {
+    if (githubPat) {
       try {
         // Build issue title
         const truncated = (str: string, len: number) =>
@@ -262,68 +259,50 @@ ${description}`;
 
         markdownBody += `\n\n---\n*Device: ${user_agent || "unknown"}*\n*Screen: ${screen_size || "unknown"}*`;
 
-        // Pick label
-        const labelId =
+        // Build labels
+        const typeLabel2 =
           report_type === "bug"
-            ? linearLabelBug
+            ? "type: bug"
             : report_type === "schedule_issue"
-            ? linearLabelSchedule
-            : linearLabelFeedback;
+            ? "type: schedule-issue"
+            : "type: feedback";
+        const labels = ["status: user-submitted", typeLabel2];
 
-        const issueInput: Record<string, unknown> = {
-          title,
-          description: markdownBody,
-          teamId: linearTeamId,
-        };
-        if (labelId) {
-          issueInput.labelIds = [labelId];
-        }
+        const githubResponse = await fetch(
+          `https://api.github.com/repos/${githubRepo}/issues`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${githubPat}`,
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+            },
+            body: JSON.stringify({ title, body: markdownBody, labels }),
+          }
+        );
 
-        const linearResponse = await fetch("https://api.linear.app/graphql", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: linearApiKey,
-          },
-          body: JSON.stringify({
-            query: `
-              mutation CreateIssue($input: IssueCreateInput!) {
-                issueCreate(input: $input) {
-                  success
-                  issue {
-                    id
-                    identifier
-                    url
-                  }
-                }
-              }
-            `,
-            variables: { input: issueInput },
-          }),
-        });
-
-        const linearData = await linearResponse.json();
-        const issue = linearData?.data?.issueCreate?.issue;
-
-        if (issue?.id) {
+        if (githubResponse.ok) {
+          const githubIssue = await githubResponse.json();
           await adminClient
             .from("feedback_reports")
             .update({
-              linear_issue_id: issue.id,
-              linear_issue_url: issue.url,
+              github_issue_number: githubIssue.number,
+              github_issue_url: githubIssue.html_url,
             })
             .eq("id", report.id);
-          linearSynced = true;
+          githubSynced = true;
         } else {
-          console.warn("Linear issue creation failed:", JSON.stringify(linearData));
+          const errText = await githubResponse.text();
+          console.warn("GitHub issue creation failed:", githubResponse.status, errText);
         }
-      } catch (linearErr) {
-        console.warn("Linear API error:", linearErr);
+      } catch (githubErr) {
+        console.warn("GitHub API error:", githubErr);
       }
     }
 
     return new Response(
-      JSON.stringify({ success: true, report_id: report.id, linear_synced: linearSynced }),
+      JSON.stringify({ success: true, report_id: report.id, github_synced: githubSynced }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
