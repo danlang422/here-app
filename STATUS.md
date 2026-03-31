@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 30, 2026 (session 18.1)
+**Last updated:** March 31, 2026 (session 19.1)
 
 ---
 
@@ -25,7 +25,7 @@
 | Org settings (block schedule, terms, rotation days) | Built | `org-settings-build-spec.md` |
 | Calendar management (school days, exceptions, per-reason rotation) | Built | `calendar-management-build-spec.md`, #12 |
 | Student schedule view | Designed, waiting on decisions to finalize | `student-schedule-view-build-spec.md` |
-| User feedback & bug reporting (/help page, FeedbackModal, Edge Function) | Built | `user-feedback-system-build-spec.md` |
+| User feedback & bug reporting (/help page, FeedbackModal, Edge Function → GitHub Issues) | Built | `user-feedback-system-build-spec.md` |
 | Reports | Placeholder | — |
 | **Student** | | |
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
@@ -39,7 +39,7 @@
 | Zustand stores (auth, UI, calendar UI) | Built | — |
 | Enrollment validation (block-based + time-based) | Built | `src/lib/enrollmentValidation.js` |
 | RLS policies | Comprehensive--all tables, all roles | `2026031300000_comprehensive_rls_policies.sql`, `10-rls-policies.md` |
-| Edge Functions (`submit-feedback`, `create-user`) | Deployed with `--no-verify-jwt`; config in `supabase/config.toml` | Session 16 |
+| Edge Functions (`submit-feedback`, `create-user`) | Deployed with `--no-verify-jwt`; config in `supabase/config.toml`. `submit-feedback` posts to GitHub Issues (not Linear). | Session 16, 19 |
 | Realtime subscriptions | Not started | — |
 
 ## Active Decisions
@@ -50,7 +50,7 @@ Decisions that are settled live in CLAUDE.md (if they're lasting architectural p
 
 ## Known Issues / Tech Debt
 
-Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) and synced with Linear. Claude.ai can access issues through the Linear MCP integration. Claude Code access is detailed in `CLAUDE.md`.
+Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). User-submitted feedback is now posted directly to GitHub Issues via the `submit-feedback` Edge Function (Linear integration removed). Claude Code access to issues is detailed in `CLAUDE.md`.
 
 ## Next Steps
 
@@ -90,7 +90,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `teacher-roster-student-actions-build-spec.md` | **Implemented** | Teacher visibility of student actions | 
 | `student-schedule-view-build-spec.md` | **Pending Decisions** | Admin view of individual student schedule |
 | `activity-management-overhaul-build-spec.md` | **Built** | Admin activity page revamp + activity_term changes |
-| `user-feedback-system-build-spec.md` | **Implemented** | /Help page, FeedbackModal, submit-feedback Edge Function. Built session 16. |
+| `user-feedback-system-build-spec.md` | **Implemented** | /Help page, FeedbackModal, submit-feedback Edge Function. Built session 16. GitHub Issues integration added session 19. |
 | `admin-calendar-redesign-design-doc.md` | **Current** | Full design doc for the calendar redesign feature. Layer breakdown, data model, UI patterns. |
 | `layer-0-build-spec.md` | **Implemented** | Schema integration, recurrence predicate, calendar CRUD API/hooks, ActivityDetail form fields. Built session 17. |
 | `layer-1-build-spec.md` | **Implemented** | Week view, calendar sidebar, event cards, block overlay fix, empty-slot create. Built session 17. |
