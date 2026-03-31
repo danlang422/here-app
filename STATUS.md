@@ -50,7 +50,7 @@ Decisions that are settled live in CLAUDE.md (if they're lasting architectural p
 
 ## Known Issues / Tech Debt
 
-Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). User-submitted feedback is now posted directly to GitHub Issues via the `submit-feedback` Edge Function (Linear integration removed). Claude Code access to issues is detailed in `CLAUDE.md`.
+Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). User-submitted feedback is now posted directly to GitHub Issues via the `submit-feedback` Edge Function (Linear integration removed). Claude.ai access to issues available through GitHub MCP on Desktop. Claude Code access to issues is detailed in `CLAUDE.md`.
 
 ## Next Steps
 
