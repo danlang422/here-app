@@ -213,8 +213,16 @@ export default function CalendarGrid({ orgId, orgSettings, terms }) {
 
   async function handleMarkRange(startDateStr, endDateStr, reason, notes) {
     const weekdays = getWeekdaysInRange(startDateStr, endDateStr)
+
+    // Fetch existing records for the full range — schoolDayMap only covers the current
+    // month view, so a cross-month range would produce a mixed batch (some rows with id,
+    // some without). PostgREST normalizes mixed batches by setting missing id to null,
+    // which violates the NOT NULL constraint. Fetching the full range gives us consistent ids.
+    const existingInRange = await getSchoolDays(orgId, startDateStr, endDateStr)
+    const existingRangeMap = new Map(existingInRange.map(d => [d.date, d]))
+
     const rows = weekdays.map(date => {
-      const existing = schoolDayMap.get(date)
+      const existing = existingRangeMap.get(date)
       return {
         organization_id: orgId,
         date,
