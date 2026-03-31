@@ -53,7 +53,7 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
 
 // after
 <div
-  className={`absolute inset-0 rounded bg-base-200 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:bg-base-300 transition-colors transition-opacity ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
+  className={`absolute inset-0 rounded bg-base-200 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:bg-base-300 transition-all ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
 ```
 
 **Few mode** — add opacity to the outer div:
@@ -65,7 +65,7 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
 
 // after
 <div
-  className={`absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-colors transition-opacity ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
+  className={`absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-all ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
   style={{ borderLeftColor: borderColor }}
 ```
 
@@ -78,7 +78,7 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
 
 // after
 <div
-  className={`absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-colors transition-opacity ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
+  className={`absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-all ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
   style={{ borderLeftColor: borderColor }}
 ```
 
