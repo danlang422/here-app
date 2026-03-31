@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** March 31, 2026 (session 19.1)
+**Last updated:** March 31, 2026 (session 20.1)
 
 ---
 
@@ -20,6 +20,7 @@
 | Admin calendar redesign — Layer 0 (schema, recurrence, calendar CRUD API/hooks) | Built | `layer-0-build-spec.md` |
 | Admin calendar redesign — Layer 1 (week view, sidebar, event cards, block overlay fix) | Built | `layer-1-build-spec.md` |
 | Admin calendar redesign — Layer 2 (time-slot clustering, inter-group layout, aggregate expansion, filter bar, recurrence-aware conflict detection) | Built | `layer-2-build-spec.md` |
+| Admin calendar — Filter bar expansion (block, time range, student filters with dimming) | Built | `filter-bar-expansion-build-spec.md` |
 | Enrollment — activity-centric (Entry A) | Built | `enrollment-panel-build-spec.md` |
 | Enrollment — student-centric (Entry B) | Designed, not built | #7 |
 | Org settings (block schedule, terms, rotation days) | Built | `org-settings-build-spec.md` |
@@ -95,3 +96,5 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 | `layer-0-build-spec.md` | **Implemented** | Schema integration, recurrence predicate, calendar CRUD API/hooks, ActivityDetail form fields. Built session 17. |
 | `layer-1-build-spec.md` | **Implemented** | Week view, calendar sidebar, event cards, block overlay fix, empty-slot create. Built session 17. |
 | `layer-2-build-spec.md` | **Implemented** | Time-slot clustering, inter-group column layout, aggregate card expansion, filter bar, recurrence-aware conflict detection. Built session 18. |
+| `filter-bar-expansion-design-doc.md` | **Implemented** | Design doc for filter bar expansion (block, time range, student filters). |
+| `filter-bar-expansion-build-spec.md` | **Implemented** | Block, time range, and student filters added to CalendarFilterBar. Student dimming threaded through WeekGrid → DayColumn → EventCard. Built session 20. |
