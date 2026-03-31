@@ -4,6 +4,7 @@ import {
   FaPencilAlt, FaCheck, FaTimes, FaUserPlus,
   FaClipboardList, FaClock, FaHandPaper, FaTags,
   FaMapMarkerAlt, FaDoorOpen, FaCalendarTimes, FaUserGraduate,
+  FaTrash,
 } from 'react-icons/fa'
 import { getBlocks, getBlockLabel, WEEKDAYS } from '@/lib/constants'
 import { useStaffUsers } from '@/hooks/useUsers'
@@ -119,6 +120,7 @@ export default function ActivityDetail({
   activity = null,
   mode = 'view',
   saving = false,
+  deleting = false,
   orgSettings = {},
   enrollments = [],
   defaultTemplate = null,
@@ -129,6 +131,7 @@ export default function ActivityDetail({
   onCancel,
   onEditClick,
   onEnrollClick,
+  onDelete,
 }) {
   const profile = useAuthStore((s) => s.profile)
   const orgId = orgIdProp || profile?.organization_id
@@ -146,6 +149,7 @@ export default function ActivityDetail({
   const [staffRows, setStaffRows] = useState(() => buildStaffRows(activity))
   const [showDescription, setShowDescription] = useState(!!(activity?.description))
   const [pendingTerms, setPendingTerms] = useState([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Reset form, staff rows, and pending terms when activity changes
   useEffect(() => {
@@ -153,6 +157,7 @@ export default function ActivityDetail({
     setStaffRows(buildStaffRows(activity))
     setShowDescription(!!(activity?.description))
     setPendingTerms([])
+    setShowDeleteConfirm(false)
   }, [activity?.id ?? 'new']) // eslint-disable-line react-hooks/exhaustive-deps
 
   const watchedIsNotScheduled = watch('is_not_scheduled')
@@ -477,6 +482,51 @@ export default function ActivityDetail({
       {/* ── Roster section — only for existing activities ── */}
       {activity?.id && (
         <RosterSection enrollments={enrollments} onEnrollClick={onEnrollClick} />
+      )}
+
+      {/* ── Delete — only for existing activities in edit mode ── */}
+      {mode === 'edit' && activity?.id && onDelete && (
+        <div className="border-t border-base-300 pt-4 mt-1">
+          {showDeleteConfirm ? (
+            <div className="bg-error/10 border border-error/30 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-medium text-error">
+                Delete &ldquo;{activity.name}&rdquo;?
+              </p>
+              <p className="text-xs text-base-content/60">
+                This will permanently remove all associated enrollments, attendance records, and other data.
+              </p>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  className="btn btn-error btn-sm"
+                  disabled={deleting}
+                  onClick={() => onDelete(activity.id)}
+                >
+                  {deleting
+                    ? <span className="loading loading-spinner loading-xs" />
+                    : 'Delete permanently'
+                  }
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={deleting}
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs text-error/60 hover:text-error gap-1"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <FaTrash size={11} /> Delete activity
+            </button>
+          )}
+        </div>
       )}
     </form>
   )
