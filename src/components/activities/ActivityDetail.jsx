@@ -186,6 +186,9 @@ export default function ActivityDetail({
     // Mutual exclusion: is_release ↔ requires_attendance
     if (field === 'is_release' && next) setValue('requires_attendance', false)
     if (field === 'requires_attendance' && next) setValue('is_release', false)
+    // Mutual exclusion: allows_presence_wave ↔ requires_checkin
+    if (field === 'allows_presence_wave' && next) setValue('requires_checkin', false)
+    if (field === 'requires_checkin' && next) setValue('allows_presence_wave', false)
   }
 
   // Pending term handlers — used for new (unsaved) activities only

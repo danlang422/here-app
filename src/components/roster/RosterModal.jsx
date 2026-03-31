@@ -51,7 +51,8 @@ function RosterModal({
     setPendingChanges((prev) => {
       const next = new Map(prev)
       const initial = attendanceByStudent.get(studentId)?.status ?? null
-      if (status === initial) {
+      const currentPending = next.get(studentId)
+      if (currentPending === status || status === initial) {
         next.delete(studentId)
       } else {
         next.set(studentId, status)
