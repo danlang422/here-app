@@ -22,6 +22,7 @@ export function CalendarDayColumn({
   onEmptyClick,
   onActivityClick,
   onAggregateClick,
+  enrolledActivityIds = null,
 }) {
   const todayActivities = useMemo(
     () =>
@@ -107,6 +108,7 @@ export function CalendarDayColumn({
       const top = activityTop(activity, gridStartMinutes) + GRID_PAD_Y
       const height = activityHeight(activity)
       const enrollCount = enrollmentCountByActivity[activity.id] ?? 0
+      const isDimmed = enrolledActivityIds !== null && !enrolledActivityIds.has(activity.id)
 
       cards.push(
         <div
@@ -125,6 +127,7 @@ export function CalendarDayColumn({
             enrollmentCount={enrollCount}
             mode="single"
             onClick={onActivityClick}
+            isDimmed={isDimmed}
           />
         </div>
       )
@@ -133,6 +136,7 @@ export function CalendarDayColumn({
         const top = activityTop(activity, gridStartMinutes) + GRID_PAD_Y
         const height = activityHeight(activity)
         const enrollCount = enrollmentCountByActivity[activity.id] ?? 0
+        const isDimmed = enrolledActivityIds !== null && !enrolledActivityIds.has(activity.id)
         const cardWidthFrac = groupWidthFrac / count
         const cardLeftFrac = groupLeftFrac + slotIndex * cardWidthFrac
 
@@ -153,6 +157,7 @@ export function CalendarDayColumn({
               enrollmentCount={enrollCount}
               mode="few"
               onClick={onActivityClick}
+              isDimmed={isDimmed}
             />
           </div>
         )
@@ -172,6 +177,7 @@ export function CalendarDayColumn({
         0
       )
       const aggregateData = { count, totalEnrollment, activities: groupActivities }
+      const isDimmed = enrolledActivityIds !== null && !groupActivities.some((a) => enrolledActivityIds.has(a.id))
 
       cards.push(
         <div
@@ -191,6 +197,7 @@ export function CalendarDayColumn({
             mode="aggregate"
             aggregateData={aggregateData}
             onClick={(e) => onAggregateClick(aggregateData, e)}
+            isDimmed={isDimmed}
           />
         </div>
       )

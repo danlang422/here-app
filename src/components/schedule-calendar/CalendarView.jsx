@@ -8,7 +8,8 @@ import { useOrgEnrollments } from '@/hooks/useEnrollments'
 import { useSchoolDays } from '@/hooks/useSchoolDays'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
-import { useStaffUsers } from '@/hooks/useUsers'
+import { useStaffUsers, useStudents } from '@/hooks/useUsers'
+import { getBlocks, getBlockLabel } from '@/lib/constants'
 import { useTerms } from '@/hooks/useTerms'
 import { addDays, formatDateISO } from '@/lib/scheduleUtils'
 import {
@@ -35,6 +36,7 @@ export function CalendarView() {
   const { data: template } = useDefaultScheduleTemplate(orgId)
   const { data: orgSettings = {} } = useOrgSettings(orgId)
   const { data: staffUsers = [] } = useStaffUsers(orgId)
+  const { data: students = [] } = useStudents(orgId)
   const { data: terms = [] } = useTerms(orgId)
 
   // Week anchor
@@ -60,18 +62,79 @@ export function CalendarView() {
     [activities, isCalendarVisible]
   )
 
-  // Text filter
+  // Filter state
   const [filterText, setFilterText] = useState('')
-  const filteredActivities = useMemo(() => {
-    if (!filterText.trim()) return visibleActivities
-    const lower = filterText.trim().toLowerCase()
-    return visibleActivities.filter((a) => {
-      if (a.name?.toLowerCase().includes(lower)) return true
-      if (a.teacher?.first_name?.toLowerCase().includes(lower)) return true
-      if (a.teacher?.last_name?.toLowerCase().includes(lower)) return true
-      return false
+  const [selectedBlock, setSelectedBlock] = useState(null)
+  const [timeFrom, setTimeFrom] = useState(null)
+  const [timeTo, setTimeTo] = useState(null)
+  const [selectedStudents, setSelectedStudents] = useState([])
+  const [hideNonEnrolled, setHideNonEnrolled] = useState(false)
+
+  // Block dropdown options
+  const blockOptions = useMemo(() => {
+    const count = orgSettings?.block_count
+    const labels = orgSettings?.block_labels
+    return getBlocks(count).map((b) => ({ value: b, label: getBlockLabel(b, labels) }))
+  }, [orgSettings])
+
+  // Enrolled activity IDs for the selected students (null = no student filter)
+  const enrolledActivityIds = useMemo(() => {
+    if (selectedStudents.length === 0) return null
+    const ids = new Set()
+    orgEnrollments.forEach((e) => {
+      if (selectedStudents.some((s) => s.id === e.student_id)) ids.add(e.activity_id)
     })
-  }, [visibleActivities, filterText])
+    return ids
+  }, [selectedStudents, orgEnrollments])
+
+  // Filter pipeline: calendar visibility → text → block → time range → hide non-enrolled
+  const filteredActivities = useMemo(() => {
+    let result = visibleActivities
+
+    if (filterText.trim()) {
+      const lower = filterText.trim().toLowerCase()
+      result = result.filter((a) => {
+        if (a.name?.toLowerCase().includes(lower)) return true
+        if (a.teacher?.first_name?.toLowerCase().includes(lower)) return true
+        if (a.teacher?.last_name?.toLowerCase().includes(lower)) return true
+        return false
+      })
+    }
+
+    if (selectedBlock !== null) {
+      result = result.filter((a) => a.block === selectedBlock)
+    }
+
+    if (timeFrom !== null || timeTo !== null) {
+      result = result.filter((a) => {
+        if (!a.default_start_time && !a.default_end_time) return true
+        if (timeFrom && a.default_end_time && a.default_end_time <= timeFrom) return false
+        if (timeTo && a.default_start_time && a.default_start_time >= timeTo) return false
+        return true
+      })
+    }
+
+    if (hideNonEnrolled && enrolledActivityIds !== null) {
+      result = result.filter((a) => enrolledActivityIds.has(a.id))
+    }
+
+    return result
+  }, [visibleActivities, filterText, selectedBlock, timeFrom, timeTo, hideNonEnrolled, enrolledActivityIds])
+
+  function handleStudentAdd(student) {
+    setSelectedStudents((prev) => {
+      if (prev.some((s) => s.id === student.id)) return prev
+      return [...prev, student]
+    })
+  }
+
+  function handleStudentRemove(studentId) {
+    setSelectedStudents((prev) => {
+      const next = prev.filter((s) => s.id !== studentId)
+      if (next.length === 0) setHideNonEnrolled(false)
+      return next
+    })
+  }
 
   // Enrollment count map
   const enrollmentCountByActivity = useMemo(() => {
@@ -122,7 +185,23 @@ export function CalendarView() {
   return (
     <div className="flex flex-col h-full">
       <CalendarWeekNav />
-      <CalendarFilterBar filterText={filterText} onFilterChange={setFilterText} />
+      <CalendarFilterBar
+        filterText={filterText}
+        onFilterChange={setFilterText}
+        blockOptions={blockOptions}
+        selectedBlock={selectedBlock}
+        onBlockChange={setSelectedBlock}
+        timeFrom={timeFrom}
+        timeTo={timeTo}
+        onTimeFromChange={setTimeFrom}
+        onTimeToChange={setTimeTo}
+        students={students}
+        selectedStudents={selectedStudents}
+        onStudentAdd={handleStudentAdd}
+        onStudentRemove={handleStudentRemove}
+        hideNonEnrolled={hideNonEnrolled}
+        onHideNonEnrolledChange={setHideNonEnrolled}
+      />
 
       <div className="flex flex-1 overflow-hidden">
         <CalendarSidebar
@@ -143,6 +222,7 @@ export function CalendarView() {
           onEmptyClick={handleEmptyClick}
           onActivityClick={handleActivityClick}
           onAggregateClick={handleAggregateClick}
+          enrolledActivityIds={enrolledActivityIds}
         />
       </div>
 
