@@ -67,6 +67,16 @@ export async function createActivity(activity) {
   return data
 }
 
+// Delete an activity (hard delete — all FKs cascade)
+export async function deleteActivity(activityId) {
+  const { error } = await supabase
+    .from('activities')
+    .delete()
+    .eq('id', activityId)
+
+  if (error) throw error
+}
+
 // Update an activity
 export async function updateActivity(activityId, updates) {
   const { data, error } = await supabase
