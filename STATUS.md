@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 1, 2026 (session 21.1)
+**Last updated:** April 1, 2026 (session 21.2)
 
 ---
 
@@ -36,7 +36,7 @@
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI, calendar UI) | Built | — |
-| Enrollment validation (block-based + time-based, recurrence-aware) | Built — **bug in data layer** | #52 — recurrence fields missing from getOrgEnrollments select |
+| Enrollment validation (block-based + time-based, recurrence-aware) | Built | #52 resolved — recurrence fields added to `getOrgEnrollments` select |
 | RLS policies | Comprehensive — all tables, all roles | `20260313000000_comprehensive_rls_policies.sql`, `10-rls-policies.md` |
 | Edge Functions (`submit-feedback`, `create-user`) | Deployed with `--no-verify-jwt`; config in `supabase/config.toml`. `submit-feedback` posts to GitHub Issues. | Session 16, 19 |
 | Realtime subscriptions | Not started | — |
@@ -55,8 +55,9 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
 **Resolved in session 21.1 (2026-04-01):** #25 (enroll button cancels activity creation) — resolved as side effect of #51 redesign.
 
+**Resolved in session 21.2 (2026-04-01):** #52 (`getOrgEnrollments` missing recurrence fields — blocked alternating-week enrollments), #54 (recurrence UI: replaced confusing anchor date picker with "starting week" selector).
+
 **Priority bugs (iteration 4):**
-- #52 — `getOrgEnrollments` missing `recurrence_interval` / `recurrence_anchor_date` → blocks valid alternating-week enrollments (one-line fix)
 - #53 — Calendar sidebar toggles require page refresh (reactivity bug — subscribe to `calendarVisibility` map directly)
 - #35 — Teacher activities not populating in feedback modal (400 error on `instructor_id` filter)
 - #37 — Aggregate card list extends outside viewport / not scrollable
@@ -67,18 +68,16 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
 Ordered priority:
 
-1. **#52** — Fix `getOrgEnrollments` missing recurrence fields (unblocks a specific student's enrollment)
-2. **#53** — Fix calendar sidebar toggle reactivity
-3. **#35** — Fix teacher activities in feedback modal
-4. **#54** — Recurrence UI: replace anchor date picker with "starting week" selector
-5. **#55** — Bulk calendar assignment for activities
-6. **#56** — Password reset + change password (hard blocker for user handoff)
-7. **#51** — Inline enrollment redesign in ActivityDetail
-8. **#37** — Aggregate card overflow fix
-9. **#21** — Customizable agenda start/end times
-10. **Visual polish pass** — needs its own issue; app is functional but lacks personality
+1. **#53** — Fix calendar sidebar toggle reactivity
+2. **#35** — Fix teacher activities in feedback modal
+3. **#55** — Bulk calendar assignment for activities
+4. **#56** — Password reset + change password (hard blocker for user handoff)
+5. **#51** — Inline enrollment redesign in ActivityDetail
+6. **#37** — Aggregate card overflow fix
+7. **#21** — Customizable agenda start/end times
+8. **Visual polish pass** — needs its own issue; app is functional but lacks personality
 
-**Data entry:** Activities still being entered manually. Kirkwood / alternating-week schedule patterns are the trickiest part; #52 and #54 directly support this.
+**Data entry:** Activities still being entered manually. Alternating-week (Kirkwood) enrollments are now unblocked by the #52 fix; the #54 "starting week" UI makes those patterns easy to configure.
 
 ---
 
