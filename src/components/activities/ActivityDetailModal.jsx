@@ -6,17 +6,15 @@ import ActivityDetail from './ActivityDetail'
  * ActivityDetailModal — thin DaisyUI modal wrapper around ActivityDetail.
  *
  * Props:
- *   open          - boolean, whether modal is visible
- *   activity      - activity object (or null for new)
- *   isEditing     - boolean, controls view vs edit mode
- *   saving        - boolean, passed to ActivityDetail for save button state
- *   orgSettings   - org settings object
- *   enrollments   - enrollment array for roster
- *   onClose       - closes the modal entirely
- *   onEditClick   - switches to edit mode
- *   onCancel      - cancels edit, returns to view mode
- *   onSave        - called with form data
- *   onEnrollClick - opens enrollment panel
+ *   open        - boolean, whether modal is visible
+ *   activity    - activity object (or null for new)
+ *   isEditing   - boolean, controls view vs edit mode
+ *   saving      - boolean, passed to ActivityDetail for save button state
+ *   orgSettings - org settings object
+ *   onClose     - closes the modal entirely
+ *   onEditClick - switches to edit mode
+ *   onCancel    - cancels edit, returns to view mode
+ *   onSave      - called with form data
  */
 export default function ActivityDetailModal({
   open,
@@ -25,7 +23,6 @@ export default function ActivityDetailModal({
   saving,
   deleting,
   orgSettings,
-  enrollments,
   defaultTemplate,
   terms,
   calendars,
@@ -35,7 +32,6 @@ export default function ActivityDetailModal({
   onCancel,
   onSave,
   onDelete,
-  onEnrollClick,
 }) {
   // Close on Escape key
   useEffect(() => {
@@ -51,7 +47,7 @@ export default function ActivityDetailModal({
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box w-11/12 max-w-2xl relative pt-10">
+      <div className="modal-box w-11/12 max-w-4xl relative pt-10">
         {/* Modal close button — round, top-right corner of modal frame */}
         <button
           type="button"
@@ -68,7 +64,6 @@ export default function ActivityDetailModal({
           saving={saving}
           deleting={deleting}
           orgSettings={orgSettings}
-          enrollments={enrollments ?? []}
           defaultTemplate={defaultTemplate}
           terms={terms}
           calendars={calendars}
@@ -77,7 +72,6 @@ export default function ActivityDetailModal({
           onCancel={onCancel}
           onEditClick={onEditClick}
           onDelete={onDelete}
-          onEnrollClick={onEnrollClick}
         />
       </div>
 

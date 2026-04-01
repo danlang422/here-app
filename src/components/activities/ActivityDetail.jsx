@@ -1,14 +1,17 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import {
-  FaPencilAlt, FaCheck, FaTimes, FaUserPlus,
+  FaPencilAlt, FaCheck, FaTimes,
   FaClipboardList, FaClock, FaHandPaper, FaTags,
   FaMapMarkerAlt, FaDoorOpen, FaCalendarTimes, FaUserGraduate,
   FaTrash,
 } from 'react-icons/fa'
 import { getBlocks, getBlockLabel, WEEKDAYS } from '@/lib/constants'
-import { useStaffUsers } from '@/hooks/useUsers'
+import { useStaffUsers, useStudents } from '@/hooks/useUsers'
 import { useActivityTerms, useAddActivityTerm, useRemoveActivityTerm } from '@/hooks/useActivityTerms'
+import { useOrgEnrollments, useBulkEnrollStudents, useBulkUnenrollStudents } from '@/hooks/useEnrollments'
+import { validateEnrollment } from '@/lib/enrollmentValidation'
+import { formatUserName } from '@/api/users'
 import useAuthStore from '@/store/authStore'
 import StaffRows from './StaffRows'
 import { buildStaffRows, staffRowsToFlat } from './staffUtils'
@@ -126,14 +129,12 @@ const DAY_LABELS = { 1: 'M', 2: 'Tu', 3: 'W', 4: 'Th', 5: 'F', 0: 'Su', 6: 'Sa' 
  *   mode            - 'view' | 'edit'
  *   saving          - boolean, disables save while pending
  *   orgSettings     - organization.settings object
- *   enrollments     - array of enrollment objects (with .student)
  *   defaultTemplate - default schedule template (for block→time auto-fill)
  *   terms           - array of academic term objects (for term selector)
- *   orgId           - organization ID (for term mutation invalidation)
+ *   orgId           - organization ID (for enrollment queries and term mutations)
  *   onSave          - called with form data on save
  *   onCancel        - called when edit is cancelled (returns to view)
  *   onEditClick     - called when edit pencil icon is clicked
- *   onEnrollClick   - called when enroll icon is clicked
  */
 export default function ActivityDetail({
   activity = null,
@@ -141,7 +142,6 @@ export default function ActivityDetail({
   saving = false,
   deleting = false,
   orgSettings = {},
-  enrollments = [],
   defaultTemplate = null,
   terms = [],
   calendars = [],
@@ -149,7 +149,6 @@ export default function ActivityDetail({
   onSave,
   onCancel,
   onEditClick,
-  onEnrollClick,
   onDelete,
 }) {
   const profile = useAuthStore((s) => s.profile)
@@ -314,16 +313,6 @@ export default function ActivityDetail({
         </div>
 
         <div className="flex items-center gap-0.5 shrink-0">
-          {/* Enroll button — always visible */}
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm btn-circle"
-            onClick={onEnrollClick}
-            title="Enroll students"
-          >
-            <FaUserPlus size={14} />
-          </button>
-
           {mode === 'view' ? (
             <button
               type="button"
@@ -505,10 +494,8 @@ export default function ActivityDetail({
         )}
       </div>
 
-      {/* ── Roster section — only for existing activities ── */}
-      {activity?.id && (
-        <RosterSection enrollments={enrollments} onEnrollClick={onEnrollClick} />
-      )}
+      {/* ── Inline enrollment section ── */}
+      <InlineEnrollmentSection key={activity?.id ?? 'new'} activity={activity} orgId={orgId} />
 
       {/* ── Delete — only for existing activities in edit mode ── */}
       {mode === 'edit' && activity?.id && onDelete && (
@@ -874,49 +861,429 @@ function DatesEdit({ register, setValue, getValues, activity, terms, orgId, pend
   )
 }
 
-// ─── Roster section ────────────────────────────────────────────────────────────
+// ─── Inline enrollment section ─────────────────────────────────────────────────
 
-function RosterSection({ enrollments, onEnrollClick }) {
-  const count = enrollments.length
+function InlineEnrollmentSection({ activity, orgId }) {
+  const activityId = activity?.id
+  const isNew = !activityId
+
+  const { data: students = [] } = useStudents(orgId)
+  const { data: orgEnrollments = [] } = useOrgEnrollments(orgId)
+  const enrollMutation = useBulkEnrollStudents()
+  const unenrollMutation = useBulkUnenrollStudents()
+
+  const [stagedStudentIds, setStagedStudentIds] = useState(new Set())
+  const [unstagedEnrollmentIds, setUnstagedEnrollmentIds] = useState(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [gradeFilter, setGradeFilter] = useState('')
+  const [submitPhase, setSubmitPhase] = useState('ready') // 'ready' | 'confirm' | 'done'
+  const [submitResult, setSubmitResult] = useState(null)
+
+  // Activity enrollments from org cache
+  const activityEnrollments = useMemo(
+    () => (activityId ? orgEnrollments.filter((e) => e.activity_id === activityId) : []),
+    [orgEnrollments, activityId]
+  )
+
+  const enrolledStudentIds = useMemo(
+    () => new Set(activityEnrollments.map((e) => e.student_id)),
+    [activityEnrollments]
+  )
+
+  const enrollmentByStudentId = useMemo(() => {
+    const map = new Map()
+    for (const e of activityEnrollments) map.set(e.student_id, e)
+    return map
+  }, [activityEnrollments])
+
+  // Conflict map: studentId → { hasConflict, conflicts }
+  const conflictMap = useMemo(() => {
+    const map = new Map()
+    if (!activity) return map
+    for (const student of students) {
+      const studentEnrollments = orgEnrollments.filter(
+        (e) => e.student_id === student.id && e.activity_id !== activityId
+      )
+      const result = validateEnrollment(activity, studentEnrollments)
+      if (result.conflicts.length > 0) {
+        map.set(student.id, { hasConflict: true, conflicts: result.conflicts })
+      }
+    }
+    return map
+  }, [activity, activityId, orgEnrollments, students])
+
+  // Grade options for filter
+  const gradeOptions = useMemo(() => {
+    const grades = new Set(students.map((s) => s.grade_level).filter(Boolean))
+    return Array.from(grades).sort((a, b) => a - b)
+  }, [students])
+
+  // Filtered students
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        const name = `${s.first_name} ${s.last_name} ${s.preferred_name || ''}`.toLowerCase()
+        if (!name.includes(q)) return false
+      }
+      if (gradeFilter && String(s.grade_level) !== gradeFilter) return false
+      return true
+    })
+  }, [students, searchQuery, gradeFilter])
+
+  // Partition into enrolled (left) / available (right)
+  const { enrolledStudents, availableStudents } = useMemo(() => {
+    const enrolled = []
+    const available = []
+
+    for (const student of filteredStudents) {
+      const isEnrolled = enrolledStudentIds.has(student.id)
+      const isNewlyStaged = stagedStudentIds.has(student.id)
+      const enrollment = enrollmentByStudentId.get(student.id)
+      const isPendingUnenroll = enrollment && unstagedEnrollmentIds.has(enrollment.id)
+
+      if (isPendingUnenroll) {
+        available.push({ ...student, pendingUnenroll: true, enrollmentId: enrollment.id })
+      } else if (isEnrolled || isNewlyStaged) {
+        enrolled.push({ ...student, isNewlyStaged: !isEnrolled })
+      } else {
+        available.push({ ...student, pendingUnenroll: false })
+      }
+    }
+
+    enrolled.sort((a, b) => {
+      if (a.isNewlyStaged !== b.isNewlyStaged) return a.isNewlyStaged ? 1 : -1
+      return (a.last_name || '').localeCompare(b.last_name || '')
+    })
+    available.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''))
+
+    return { enrolledStudents: enrolled, availableStudents: available }
+  }, [filteredStudents, enrolledStudentIds, stagedStudentIds, unstagedEnrollmentIds, enrollmentByStudentId])
+
+  const hasChanges = stagedStudentIds.size > 0 || unstagedEnrollmentIds.size > 0
+
+  // Submit summary
+  const submitSummary = useMemo(() => {
+    const clean = []
+    const conflicted = []
+    for (const studentId of stagedStudentIds) {
+      const conflict = conflictMap.get(studentId)
+      if (conflict?.hasConflict) {
+        conflicted.push({ studentId, conflicts: conflict.conflicts })
+      } else {
+        clean.push(studentId)
+      }
+    }
+    return { clean, conflicted, unenrollIds: Array.from(unstagedEnrollmentIds) }
+  }, [stagedStudentIds, conflictMap, unstagedEnrollmentIds])
+
+  const handleStageStudent = useCallback((studentId) => {
+    setStagedStudentIds((prev) => { const next = new Set(prev); next.add(studentId); return next })
+    setSubmitPhase('ready')
+  }, [])
+
+  const handleUnstageStudent = useCallback((studentId) => {
+    const enrollment = enrollmentByStudentId.get(studentId)
+    if (enrollment) {
+      setUnstagedEnrollmentIds((prev) => { const next = new Set(prev); next.add(enrollment.id); return next })
+    } else {
+      setStagedStudentIds((prev) => { const next = new Set(prev); next.delete(studentId); return next })
+    }
+    setSubmitPhase('ready')
+  }, [enrollmentByStudentId])
+
+  const handleRestageStudent = useCallback((enrollmentId) => {
+    setUnstagedEnrollmentIds((prev) => { const next = new Set(prev); next.delete(enrollmentId); return next })
+    setSubmitPhase('ready')
+  }, [])
+
+  function handleSubmitClick() {
+    if (submitPhase === 'ready') setSubmitPhase('confirm')
+  }
+
+  async function handleConfirm() {
+    const { clean, conflicted, unenrollIds } = submitSummary
+    try {
+      const promises = []
+      if (clean.length > 0) {
+        promises.push(enrollMutation.mutateAsync(
+          clean.map((studentId) => ({
+            student_id: studentId,
+            activity_id: activityId,
+            block: activity?.block ?? null,
+          }))
+        ))
+      }
+      if (unenrollIds.length > 0) {
+        promises.push(unenrollMutation.mutateAsync(unenrollIds))
+      }
+      await Promise.all(promises)
+      setSubmitResult({
+        enrolled: clean.length,
+        skipped: conflicted.length,
+        unenrolled: unenrollIds.length,
+        skippedStudents: conflicted,
+      })
+      setStagedStudentIds(new Set())
+      setUnstagedEnrollmentIds(new Set())
+      setSubmitPhase('done')
+    } catch {
+      // Error surfaced via mutation.error
+    }
+  }
+
+  function handleBack() {
+    setSubmitPhase('ready')
+  }
+
+  const isSubmitting = enrollMutation.isPending || unenrollMutation.isPending
+  const submitError = enrollMutation.error || unenrollMutation.error
+  const interactionDisabled = submitPhase !== 'ready'
 
   return (
     <div className="border-t border-base-300 pt-4 mt-1">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-sm">
-          Enrolled Students
-          <span className="ml-2 badge badge-sm badge-ghost">{count}</span>
-        </h3>
-      </div>
+      <h3 className="font-semibold text-sm mb-3">
+        Enrolled Students
+        {!isNew && (
+          <span className="ml-2 badge badge-sm badge-ghost">{enrolledStudents.length}</span>
+        )}
+      </h3>
 
-      {count === 0 ? (
+      {isNew ? (
         <div className="text-center py-6 text-base-content/40">
           <FaUserGraduate size={24} className="mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No students enrolled</p>
-          <button
-            type="button"
-            className="btn btn-ghost btn-xs mt-2 gap-1"
-            onClick={onEnrollClick}
-          >
-            <FaUserPlus size={11} /> Enroll students
+          <p className="text-sm">Save activity to enroll students.</p>
+        </div>
+      ) : (
+        <>
+          {/* Search + grade filter */}
+          <div className="flex gap-2 mb-3">
+            <input
+              type="text"
+              className="input input-bordered input-xs flex-1"
+              placeholder="Search students..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {gradeOptions.length > 0 && (
+              <select
+                className="select select-bordered select-xs"
+                value={gradeFilter}
+                onChange={(e) => setGradeFilter(e.target.value)}
+              >
+                <option value="">All grades</option>
+                {gradeOptions.map((g) => (
+                  <option key={g} value={String(g)}>Gr. {g}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Two-column layout */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Left: Enrolled */}
+            <div>
+              <div className="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-1">
+                Enrolled ({enrolledStudents.length})
+              </div>
+              <div className="border border-base-300 rounded-lg overflow-y-auto" style={{ height: '180px' }}>
+                {enrolledStudents.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-sm text-base-content/30">
+                    None enrolled
+                  </div>
+                ) : (
+                  enrolledStudents.map((student) => (
+                    <EnrollmentStudentRow
+                      key={student.id}
+                      student={student}
+                      zone="enrolled"
+                      conflict={conflictMap.get(student.id)}
+                      onClick={() => handleUnstageStudent(student.id)}
+                      disabled={interactionDisabled}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Right: Available */}
+            <div>
+              <div className="text-xs font-semibold text-base-content/50 uppercase tracking-wide mb-1">
+                Available ({availableStudents.length})
+              </div>
+              <div className="border border-base-300 rounded-lg overflow-y-auto" style={{ height: '180px' }}>
+                {availableStudents.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-sm text-base-content/30">
+                    All enrolled
+                  </div>
+                ) : (
+                  availableStudents.map((student) => (
+                    <EnrollmentStudentRow
+                      key={student.id}
+                      student={student}
+                      zone="available"
+                      conflict={conflictMap.get(student.id)}
+                      onClick={() =>
+                        student.pendingUnenroll
+                          ? handleRestageStudent(student.enrollmentId)
+                          : handleStageStudent(student.id)
+                      }
+                      disabled={interactionDisabled}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Action footer */}
+          <InlineEnrollmentFooter
+            submitPhase={submitPhase}
+            hasChanges={hasChanges}
+            submitSummary={submitSummary}
+            submitResult={submitResult}
+            submitError={submitError}
+            isSubmitting={isSubmitting}
+            onSubmit={handleSubmitClick}
+            onConfirm={handleConfirm}
+            onBack={handleBack}
+          />
+        </>
+      )}
+    </div>
+  )
+}
+
+// ─── EnrollmentStudentRow ───────────────────────────────────────────────────────
+
+function EnrollmentStudentRow({ student, zone, conflict, onClick, disabled }) {
+  const isPendingUnenroll = student.pendingUnenroll
+
+  return (
+    <button
+      type="button"
+      className={[
+        'w-full text-left px-2 py-1.5 flex items-center gap-2 transition-colors text-sm',
+        disabled ? 'opacity-60 cursor-default' : 'cursor-pointer hover:bg-base-200',
+        isPendingUnenroll ? 'bg-error/10' : '',
+      ].join(' ')}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          {zone === 'available' && !isPendingUnenroll && conflict?.hasConflict && (
+            <span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" title="Has scheduling conflict" />
+          )}
+          <span className="text-sm truncate">{formatUserName(student)}</span>
+          {student.grade_level && (
+            <span className="text-xs text-base-content/40 flex-shrink-0">{student.grade_level}</span>
+          )}
+        </div>
+        {zone === 'enrolled' && conflict?.hasConflict && (
+          <div className="text-xs text-warning mt-0.5">
+            {conflict.conflicts.map((c, i) => (
+              <div key={i}>Conflicts with {c.activity.name}{c.activity.block != null && ` — ${getBlockLabel(c.activity.block)}`}</div>
+            ))}
+          </div>
+        )}
+        {isPendingUnenroll && (
+          <div className="text-xs text-error mt-0.5">Will be unenrolled</div>
+        )}
+      </div>
+      <span className="text-base-content/30 text-xs flex-shrink-0">
+        {zone === 'available' && !isPendingUnenroll && '+'}
+        {zone === 'enrolled' && '−'}
+        {isPendingUnenroll && '↩'}
+      </span>
+    </button>
+  )
+}
+
+// ─── InlineEnrollmentFooter ─────────────────────────────────────────────────────
+
+function InlineEnrollmentFooter({
+  submitPhase, hasChanges, submitSummary, submitResult,
+  submitError, isSubmitting, onSubmit, onConfirm, onBack,
+}) {
+  if (submitPhase === 'done' && submitResult) {
+    return (
+      <div className="mt-3 pt-3 border-t border-base-300 text-sm space-y-0.5">
+        {submitResult.enrolled > 0 && (
+          <div className="text-success">{submitResult.enrolled} enrolled</div>
+        )}
+        {submitResult.skipped > 0 && (
+          <div className="text-warning">{submitResult.skipped} skipped (conflicts)</div>
+        )}
+        {submitResult.unenrolled > 0 && (
+          <div className="text-error">{submitResult.unenrolled} unenrolled</div>
+        )}
+        <button type="button" className="btn btn-ghost btn-xs mt-1" onClick={onBack}>
+          Make more changes
+        </button>
+      </div>
+    )
+  }
+
+  if (submitPhase === 'confirm') {
+    return (
+      <div className="mt-3 pt-3 border-t border-base-300">
+        <div className="text-sm mb-2">
+          {submitSummary.clean.length > 0 && (
+            <div>{submitSummary.clean.length} student{submitSummary.clean.length !== 1 ? 's' : ''} to enroll</div>
+          )}
+          {submitSummary.conflicted.length > 0 && (
+            <div className="text-warning">
+              {submitSummary.conflicted.length} student{submitSummary.conflicted.length !== 1 ? 's' : ''} will be skipped (conflicts)
+            </div>
+          )}
+          {submitSummary.unenrollIds.length > 0 && (
+            <div className="text-error">
+              {submitSummary.unenrollIds.length} student{submitSummary.unenrollIds.length !== 1 ? 's' : ''} to unenroll
+            </div>
+          )}
+        </div>
+        {submitError && <div className="text-error text-xs mb-2">{submitError.message}</div>}
+        <div className="flex gap-2">
+          <button type="button" className="btn btn-ghost btn-sm flex-1" onClick={onBack} disabled={isSubmitting}>
+            Back
+          </button>
+          <button type="button" className="btn btn-primary btn-sm flex-1" onClick={onConfirm} disabled={isSubmitting}>
+            {isSubmitting ? <span className="loading loading-spinner loading-xs" /> : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Ready phase
+  return (
+    <div className="mt-3 pt-3 border-t border-base-300">
+      {hasChanges ? (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-base-content/60">
+            {submitSummary.clean.length + submitSummary.conflicted.length > 0 && (
+              <span>{submitSummary.clean.length + submitSummary.conflicted.length} to enroll</span>
+            )}
+            {submitSummary.unenrollIds.length > 0 && (
+              <span>
+                {submitSummary.clean.length + submitSummary.conflicted.length > 0 && ', '}
+                {submitSummary.unenrollIds.length} to unenroll
+              </span>
+            )}
+          </div>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onSubmit}>
+            {submitSummary.unenrollIds.length > 0 && submitSummary.clean.length + submitSummary.conflicted.length > 0
+              ? 'Save Changes'
+              : submitSummary.unenrollIds.length > 0
+                ? 'Unenroll'
+                : 'Enroll'
+            }
           </button>
         </div>
       ) : (
-        <div className="space-y-0.5 max-h-48 overflow-y-auto">
-          {enrollments.map((e) => {
-            const s = e.student
-            if (!s) return null
-            const name = s.preferred_name
-              ? `${s.last_name}, ${s.preferred_name}`
-              : `${s.last_name}, ${s.first_name}`
-            return (
-              <div key={e.id} className="flex items-center justify-between py-1 px-1 hover:bg-base-100 rounded text-sm">
-                <span>{name}</span>
-                {s.grade_level && (
-                  <span className="text-xs text-base-content/40">Gr. {s.grade_level}</span>
-                )}
-              </div>
-            )
-          })}
+        <div className="text-sm text-base-content/40 text-center py-1">
+          Click students to stage enrollment changes
         </div>
       )}
     </div>
