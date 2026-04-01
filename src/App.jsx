@@ -5,6 +5,11 @@ import AdminLayout from '@/components/layout/AdminLayout'
 
 // Auth pages
 import Login from '@/pages/auth/Login'
+import ForgotPassword from '@/pages/auth/ForgotPassword'
+import ResetPassword from '@/pages/auth/ResetPassword'
+
+// Account page
+import Account from '@/pages/Account'
 
 // Role-redirect hub
 import DashboardRedirect from '@/pages/DashboardRedirect'
@@ -31,6 +36,8 @@ function App() {
     <Routes>
       {/* Public routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Dashboard redirect — sends to role-appropriate view */}
       <Route path="/dashboard" element={
@@ -70,6 +77,15 @@ function App() {
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<OrgSettings />} />
       </Route>
+
+      {/* Account route — accessible to all authenticated users */}
+      <Route path="/account" element={
+        <ProtectedRoute>
+          <AppLayout>
+            <Account />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
 
       {/* Help route — accessible to all authenticated users */}
       <Route path="/help" element={

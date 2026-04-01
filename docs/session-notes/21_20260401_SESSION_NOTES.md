@@ -175,3 +175,72 @@ The `recurrence_anchor_date` date picker is confusing because it's not the same 
 - Aggregate popovers scroll correctly and stay within the viewport regardless of where they're anchored.
 - Teacher feedback modal now populates activity options correctly.
 - Remaining iteration 4 priorities: #55 (bulk calendar assignment), #56 (password reset), #51 (inline enrollment redesign).
+
+---
+
+## 21.4 — Feature: Password Reset + Change Password (#56)
+
+**What was built:** Full password reset and change-password flow. Three new routes, two new API functions, and nav entry points from the login page and app header.
+
+---
+
+### New files
+
+**`src/pages/auth/ForgotPassword.jsx`**
+
+Public page at `/forgot-password`. Single email input; on submit calls `requestPasswordReset(email)`. Always shows a success message regardless of whether the email exists — intentional, prevents account enumeration. Linked from the Login page ("Forgot password?" below the submit button).
+
+**`src/pages/auth/ResetPassword.jsx`**
+
+Public page at `/reset-password`. Listens for the Supabase `PASSWORD_RECOVERY` event via `onAuthStateChange`. Two states:
+- Token valid: shows a new-password + confirm form; on submit calls `updatePassword(newPassword)`, then redirects to `/login`.
+- Token expired/missing: shows a 2-second grace-period state before rendering the expired-link message. The 2s timeout prevents a flash of the expired state while the auth event is still in flight.
+
+**`src/pages/Account.jsx`**
+
+Authenticated page at `/account`, accessible to all roles (no `requiredRole` on the route). Two sections:
+- Read-only account info (name, email, role).
+- Change password form: new password + confirm fields. No current-password verification in v1 — Supabase's re-auth model for that would require sending a second email, which is not a good inline UX. Calls `updatePassword(newPassword)` on submit.
+
+---
+
+### Modified files
+
+**`src/api/auth.js`** — Added two functions:
+- `requestPasswordReset(email)` — calls `supabase.auth.resetPasswordForEmail` with `redirectTo: window.location.origin + '/reset-password'`. Using `window.location.origin` means no environment variable plumbing needed — works on both localhost and sayhere.xyz automatically.
+- `updatePassword(newPassword)` — calls `supabase.auth.updateUser({ password: newPassword })`. Used by both the reset flow and the account page.
+
+**`src/App.jsx`** — Added three route entries:
+- `/forgot-password` — public, no layout wrapper.
+- `/reset-password` — public, no layout wrapper.
+- `/account` — wrapped in `ProtectedRoute` + `AppLayout`, no `requiredRole` (all roles).
+
+**`src/pages/auth/Login.jsx`** — Added "Forgot password?" link below the submit button, pointing to `/forgot-password`.
+
+**`src/components/layout/AppLayout.jsx`** — Added "Account" link in the user dropdown above the existing "Logout" option.
+
+---
+
+### Infrastructure (no code changes)
+
+- **Resend** configured as Supabase SMTP provider in the Supabase dashboard.
+- Supabase allowed redirect URLs expanded to include `sayhere.xyz/**` and `localhost:5173/**`.
+- Supabase email template left unchanged — `{{ .ConfirmationURL }}` is already correct; the `redirectTo` in the SDK call populates it. No custom template needed.
+- App is deployed at `sayhere.xyz` (moved from `here-app.vercel.app` in a prior session).
+
+---
+
+### Key decisions
+
+- **No account enumeration:** `ForgotPassword` always shows "Check your email" — there is no "that email isn't registered" error path.
+- **No current-password gate on /account:** Supabase's inline re-auth model for web requires sending another email, not entering a current password. Skipped for v1; acceptable risk given the limited user base and controlled rollout.
+- **`PASSWORD_RECOVERY` event pattern:** `ResetPassword` uses `onAuthStateChange` rather than parsing the URL token manually. This is the Supabase-recommended pattern for PKCE flows and handles token exchange automatically.
+- **2s expiry timeout:** Prevents a flash of "link expired" while Supabase is still processing the token on page load.
+
+---
+
+### What's ready for the next session
+
+- Password reset is end-to-end functional. Users can receive reset emails and set new passwords.
+- All users currently have email-as-password — the `/account` change-password page unblocks real user handoff.
+- Remaining iteration 4 priorities: #55 (bulk calendar assignment), #51 (inline enrollment redesign), #21 (customizable agenda start/end times), visual polish pass.
