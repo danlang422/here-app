@@ -4,11 +4,9 @@ import ActivityToolbar from '@/components/activities/ActivityToolbar'
 import ActivitySelectionBar from '@/components/activities/ActivitySelectionBar'
 import ActivityDetailModal from '@/components/activities/ActivityDetailModal'
 import BulkEditModal from '@/components/activities/BulkEditModal'
-import FloatingPanel from '@/components/panels/FloatingPanel'
-import EnrollmentPanel from '@/components/enrollment/EnrollmentPanel'
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities'
 import { addActivityTerm } from '@/api/activityTerms'
-import { useOrgEnrollments, useActivityEnrollments } from '@/hooks/useEnrollments'
+import { useOrgEnrollments } from '@/hooks/useEnrollments'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
 import { useTerms } from '@/hooks/useTerms'
@@ -45,9 +43,6 @@ function ActivityManagement() {
   const [selectedActivity, setSelectedActivity] = useState(null) // null = new activity
   const [isEditing, setIsEditing] = useState(false)
 
-  // Enrollment panel state
-  const [enrollingActivity, setEnrollingActivity] = useState(null)
-
   // Filter / sort state
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState({
@@ -76,9 +71,6 @@ function ActivityManagement() {
     }
     return map
   }, [orgEnrollments])
-
-  // Enrollments for the detail modal roster
-  const { data: activityEnrollments = [] } = useActivityEnrollments(selectedActivity?.id)
 
   // Filtered + sorted activities
   const filteredActivities = useMemo(() => {
@@ -244,12 +236,6 @@ function ActivityManagement() {
     }
   }
 
-  function handleEnrollClick() {
-    const target = selectedActivity
-    setModalOpen(false)
-    setEnrollingActivity(target)
-  }
-
   function handleClearFilters() {
     setSearchQuery('')
     setFilters({ block: 'all', term: 'all', status: 'all', staff: 'all' })
@@ -363,7 +349,6 @@ function ActivityManagement() {
         saving={saving}
         deleting={deleting}
         orgSettings={orgSettings}
-        enrollments={activityEnrollments}
         defaultTemplate={defaultTemplate}
         terms={terms}
         calendars={calendars}
@@ -373,20 +358,7 @@ function ActivityManagement() {
         onCancel={handleCancel}
         onSave={handleSave}
         onDelete={handleDelete}
-        onEnrollClick={handleEnrollClick}
       />
-
-      {enrollingActivity && (
-        <FloatingPanel
-          title={`Enrollment — ${enrollingActivity.name}`}
-          onClose={() => setEnrollingActivity(null)}
-        >
-          <EnrollmentPanel
-            orgId={orgId}
-            initialActivityId={enrollingActivity.id}
-          />
-        </FloatingPanel>
-      )}
 
       {bulkEditOpen && (
         <BulkEditModal

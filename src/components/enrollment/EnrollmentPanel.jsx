@@ -13,6 +13,10 @@ import { getBlockLabel } from '@/lib/constants'
 /**
  * EnrollmentPanel — manages enrolling/unenrolling students for an activity.
  *
+ * NOTE: This component is dormant — no longer mounted in ActivityManagement after
+ * inline enrollment was added to ActivityDetail (issue #51). It will be revived for
+ * student-centric enrollment (Entry B, issue #7) which needs the activity dropdown.
+ *
  * Props:
  *   orgId             - organization ID
  *   initialActivityId - pre-select this activity (from activity row click)
