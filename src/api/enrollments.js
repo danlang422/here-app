@@ -79,7 +79,8 @@ export async function getOrgEnrollments(organizationId) {
       *,
       activity:activities!inner(
         id, name, block, days_of_week, rotation_day_type,
-        default_start_time, default_end_time
+        default_start_time, default_end_time,
+        recurrence_interval, recurrence_anchor_date
       )
     `)
     .eq('activity.organization_id', organizationId)

@@ -73,3 +73,51 @@ The `recurrence_anchor_date` date picker is confusing because it's not the same 
 **Still needs an issue:** Visual polish pass — app is functional but lacks personality; needed before real handoff.
 
 **Deferred:** #16, #26, #9, #8, #4
+
+---
+
+## 21.2 — Bug Fixes: Recurrence Enrollment Data Layer (#52) + Recurrence UI (#54)
+
+**Branch:** `fix/recurrence-enrollment-and-ui`
+
+**What was built:** Two fixes targeting alternating-week (Kirkwood) activity scheduling, which was the main data-entry blocker at the end of session 21.1.
+
+---
+
+### Fix 1 — #52: `getOrgEnrollments` missing recurrence fields
+
+**File:** `src/api/enrollments.js` (`getOrgEnrollments`, lines ~80-84)
+
+**Root cause:** The conflict validator (`couldMeetOnSameDay` in `src/lib/enrollmentValidation.js`) correctly handles alternating-week phase checking, but the Supabase select in `getOrgEnrollments` didn't include `recurrence_interval` or `recurrence_anchor_date`. Both fields arrived as `undefined` at the validator; the `?? 1` fallback treated every activity as weekly, which blocked all valid alternating-week enrollments.
+
+**Fix:** Added `recurrence_interval` and `recurrence_anchor_date` to the activity fields selected inside `getOrgEnrollments`. One-line change. No logic changes anywhere — the validator was already correct.
+
+---
+
+### Fix 2 — #54: Recurrence UI — replace anchor date picker with "starting week" selector
+
+**File:** `src/components/activities/ActivityDetail.jsx`
+
+**Problem:** The `recurrence_anchor_date` raw date picker was confusing because the anchor date is not the same as the start date and the relationship wasn't surfaced anywhere in the UI. Admins entering Kirkwood alternating-week courses had no intuitive way to know what to enter.
+
+**What was built:**
+
+- `deriveStartingWeek(anchorDate, startDate)` helper — converts an existing DB anchor date to a 1-based week number for display on form load. Falls back to 1 when anchor is null.
+- `computeAnchorDate(startDate, startingWeek, interval)` helper — computes the DB anchor date as `start_date + (startingWeek - 1) × 7 days` on save. Returns null when interval is 1 (anchor not needed for weekly activities).
+- `DEFAULT_VALUES` and `buildInitialValues` updated: `recurrence_anchor_date` replaced by `starting_week` (integer, 1-based, UI-only field).
+- `onFormSubmit` derives and writes `recurrence_anchor_date` from `startDate + starting_week`; `starting_week` itself is stripped before the DB write.
+- A `useEffect` clamps `starting_week` back to 1 if the user reduces `recurrence_interval` to 1 (prevents a stale week-2 selection surviving an interval change).
+- In `SchedulingEdit`: the raw date picker is replaced with a small `<select>` showing "Week 1" through "Week N" where N equals the current `recurrence_interval`. The selector is hidden entirely when interval is 1.
+
+**Key decisions:**
+
+- `starting_week` is a purely UI concept. The DB contract (`recurrence_anchor_date`) is unchanged — no migration needed.
+- When `recurrence_interval` is 1, `recurrence_anchor_date` is stored as null. This is consistent with how the validator treats weekly activities.
+- Existing activities with a null anchor date will get Week 1 (anchor = start date) computed and written on their next edit. No backfill migration required.
+
+---
+
+### What's ready for the next session
+
+- Alternating-week activity setup is now end-to-end: admins can configure the pattern with the "starting week" dropdown, and the conflict validator correctly evaluates phase overlap on enrollment.
+- Next priority: #53 (calendar sidebar toggle reactivity) — identified as a two-line fix in session 21.1.
