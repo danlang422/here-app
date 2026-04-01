@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { signIn } from '@/api/auth'
 import useAuthStore from '@/store/authStore'
@@ -83,6 +83,12 @@ function Login() {
                   : 'Sign In'
                 }
               </button>
+            </div>
+
+            <div className="text-center mt-2">
+              <Link to="/forgot-password" className="link link-primary text-sm">
+                Forgot password?
+              </Link>
             </div>
           </form>
         </div>

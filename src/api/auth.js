@@ -46,6 +46,20 @@ export async function getUserProfile(userId) {
   return data
 }
 
+// Request a password reset email
+export async function requestPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  })
+  if (error) throw error
+}
+
+// Update the current user's password
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
 // Get all user profiles for an organization
 export async function getOrgUsers(organizationId, { role, isActive = true } = {}) {
   let query = supabase

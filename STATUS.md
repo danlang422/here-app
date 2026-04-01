@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 1, 2026 (session 21.3)
+**Last updated:** April 1, 2026 (session 21.4)
 
 ---
 
@@ -24,7 +24,7 @@
 | Calendar management (school days, exceptions, per-reason rotation) | Built | `calendar-management-build-spec.md`, #12 |
 | Student schedule view | Designed, waiting on decisions to finalize | `student-schedule-view-build-spec.md` |
 | User feedback & bug reporting (/help page, FeedbackModal, Edge Function → GitHub Issues) | Built | `user-feedback-system-build-spec.md` |
-| Password reset + change password | **Not built** | #56 — blocker for real user handoff |
+| Password reset + change password | Built | #56 — `/forgot-password`, `/reset-password`, `/account` |
 | Reports | Placeholder | — |
 | **Student** | | |
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
@@ -59,6 +59,8 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
 **Resolved in session 21.3 (2026-04-01):** #35 (teacher activities 400 error in feedback modal — wrong column name `instructor_id` → `teacher_id`), #53 (calendar sidebar toggles require page refresh — `calendarVisibility` not subscribed as memo dependency), #37 (aggregate popover list not scrollable — `overflow-hidden` on outer div + incorrect `maxHeight` calculation).
 
+**Resolved in session 21.4 (2026-04-01):** #56 (password reset + change password flow — `/forgot-password`, `/reset-password`, `/account` routes; Resend configured as SMTP provider; `sayhere.xyz` and `localhost:5173` added to Supabase allowed redirect URLs).
+
 ## Next Steps
 
 **Iteration 4 goal: get to real user testing.**
@@ -66,8 +68,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 Ordered priority:
 
 1. **#55** — Bulk calendar assignment for activities
-2. **#56** — Password reset + change password (hard blocker for user handoff)
-3. **#51** — Inline enrollment redesign in ActivityDetail
+2. **#51** — Inline enrollment redesign in ActivityDetail
 4. **#21** — Customizable agenda start/end times
 5. **Visual polish pass** — needs its own issue; app is functional but lacks personality
 

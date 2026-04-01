@@ -95,6 +95,9 @@ function AppLayout({ children }) {
                 <span className="text-xs font-normal text-base-content/60">{displayName}</span>
               </li>
               <li>
+                <Link to="/account">Account</Link>
+              </li>
+              <li>
                 <button onClick={handleLogout}>
                   <FaSignOutAlt className="w-4 h-4" /> Logout
                 </button>
