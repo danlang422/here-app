@@ -56,10 +56,11 @@ export function CalendarView() {
   )
 
   // Calendar visibility filter
-  const { isCalendarVisible } = useCalendarUiStore()
+  const calendarVisibility = useCalendarUiStore((s) => s.calendarVisibility)
+  const isCalendarVisible = useCalendarUiStore((s) => s.isCalendarVisible)
   const visibleActivities = useMemo(
     () => activities.filter((a) => a.calendar_id === null || isCalendarVisible(a.calendar_id)),
-    [activities, isCalendarVisible]
+    [activities, calendarVisibility, isCalendarVisible]
   )
 
   // Filter state

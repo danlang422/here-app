@@ -29,7 +29,7 @@ export default function ScheduleIssueForm({ formData, onChange, onScreenshotChan
           const { data } = await supabase
             .from('activities')
             .select('id, name, block')
-            .eq('instructor_id', profile.id)
+            .eq('teacher_id', profile.id)
             .order('block')
           setActivities(data ?? [])
         }

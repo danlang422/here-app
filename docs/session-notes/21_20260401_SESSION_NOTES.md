@@ -121,3 +121,57 @@ The `recurrence_anchor_date` date picker is confusing because it's not the same 
 
 - Alternating-week activity setup is now end-to-end: admins can configure the pattern with the "starting week" dropdown, and the conflict validator correctly evaluates phase overlap on enrollment.
 - Next priority: #53 (calendar sidebar toggle reactivity) — identified as a two-line fix in session 21.1.
+
+---
+
+## 21.3 — Bug Fixes: Teacher Activities 400 Error (#35), Calendar Sidebar Toggles (#53), Aggregate Popover Scroll (#37)
+
+**Branch:** `fix/calendar-toggles-teacher-activities-aggregate-scroll`
+
+**What was built:** Three small targeted bug fixes identified during the iteration 4 triage in session 21.1.
+
+---
+
+### Fix 1 — #35: Teacher activities 400 error in feedback modal
+
+**File:** `src/components/feedback/ScheduleIssueForm.jsx`
+
+**Root cause:** The query filtering teacher activities used `.eq('instructor_id', profile.id)`, but the column on the `activities` table is `teacher_id`. The mismatch produced a 400 from Supabase, leaving the activity dropdown empty for teachers.
+
+**Fix:** Changed filter key from `instructor_id` to `teacher_id`. One-line change.
+
+---
+
+### Fix 2 — #53: Calendar sidebar toggles require page refresh
+
+**File:** `src/components/schedule-calendar/CalendarView.jsx`
+
+**Root cause:** `isCalendarVisible` is a stable function reference pulled from the Zustand store — it doesn't change identity when the underlying `calendarVisibility` map updates. A `useMemo` that depended only on `isCalendarVisible` would never re-run after a toggle, so the filtered calendar list stayed stale until a full page reload.
+
+**Fix:** Subscribed to `calendarVisibility` directly from the store and added it as an explicit dependency to the relevant `useMemo`. The map reference changes on every toggle, which triggers the memo to re-compute.
+
+---
+
+### Fix 3 — #37: Aggregate popover list not scrollable / truncated
+
+**File:** `src/components/schedule-calendar/CalendarAggregatePopover.jsx`
+
+**Root cause — two sub-problems:**
+
+1. `overflow-hidden` on the outer container div was setting `overflow-y: hidden`, which prevented the inner scroll container from scrolling regardless of its own overflow settings.
+2. `maxHeight: calc(100vh - 40px)` was computed relative to the viewport top, not the popover's anchor position. For a popover rendered low on the screen, the element could be positioned at e.g. `y=600` on a 900px viewport, but the max height would still be `860px` — taller than the remaining space — causing the popover to extend below the visible area and appear clipped.
+
+**Fix:**
+- Removed `overflow-hidden` from the outer div.
+- Changed `maxHeight` to `calc(100vh - ${position.y + 16}px)` so the maximum height is calculated from the popover's actual vertical anchor position, with 16px clearance.
+- Added `flex-1` to the `ul` so it takes up the available height within the flex container and triggers the scroll boundary correctly.
+
+---
+
+### What's ready for the next session
+
+- #35, #53, and #37 are resolved and merged. The three priority bugs from the iteration 4 triage are now cleared.
+- Calendar sidebar toggles work without a page refresh.
+- Aggregate popovers scroll correctly and stay within the viewport regardless of where they're anchored.
+- Teacher feedback modal now populates activity options correctly.
+- Remaining iteration 4 priorities: #55 (bulk calendar assignment), #56 (password reset), #51 (inline enrollment redesign).
