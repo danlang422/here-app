@@ -31,6 +31,9 @@ export function CalendarAggregatePopover({
     left: position.x,
     zIndex: 50,
     maxWidth: '280px',
+    maxHeight: `calc(100vh - ${position.y + 16}px)`,
+    display: 'flex',
+    flexDirection: 'column',
   }
 
   return (
@@ -38,13 +41,13 @@ export function CalendarAggregatePopover({
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
         ref={ref}
-        className="bg-base-100 border border-base-300 rounded-lg shadow-lg overflow-hidden"
+        className="bg-base-100 border border-base-300 rounded-lg shadow-lg"
         style={style}
       >
-        <div className="px-3 py-2 border-b border-base-200 text-xs font-semibold text-base-content/70">
+        <div className="px-3 py-2 border-b border-base-200 text-xs font-semibold text-base-content/70 shrink-0 rounded-t-lg">
           {aggregateData.count} activities &middot; {aggregateData.totalEnrollment} students
         </div>
-        <ul className="divide-y divide-base-200">
+        <ul className="flex-1 divide-y divide-base-200 overflow-y-auto">
           {aggregateData.activities.map((activity) => {
             const enrollCount = enrollmentCountByActivity[activity.id] ?? 0
             const borderColor = activity.calendar?.color ?? '#94a3b8'

@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 1, 2026 (session 21.2)
+**Last updated:** April 1, 2026 (session 21.3)
 
 ---
 
@@ -57,10 +57,7 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
 **Resolved in session 21.2 (2026-04-01):** #52 (`getOrgEnrollments` missing recurrence fields — blocked alternating-week enrollments), #54 (recurrence UI: replaced confusing anchor date picker with "starting week" selector).
 
-**Priority bugs (iteration 4):**
-- #53 — Calendar sidebar toggles require page refresh (reactivity bug — subscribe to `calendarVisibility` map directly)
-- #35 — Teacher activities not populating in feedback modal (400 error on `instructor_id` filter)
-- #37 — Aggregate card list extends outside viewport / not scrollable
+**Resolved in session 21.3 (2026-04-01):** #35 (teacher activities 400 error in feedback modal — wrong column name `instructor_id` → `teacher_id`), #53 (calendar sidebar toggles require page refresh — `calendarVisibility` not subscribed as memo dependency), #37 (aggregate popover list not scrollable — `overflow-hidden` on outer div + incorrect `maxHeight` calculation).
 
 ## Next Steps
 
@@ -68,14 +65,11 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
 Ordered priority:
 
-1. **#53** — Fix calendar sidebar toggle reactivity
-2. **#35** — Fix teacher activities in feedback modal
-3. **#55** — Bulk calendar assignment for activities
-4. **#56** — Password reset + change password (hard blocker for user handoff)
-5. **#51** — Inline enrollment redesign in ActivityDetail
-6. **#37** — Aggregate card overflow fix
-7. **#21** — Customizable agenda start/end times
-8. **Visual polish pass** — needs its own issue; app is functional but lacks personality
+1. **#55** — Bulk calendar assignment for activities
+2. **#56** — Password reset + change password (hard blocker for user handoff)
+3. **#51** — Inline enrollment redesign in ActivityDetail
+4. **#21** — Customizable agenda start/end times
+5. **Visual polish pass** — needs its own issue; app is functional but lacks personality
 
 **Data entry:** Activities still being entered manually. Alternating-week (Kirkwood) enrollments are now unblocked by the #52 fix; the #54 "starting week" UI makes those patterns easy to configure.
 
