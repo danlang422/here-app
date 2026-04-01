@@ -48,7 +48,26 @@ const DEFAULT_VALUES = {
   is_not_scheduled: false,
   calendar_id: null,
   recurrence_interval: 1,
-  recurrence_anchor_date: '',
+  starting_week: 1,
+}
+
+// Derive the "starting week" (1-based) from an existing anchor date + start date.
+// If either is missing, defaults to 1 (Week 1 = anchor is the start date).
+function deriveStartingWeek(anchorDate, startDate) {
+  if (!anchorDate || !startDate) return 1
+  const anchor = new Date(anchorDate + 'T00:00:00')
+  const start = new Date(startDate + 'T00:00:00')
+  const diffDays = Math.round((anchor - start) / (1000 * 60 * 60 * 24))
+  return Math.max(1, Math.round(diffDays / 7) + 1)
+}
+
+// Compute the anchor date string from a start date and starting week.
+// Returns null when interval <= 1 (not needed) or start date is missing.
+function computeAnchorDate(startDate, startingWeek, interval) {
+  if (interval <= 1 || !startDate) return null
+  const d = new Date(startDate + 'T00:00:00')
+  d.setDate(d.getDate() + (startingWeek - 1) * 7)
+  return d.toISOString().split('T')[0]
 }
 
 function buildInitialValues(activity) {
@@ -75,7 +94,7 @@ function buildInitialValues(activity) {
     is_not_scheduled: activity.is_not_scheduled ?? false,
     calendar_id: activity.calendar_id ?? null,
     recurrence_interval: activity.recurrence_interval ?? 1,
-    recurrence_anchor_date: activity.recurrence_anchor_date || '',
+    starting_week: deriveStartingWeek(activity.recurrence_anchor_date, activity.start_date),
   }
 }
 
@@ -165,6 +184,13 @@ export default function ActivityDetail({
   const watchedRotation = watch('rotation_day_type')
   const watchedName = watch('name')
   const watchedRecurrenceInterval = watch('recurrence_interval')
+
+  // Clamp starting_week when interval drops below the current selection
+  useEffect(() => {
+    if (getValues('starting_week') > watchedRecurrenceInterval) {
+      setValue('starting_week', 1)
+    }
+  }, [watchedRecurrenceInterval]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derived scheduling UI state
   const daysSelected = watchedDaysOfWeek?.length > 0
@@ -260,7 +286,7 @@ export default function ActivityDetail({
       is_not_scheduled: formValues.is_not_scheduled,
       calendar_id: formValues.calendar_id || null,
       recurrence_interval: formValues.recurrence_interval,
-      recurrence_anchor_date: formValues.recurrence_anchor_date || null,
+      recurrence_anchor_date: computeAnchorDate(formValues.start_date, formValues.starting_week, formValues.recurrence_interval),
       // For new activities: carry pending terms to the parent for post-create insertion
       ...(!activity ? { _pendingTerms: pendingTerms } : {}),
     }
@@ -698,20 +724,21 @@ function SchedulingEdit({
             <span className="label-text text-xs text-base-content/50">week(s)</span>
           </div>
 
-          {/* Anchor date — only shown when interval > 1 */}
+          {/* Starting week — only shown when interval > 1 */}
           {watchedRecurrenceInterval > 1 && (
             <div className="flex items-center gap-2">
               <label className="label-text text-xs text-base-content/50 whitespace-nowrap">
-                Starting week of
+                starting week
               </label>
-              <input
-                type="date"
-                className="input input-bordered input-sm"
-                {...register('recurrence_anchor_date', {
-                  required: watchedRecurrenceInterval > 1,
-                })}
+              <select
+                className="select select-bordered select-sm w-16"
+                {...register('starting_week', { valueAsNumber: true })}
                 disabled={disabled}
-              />
+              >
+                {Array.from({ length: watchedRecurrenceInterval }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
             </div>
           )}
         </div>
