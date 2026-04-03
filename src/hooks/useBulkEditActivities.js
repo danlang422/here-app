@@ -75,7 +75,7 @@ export function useBulkEditActivities(orgId) {
 }
 
 function hasScalar(changes) {
-  return changes.block !== undefined || changes.time != null || changes.flags != null
+  return changes.block !== undefined || changes.time != null || changes.flags != null || changes.calendarId !== undefined
 }
 
 function buildScalarUpdates(changes) {
@@ -88,5 +88,6 @@ function buildScalarUpdates(changes) {
   if (changes.flags != null) {
     Object.assign(updates, changes.flags)
   }
+  if (changes.calendarId !== undefined) updates.calendar_id = changes.calendarId
   return updates
 }

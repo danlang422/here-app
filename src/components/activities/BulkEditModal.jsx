@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fa'
 import { getBlocks, getBlockLabel } from '@/lib/constants'
 import { useBulkEditActivities } from '@/hooks/useBulkEditActivities'
+import { useCalendars } from '@/hooks/useCalendars'
 
 // Mirrors BEHAVIOR_FLAGS in ActivityDetail.jsx
 const BEHAVIOR_FLAGS = [
@@ -37,17 +38,21 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
   const blockCount = orgSettings?.block_count ?? 0
   const blockLabels = orgSettings?.block_labels ?? {}
 
+  const { data: calendars = [] } = useCalendars(orgId)
+
   // Section enable toggles
   const [blockEnabled, setBlockEnabled] = useState(false)
   const [timeEnabled, setTimeEnabled] = useState(false)
   const [termsEnabled, setTermsEnabled] = useState(false)
   const [flagsEnabled, setFlagsEnabled] = useState(false)
+  const [calendarEnabled, setCalendarEnabled] = useState(false)
 
   // Field values
   const [block, setBlock] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [selectedTermIds, setSelectedTermIds] = useState([])
+  const [calendarId, setCalendarId] = useState('')
   // Tri-state flags: null = no change, true = on, false = off
   const [flagState, setFlagState] = useState(() =>
     Object.fromEntries(BEHAVIOR_FLAGS.map((f) => [f.field, null]))
@@ -98,20 +103,23 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
       }
       if (Object.keys(activeFlags).length > 0) changes.flags = activeFlags
     }
+    if (calendarEnabled) {
+      changes.calendarId = calendarId === '' ? null : calendarId
+    }
 
     return changes
   }
 
   async function handleSubmit() {
     const changes = buildChanges()
-    const nothingEnabled = !blockEnabled && !timeEnabled && !termsEnabled && !flagsEnabled
+    const nothingEnabled = !blockEnabled && !timeEnabled && !termsEnabled && !flagsEnabled && !calendarEnabled
     if (nothingEnabled) return
 
     const result = await bulkEdit({ selectedIds, changes })
     if (result.success) onClose()
   }
 
-  const totalSteps = (blockEnabled || timeEnabled || flagsEnabled ? 1 : 0) +
+  const totalSteps = (blockEnabled || timeEnabled || flagsEnabled || calendarEnabled ? 1 : 0) +
     (termsEnabled ? count : 0)
   const progressPct = totalSteps > 0 ? Math.round((progress / totalSteps) * 100) : 0
 
@@ -239,6 +247,27 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
               })}
             </div>
           </Section>
+
+          {/* Calendar */}
+          <Section
+            enabled={calendarEnabled}
+            onToggle={() => setCalendarEnabled((v) => !v)}
+            label="Calendar"
+          >
+            <select
+              className="select select-sm w-full max-w-xs"
+              value={calendarId}
+              onChange={(e) => setCalendarId(e.target.value)}
+              disabled={!calendarEnabled}
+            >
+              <option value="">None / Unassigned</option>
+              {calendars.map((cal) => (
+                <option key={cal.id} value={cal.id}>
+                  {cal.name}
+                </option>
+              ))}
+            </select>
+          </Section>
         </div>
 
         {/* Errors */}
@@ -268,7 +297,7 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
             type="button"
             className="btn btn-primary"
             onClick={handleSubmit}
-            disabled={isPending || (!blockEnabled && !timeEnabled && !termsEnabled && !flagsEnabled)}
+            disabled={isPending || (!blockEnabled && !timeEnabled && !termsEnabled && !flagsEnabled && !calendarEnabled)}
           >
             {isPending ? <span className="loading loading-spinner loading-xs" /> : null}
             Apply to {count} {count === 1 ? 'activity' : 'activities'}
