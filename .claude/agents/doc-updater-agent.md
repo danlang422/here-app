@@ -30,6 +30,10 @@ pick up where this one left off.
 - Add new next steps if the completed work revealed them
 - If a decision was made during implementation that differs from the original
   plan, note it clearly
+- **Do NOT** add resolved issues to the "Known Issues / Tech Debt" section.
+  GitHub Issues is the authoritative list of resolved items. The Known Issues
+  section in STATUS.md is for open architectural gotchas worth flagging in
+  context — not a changelog. Session notes are where resolved items are narrated.
 
 ### Session Notes (docs/session-notes/)
 - Find today's session note file (format: NN_YYYYMMDD_SESSION_NOTES.md)

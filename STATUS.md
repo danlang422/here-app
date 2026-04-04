@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** April 1, 2026 (session 21.4)
+**Last updated:** April 3, 2026 (session 22)
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed. Migrations through `20260331000001_presence_wave_checkin_constraint` (mutual exclusivity constraint on `allows_presence_wave` / `requires_checkin`). Real data: City View org with admin account (Daniel Lang), staff users, and activities in progress (data entry ongoing).
+**Database:** V2 schema deployed. Migrations through `20260331000001_presence_wave_checkin_constraint` (mutual exclusivity constraint on `allows_presence_wave` / `requires_checkin`). Real data: City View org with admin account (Daniel Lang), staff users, and activities being entered (schedule normalized and data entry underway).
 
 **Application:**
 
@@ -14,7 +14,7 @@
 |------|--------|-----------|
 | Auth & navigation | Built | — |
 | **Admin** | | |
-| Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster, bulk edit) | Built | `activity-detail-and-form-redesign-spec.md`, `activity-management-overhaul-build-spec.md` |
+| Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster, bulk edit, bulk calendar assignment) | Built | `activity-detail-and-form-redesign-spec.md`, `activity-management-overhaul-build-spec.md`, #55 |
 | User management (CRUD, bulk paste-from-spreadsheet entry) | Built | — |
 | Dashboard & agenda view | Replaced by calendar redesign | — |
 | Admin calendar redesign — Layers 0, 1, 2 + filter bar expansion | Built | `layer-0-build-spec.md`, `layer-1-build-spec.md`, `layer-2-build-spec.md`, `filter-bar-expansion-build-spec.md` |
@@ -49,17 +49,9 @@ Decisions that are settled live in CLAUDE.md (if they're lasting architectural p
 
 ## Known Issues / Tech Debt
 
-Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
+Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — that's the authoritative list. Session notes contain the narrative on resolved items.
 
-**Resolved in session 20.2 (2026-03-31):** #19 (cannot deselect attendance indicator), #23 (check-out button timing), #20 (allows_presence_wave / requires_checkin must be mutually exclusive).
-
-**Resolved in session 21.1 (2026-04-01):** #25 (enroll button cancels activity creation) — resolved as side effect of #51 redesign.
-
-**Resolved in session 21.2 (2026-04-01):** #52 (`getOrgEnrollments` missing recurrence fields — blocked alternating-week enrollments), #54 (recurrence UI: replaced confusing anchor date picker with "starting week" selector).
-
-**Resolved in session 21.3 (2026-04-01):** #35 (teacher activities 400 error in feedback modal — wrong column name `instructor_id` → `teacher_id`), #53 (calendar sidebar toggles require page refresh — `calendarVisibility` not subscribed as memo dependency), #37 (aggregate popover list not scrollable — `overflow-hidden` on outer div + incorrect `maxHeight` calculation).
-
-**Resolved in session 21.4 (2026-04-01):** #56 (password reset + change password flow — `/forgot-password`, `/reset-password`, `/account` routes; Resend configured as SMTP provider; `sayhere.xyz` and `localhost:5173` added to Supabase allowed redirect URLs).
+**Notable open architectural item:** `fetchProfile` in `useAuthListener` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 inside `onAuthStateChange` (#9). Don't change this until supabase-js is upgraded.
 
 ## Next Steps
 
@@ -67,12 +59,13 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues).
 
 Ordered priority:
 
-1. **#55** — Bulk calendar assignment for activities
-2. **#51** — Inline enrollment redesign in ActivityDetail
-4. **#21** — Customizable agenda start/end times
-5. **Visual polish pass** — needs its own issue; app is functional but lacks personality
+1. **#51** — Inline enrollment redesign in ActivityDetail
+2. **#60** — App personality / visual polish (design doc TBD; prior codebase review done)
+3. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
+4. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
+5. **#21** — Customizable agenda start/end times
 
-**Data entry:** Activities still being entered manually. Alternating-week (Kirkwood) enrollments are now unblocked by the #52 fix; the #54 "starting week" UI makes those patterns easy to configure.
+**Data entry:** Schedule fully normalized for the first time — consistent structure identified in City View's spreadsheet, making complete data entry tractable. Activities being entered manually; enrollments unblocked by #52/#54 fixes.
 
 ---
 
