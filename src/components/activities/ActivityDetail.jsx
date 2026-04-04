@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   FaPencilAlt, FaCheck, FaTimes,
-  FaClipboardList, FaClock, FaHandPaper, FaTags,
+  FaClipboardList, FaHandPaper, FaTags,
   FaMapMarkerAlt, FaDoorOpen, FaCalendarTimes, FaUserGraduate,
   FaTrash,
 } from 'react-icons/fa'
+import { TbClockCheck } from 'react-icons/tb'
 import { getBlocks, getBlockLabel, WEEKDAYS } from '@/lib/constants'
 import { useStaffUsers, useStudents } from '@/hooks/useUsers'
 import { useActivityTerms, useAddActivityTerm, useRemoveActivityTerm } from '@/hooks/useActivityTerms'
@@ -20,7 +21,7 @@ import { buildStaffRows, staffRowsToFlat } from './staffUtils'
 
 const BEHAVIOR_FLAGS = [
   { field: 'requires_attendance',  icon: FaClipboardList, tooltip: 'Requires attendance' },
-  { field: 'requires_checkin',     icon: FaClock,         tooltip: 'Requires check-in' },
+  { field: 'requires_checkin',     icon: TbClockCheck,    tooltip: 'Requires check-in' },
   { field: 'allows_presence_wave', icon: FaHandPaper,     tooltip: 'Allows presence wave' },
   { field: 'allows_freeform',      icon: FaTags,          tooltip: 'Allows freeform tagging' },
   { field: 'requires_geofence',    icon: FaMapMarkerAlt,  tooltip: 'Requires geofence' },
