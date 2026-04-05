@@ -72,7 +72,7 @@ function SingleDayAgenda({
         />
 
         {/* Positioned activity cards */}
-        {activities.map((activity) => (
+        {activities.map((activity, idx) => (
           <div
             key={activity.id}
             className="absolute left-2 right-5"
@@ -80,6 +80,8 @@ function SingleDayAgenda({
               top: `${activityTop(activity, gridStartMinutes) + GRID_PAD_Y}px`,
               height: `${activityHeight(activity)}px`,
               zIndex: 10,
+              animation: 'fade-up 0.3s ease both',
+              animationDelay: `${idx * 80}ms`,
             }}
           >
             {renderCard(activity)}

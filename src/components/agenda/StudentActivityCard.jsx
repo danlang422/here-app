@@ -56,7 +56,7 @@ function StudentActivityCard({
   const buttonCount = (hasPrimary ? 1 : 0) + (hasSecondary ? 1 : 0)
 
   return (
-    <div className="bg-base-100 border border-base-300 rounded-lg shadow-sm overflow-visible h-full relative">
+    <div className="bg-base-100 border border-base-300 rounded-2xl shadow-sm overflow-visible h-full relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
       {/* Content area */}
       <div className="p-3 pr-7 flex flex-col gap-0.5 h-full">
         {/* Row 1: title (left) + time (right) */}
@@ -96,7 +96,7 @@ function StudentActivityCard({
         <div
           className="absolute flex flex-col gap-1.5 items-center"
           style={{
-            right: '-14px',
+            right: '-18px',
             top: '50%',
             transform: 'translateY(-50%)',
           }}

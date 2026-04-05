@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { HandWaving, CheckCircle, NotePencil, SignOut } from '@phosphor-icons/react'
 import useAuthStore from '@/store/authStore'
+import { useToastStore } from '@/store/toastStore'
 import { useStudentAgenda } from '@/hooks/useStudentAgenda'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
@@ -131,6 +133,7 @@ function TodayView() {
     if (!instanceId) return
     try {
       await createPresenceWave(studentId, instanceId)
+      useToastStore.getState().show('Hey!', <HandWaving size={16} />)
       invalidateActions()
       invalidateStreaks()
     } catch (err) {
@@ -150,6 +153,7 @@ function TodayView() {
       allowTypeChange: true,
       checkinId: null,
       onComplete: () => {
+        useToastStore.getState().show('Update saved', <NotePencil size={16} />)
         invalidateActions()
       },
     })
@@ -180,6 +184,7 @@ function TodayView() {
     // Step 2: Create check-in record
     try {
       const checkInRecord = await createCheckIn(studentId, instanceId, locationData)
+      useToastStore.getState().show("You're here!", <CheckCircle weight="fill" size={16} />)
       invalidateActions()
 
       // Step 3: Freeform tagging (if applicable)
@@ -280,6 +285,7 @@ function TodayView() {
       isCheckOutFlow: true,
       checkInRecordId: checkInRecord.id,
       onComplete: () => {
+        useToastStore.getState().show('See you later!', <SignOut size={16} />)
         invalidateActions()
       },
     })

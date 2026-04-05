@@ -37,7 +37,7 @@ function SingleCard({ item, blockLabels, waveCount, onClick }) {
 
   return (
     <div
-      className="bg-base-100 border border-base-300 rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow h-full"
+      className="bg-base-100 border border-base-300 rounded-2xl shadow-sm overflow-visible cursor-pointer h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
       onClick={onClick}
     >
       <div className="p-3 flex flex-col gap-0.5">
@@ -67,7 +67,7 @@ function AggregateCard({ item, blockLabels, waveCount, onClick }) {
 
   return (
     <div
-      className="bg-base-200 border border-base-300 rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow h-full"
+      className="bg-base-200 border border-base-300 rounded-2xl shadow-sm overflow-visible cursor-pointer h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
       onClick={onClick}
     >
       <div className="p-3 flex flex-col gap-0.5">

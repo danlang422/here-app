@@ -3,6 +3,7 @@ import { Backpack, ChalkboardTeacher, UserGear, SignOut, Question } from '@phosp
 import { signOut } from '@/api/auth'
 import useAuthStore from '@/store/authStore'
 import { getDisplayName, getInitials } from '@/lib/utils'
+import { Toast } from '@/components/ui/Toast'
 
 function AppLayout({ children }) {
   const location = useLocation()
@@ -110,6 +111,8 @@ function AppLayout({ children }) {
       <main className="container mx-auto p-4 md:p-8">
         {children}
       </main>
+
+      <Toast />
     </div>
   )
 }

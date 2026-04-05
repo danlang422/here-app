@@ -30,7 +30,7 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
   if (mode === 'few') {
     return (
       <div
-        className={`absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-all ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
+        className={`absolute inset-0 rounded-lg border-l-4 bg-base-100 overflow-hidden cursor-pointer transition-all duration-150 hover:-translate-y-px hover:shadow-md ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
         style={{ borderLeftColor: borderColor }}
         onClick={() => onClick(activity)}
       >
@@ -47,7 +47,7 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
   // single mode
   return (
     <div
-      className={`absolute inset-0 rounded border-l-4 bg-base-100 overflow-hidden cursor-pointer hover:bg-base-200 transition-all ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
+      className={`absolute inset-0 rounded-lg border-l-4 bg-base-100 overflow-hidden cursor-pointer transition-all duration-150 hover:-translate-y-px hover:shadow-md ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
       style={{ borderLeftColor: borderColor }}
       onClick={() => onClick(activity)}
     >
