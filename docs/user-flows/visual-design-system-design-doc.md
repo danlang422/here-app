@@ -111,61 +111,61 @@ All icon names below use the `@phosphor-icons/react` naming convention (no `Pi` 
 
 | Function | Icon | Weight | Notes |
 |----------|------|--------|-------|
-| Presence wave (available) | `HandWaving` | regular | |
-| Presence wave (completed) | `CheckCircle` | fill | State transition: outline → fill |
-| Check-in available | `CheckCircle` | regular | Outline circle with check |
-| Checked in | `CheckCircle` | fill | Solid fill signals completion |
-| Check-out available | `SignOut` | regular | Exit/departure metaphor |
-| Checked out | `CheckCircle` | fill | Same completed state as check-in |
-| Status update | `NotePencil` | regular | "Writing something" — matches the conversational prompts |
-| Status (has updates) | `NotePencil` | regular | Same icon, distinguished by dot indicator |
-| Streak | `Flame` | fill | |
+| Presence wave (available) | `HandWavingIcon` | regular | |
+| Presence wave (completed) | `CheckCircleIcon` | fill | State transition: outline → fill |
+| Check-in available | `CheckCircleIcon` | regular | Outline circle with check |
+| Checked in | `CheckCircleIcon` | fill | Solid fill signals completion |
+| Check-out available | `SignOutIcon` | regular | Exit/departure metaphor |
+| Checked out | `CheckCircleIcon` | fill | Same completed state as check-in |
+| Status update | `NotePencilIcon` | regular | "Writing something" — matches the conversational prompts |
+| Status (has updates) | `NotePencilIcon` | regular | Same icon, distinguished by dot indicator |
+| Streak | `FlameIcon` | fill | |
 
 **Admin behavior flags (ActivityDetail toggles):**
 
 | Function | Icon | Notes |
 |----------|------|-------|
-| Requires attendance | `ClipboardText` | |
-| Requires check-in | `CheckCircle` | Same icon as the student button — shared function, shared icon |
-| Allows presence wave | `HandWaving` | Same icon as student action |
-| Allows freeform | `ListChecks` | |
-| Requires geofence | `MapPin` | |
-| Release | `DoorOpen` | |
-| Not scheduled | `CalendarX` | |
+| Requires attendance | `ClipboardTextIcon` | |
+| Requires check-in | `CheckCircleIcon` | Same icon as the student button — shared function, shared icon |
+| Allows presence wave | `HandWavingIcon` | Same icon as student action |
+| Allows freeform | `ListChecksIcon` | |
+| Requires geofence | `MapPinIcon` | |
+| Release | `DoorOpenIcon` | |
+| Not scheduled | `CalendarXIcon` | |
 
 **Admin navigation (AdminLayout tabs):**
 
 | Function | Icon |
 |----------|------|
-| Dashboard | `SquaresFour` |
-| Calendar | `CalendarBlank` |
-| Activities | `CardsThree` |
-| Users | `Users` |
-| Reports | `ChartBar` |
-| Settings | `Gear` |
+| Dashboard | `SquaresFourIcon` |
+| Calendar | `CalendarBlankIcon` |
+| Activities | `CardsThreeIcon` |
+| Users | `UsersIcon` |
+| Reports | `ChartBarIcon` |
+| Settings | `GearIcon` |
 
 **App layout / shared:**
 
 | Function | Icon | Notes |
 |----------|------|-------|
-| Student role (nav) | `Backpack` | |
-| Teacher role (nav) | `ChalkboardTeacher` | |
-| Admin role (nav) | `UserGear` | |
-| Help | `Question` | |
-| Logout | `SignOut` | |
-| Close / cancel | `X` | |
-| Edit | `PencilSimple` | |
-| Save / confirm | `Check` | |
-| Delete | `Trash` | |
-| Back | `ArrowLeft` | |
-| Row chevron (tables) | `CaretCircleRight` | |
-| Sidebar collapse/expand | `CaretLeft` / `CaretRight` | |
+| Student role (nav) | `BackpackIcon` | |
+| Teacher role (nav) | `ChalkboardTeacherIcon` | |
+| Admin role (nav) | `UserGearIcon` | |
+| Help | `QuestionIcon` | |
+| Logout | `SignOutIcon` | |
+| Close / cancel | `XIcon` | |
+| Edit | `PencilSimpleIcon` | |
+| Save / confirm | `CheckIcon` | |
+| Delete | `TrashIcon` | |
+| Back | `ArrowLeftIcon` | |
+| Row chevron (tables) | `CaretCircleRightIcon` | |
+| Sidebar collapse/expand | `CaretLeftIcon` / `CaretRightIcon` | |
 | Aggregate/stacked | `Stack` | |
-| Geofence failure | `MapPinSlash` | If unavailable in Phosphor, fall back to `WarningCircle` |
-| Bug report | `Bug` | |
+| Geofence failure | `MapPinSlash` | If unavailable in Phosphor, fall back to `WarningCircleIcon` |
+| Bug report | `BugIcon` | |
 | Feedback | `Lightbulb` | |
-| Schedule issue (feedback) | `CalendarX` | |
-| Empty enrollment state | `Student` | |
+| Schedule issue (feedback) | `CalendarXIcon` | |
+| Empty enrollment state | `StudentIcon` | |
 
 ### Icon sizing guidelines
 
