@@ -1,7 +1,4 @@
-import { PiHandWaving } from 'react-icons/pi'
-import { IoCheckmarkCircle, IoCheckmarkCircleOutline } from 'react-icons/io5'
-import { MdOutlineAddComment } from 'react-icons/md'
-import { IoExitOutline } from 'react-icons/io5'
+import { HandWaving, CheckCircle, NotePencil, SignOut } from '@phosphor-icons/react'
 
 const stateStyles = {
   inactive: 'border-base-content/20 text-base-content/40',
@@ -15,18 +12,18 @@ const stateStyles = {
 
 const icons = {
   wave: {
-    available: <PiHandWaving size={20} />,
-    completed: <IoCheckmarkCircle size={20} />,
+    available: <HandWaving size={20} />,
+    completed: <CheckCircle weight="fill" size={20} />,
   },
   checkin: {
-    available: <IoCheckmarkCircleOutline size={20} />,
-    'checked-in': <IoCheckmarkCircle size={20} />,
-    'checkout-available': <IoExitOutline size={20} />,
-    'checked-out': <IoCheckmarkCircle size={20} />,
+    available: <CheckCircle size={20} />,
+    'checked-in': <CheckCircle weight="fill" size={20} />,
+    'checkout-available': <SignOut size={20} />,
+    'checked-out': <CheckCircle weight="fill" size={20} />,
   },
   status: {
-    available: <MdOutlineAddComment size={20} />,
-    'has-updates': <MdOutlineAddComment size={20} />,
+    available: <NotePencil size={20} />,
+    'has-updates': <NotePencil size={20} />,
   },
 }
 
@@ -34,9 +31,9 @@ function ActionButton({ type, state, onClick, hasUpdates }) {
   if (state === 'inactive') {
     // Show the default icon in inactive state
     const inactiveIcon =
-      type === 'wave' ? <PiHandWaving size={20} /> :
-      type === 'checkin' ? <IoCheckmarkCircleOutline size={20} /> :
-      <MdOutlineAddComment size={20} />
+      type === 'wave' ? <HandWaving size={20} /> :
+      type === 'checkin' ? <CheckCircle size={20} /> :
+      <NotePencil size={20} />
 
     return (
       <div

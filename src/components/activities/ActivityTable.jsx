@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { getBlockLabel } from '@/lib/constants'
-import { FaChevronRight } from 'react-icons/fa'
+import { CaretRight } from '@phosphor-icons/react'
 
 /**
  * ActivityTable — displays a list of activities. Rows are clickable.
@@ -113,7 +113,7 @@ export default function ActivityTable({
                   {count > 0 ? count : <span className="text-base-content/30">—</span>}
                 </td>
                 <td className="w-4 text-base-content/30">
-                  <FaChevronRight size={10} />
+                  <CaretRight size={10} />
                 </td>
               </tr>
             )

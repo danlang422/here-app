@@ -1,4 +1,4 @@
-import { GiFlame } from 'react-icons/gi'
+import { Flame } from '@phosphor-icons/react'
 import ActionButton from '@/components/student/ActionButton'
 import {
   getCheckinButtonState,
@@ -80,7 +80,8 @@ function StudentActivityCard({
                 streak >= 5 ? 'text-base-content/70' : 'text-base-content/50'
               }`}
             >
-              <GiFlame
+              <Flame
+                weight="fill"
                 size={14}
                 className={streak >= 5 ? 'text-amber-500' : ''}
               />

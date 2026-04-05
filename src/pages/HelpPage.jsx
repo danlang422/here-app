@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MdBugReport } from 'react-icons/md'
+import { Bug } from '@phosphor-icons/react'
 import FeedbackModal from '@/components/feedback/FeedbackModal'
 
 export default function HelpPage() {
@@ -17,7 +17,7 @@ export default function HelpPage() {
         onClick={() => setModalOpen(true)}
       >
         <div className="flex items-center gap-4">
-          <MdBugReport className="w-8 h-8 text-primary shrink-0" />
+          <Bug size={32} className="text-primary shrink-0" />
           <div>
             <div className="font-semibold text-lg">Submit Feedback</div>
             <div className="text-base-content/60 text-sm mt-0.5">

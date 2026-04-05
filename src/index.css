@@ -1,4 +1,10 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: 'Outfit Variable', sans-serif;
+  --font-sans: 'Plus Jakarta Sans Variable', sans-serif;
+}
+
 @plugin "daisyui";
 /* Multiline DaisyUI tooltips */
 .tooltip::before {
@@ -14,7 +20,9 @@
   --color-secondary: oklch(60.56% 0.2190 292.72);
   --color-accent: oklch(69.59% 0.1491 162.51);
   --color-neutral: oklch(27.81% 0.0296 256.86);
-  --color-base-100: oklch(100.00% 0.0001 263.28);
+  --color-base-100: oklch(99.2% 0.005 90);
+  --color-base-200: oklch(96.5% 0.008 85);
+  --color-base-300: oklch(91% 0.01 80);
   --color-info: oklch(68.47% 0.1479 237.34);
   --color-success: oklch(72.27% 0.1920 149.60);
   --color-warning: oklch(76.86% 0.1646 70.08);

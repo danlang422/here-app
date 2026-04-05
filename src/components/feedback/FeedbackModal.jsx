@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FaTimes, FaArrowLeft, FaBug, FaCalendarAlt, FaLightbulb } from 'react-icons/fa'
+import { X, ArrowLeft, Bug, CalendarBlank, Lightbulb } from '@phosphor-icons/react'
 import useAuthStore from '@/store/authStore'
 import { submitFeedback, fileToBase64 } from '@/api/feedback'
 import BugReportForm from './BugReportForm'
@@ -9,19 +9,19 @@ import FeedbackForm from './FeedbackForm'
 const REPORT_TYPES = [
   {
     key: 'bug',
-    icon: FaBug,
+    icon: Bug,
     label: 'Bug Report',
     description: 'Something isn\'t working right',
   },
   {
     key: 'schedule_issue',
-    icon: FaCalendarAlt,
+    icon: CalendarBlank,
     label: 'Schedule Issue',
     description: 'My schedule is wrong or missing something',
   },
   {
     key: 'feedback',
-    icon: FaLightbulb,
+    icon: Lightbulb,
     label: 'Feedback / Suggestion',
     description: 'An idea or something that could be better',
   },
@@ -148,7 +148,7 @@ export default function FeedbackModal({ isOpen, onClose }) {
           onClick={onClose}
           aria-label="Close"
         >
-          <FaTimes size={12} />
+          <X size={12} />
         </button>
 
         {/* Step: Type selection */}
@@ -165,7 +165,7 @@ export default function FeedbackModal({ isOpen, onClose }) {
                     onClick={() => handleTypeSelect(key)}
                   >
                     <div className="flex items-center gap-3">
-                      <TypeIcon className="w-5 h-5 text-primary shrink-0" />
+                      <TypeIcon size={20} className="text-primary shrink-0" />
                       <div>
                         <div className="font-medium">{label}</div>
                         <div className="text-sm text-base-content/60">{description}</div>
@@ -187,7 +187,7 @@ export default function FeedbackModal({ isOpen, onClose }) {
                 onClick={handleBack}
                 aria-label="Back"
               >
-                <FaArrowLeft size={12} />
+                <ArrowLeft size={12} />
               </button>
               <h3 className="font-bold text-lg">{selectedType.label}</h3>
             </div>
