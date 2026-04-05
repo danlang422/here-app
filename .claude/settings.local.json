@@ -25,7 +25,11 @@
       "Read(//c/Users/dansl/**)",
       "Bash(npx @playwright/mcp@latest --help)",
       "Bash(tasklist /FI \"PID eq 34916\")",
-      "Bash(wmic process:*)"
+      "Bash(wmic process:*)",
+      "mcp__playwright__browser_press_key",
+      "Bash(grep:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }
