@@ -1,4 +1,4 @@
-import { FaTimes } from 'react-icons/fa'
+import { X } from '@phosphor-icons/react'
 import { formatUserName } from '@/api/users'
 
 const ROLES = ['Teacher', 'Monitor', 'Instructor', 'Mentor']
@@ -131,7 +131,7 @@ function StaffEditRows({ rows, staffUsers, onChange }) {
               onClick={() => removeRow(i)}
               title="Remove"
             >
-              <FaTimes size={12} />
+              <X size={12} />
             </button>
           </div>
         )

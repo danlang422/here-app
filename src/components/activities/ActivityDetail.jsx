@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import {
-  FaPencilAlt, FaCheck, FaTimes,
-  FaClipboardList, FaHandPaper, FaTags,
-  FaMapMarkerAlt, FaDoorOpen, FaCalendarTimes, FaUserGraduate,
-  FaTrash,
-} from 'react-icons/fa'
-import { TbClockCheck } from 'react-icons/tb'
+  PencilSimple, Check, X,
+  ClipboardText, HandWaving, ListChecks,
+  MapPin, DoorOpen, CalendarX, Student,
+  Trash, CheckCircle,
+} from '@phosphor-icons/react'
 import { getBlocks, getBlockLabel, WEEKDAYS } from '@/lib/constants'
 import { useStaffUsers, useStudents } from '@/hooks/useUsers'
 import { useActivityTerms, useAddActivityTerm, useRemoveActivityTerm } from '@/hooks/useActivityTerms'
@@ -20,13 +19,13 @@ import { buildStaffRows, staffRowsToFlat } from './staffUtils'
 // ─── Behavior flag definitions ────────────────────────────────────────────────
 
 const BEHAVIOR_FLAGS = [
-  { field: 'requires_attendance',  icon: FaClipboardList, tooltip: 'Requires attendance' },
-  { field: 'requires_checkin',     icon: TbClockCheck,    tooltip: 'Requires check-in' },
-  { field: 'allows_presence_wave', icon: FaHandPaper,     tooltip: 'Allows presence wave' },
-  { field: 'allows_freeform',      icon: FaTags,          tooltip: 'Allows freeform tagging' },
-  { field: 'requires_geofence',    icon: FaMapMarkerAlt,  tooltip: 'Requires geofence' },
-  { field: 'is_release',           icon: FaDoorOpen,      tooltip: 'Release (no attendance)' },
-  { field: 'is_not_scheduled',     icon: FaCalendarTimes, tooltip: 'Not scheduled' },
+  { field: 'requires_attendance',  icon: ClipboardText, tooltip: 'Requires attendance' },
+  { field: 'requires_checkin',     icon: CheckCircle,   tooltip: 'Requires check-in' },
+  { field: 'allows_presence_wave', icon: HandWaving,    tooltip: 'Allows presence wave' },
+  { field: 'allows_freeform',      icon: ListChecks,    tooltip: 'Allows freeform tagging' },
+  { field: 'requires_geofence',    icon: MapPin,        tooltip: 'Requires geofence' },
+  { field: 'is_release',           icon: DoorOpen,      tooltip: 'Release (no attendance)' },
+  { field: 'is_not_scheduled',     icon: CalendarX,     tooltip: 'Not scheduled' },
 ]
 
 // ─── Form value helpers ────────────────────────────────────────────────────────
@@ -321,7 +320,7 @@ export default function ActivityDetail({
               onClick={onEditClick}
               title="Edit"
             >
-              <FaPencilAlt size={13} />
+              <PencilSimple size={13} />
             </button>
           ) : (
             <>
@@ -331,7 +330,7 @@ export default function ActivityDetail({
                 onClick={onCancel}
                 title="Cancel"
               >
-                <FaTimes size={14} />
+                <X size={14} />
               </button>
               <button
                 type="submit"
@@ -341,7 +340,7 @@ export default function ActivityDetail({
               >
                 {saving
                   ? <span className="loading loading-spinner loading-xs" />
-                  : <FaCheck size={12} />
+                  : <Check size={12} />
                 }
               </button>
             </>
@@ -537,7 +536,7 @@ export default function ActivityDetail({
               className="btn btn-ghost btn-xs text-error/60 hover:text-error gap-1"
               onClick={() => setShowDeleteConfirm(true)}
             >
-              <FaTrash size={11} /> Delete activity
+              <Trash size={11} /> Delete activity
             </button>
           )}
         </div>
@@ -1052,7 +1051,7 @@ function InlineEnrollmentSection({ activity, orgId }) {
 
       {isNew ? (
         <div className="text-center py-6 text-base-content/40">
-          <FaUserGraduate size={24} className="mx-auto mb-2 opacity-40" />
+          <Student size={24} className="mx-auto mb-2 opacity-40" />
           <p className="text-sm">Save activity to enroll students.</p>
         </div>
       ) : (

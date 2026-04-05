@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { HiMinus, HiArrowsPointingOut, HiXMark } from 'react-icons/hi2'
+import { Minus, ArrowsOut, X } from '@phosphor-icons/react'
 
 // Module-level z-index counter — shared across all FloatingPanel instances
 let topZ = 100
@@ -119,7 +119,7 @@ export default function FloatingPanel({ title, defaultWidth = 420, onClose, chil
             }}
             title={minimized ? 'Restore' : 'Minimize'}
           >
-            {minimized ? <HiArrowsPointingOut className="w-3.5 h-3.5" /> : <HiMinus className="w-3.5 h-3.5" />}
+            {minimized ? <ArrowsOut size={14} /> : <Minus size={14} />}
           </button>
           <button
             className="btn btn-ghost btn-xs btn-square"
@@ -129,7 +129,7 @@ export default function FloatingPanel({ title, defaultWidth = 420, onClose, chil
             }}
             title="Close"
           >
-            <HiXMark className="w-3.5 h-3.5" />
+            <X size={14} />
           </button>
         </div>
       </div>

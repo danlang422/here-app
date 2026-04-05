@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 4, 2026 (session 23)
+**Last updated:** April 5, 2026 (session 24)
 
 ---
 
@@ -59,8 +59,8 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 Ordered priority:
 
-1. **#51** — Inline enrollment redesign in ActivityDetail
-2. **#60** — App personality / visual polish — **design doc written:** `visual-design-system-design-doc.md`. Covers palette (warm base layer), typography (Outfit + Plus Jakarta Sans), icon consolidation to Phosphor (`@phosphor-icons/react`), interaction design (card hover/lift, button press feedback, action button resizing, toast feedback, staggered animations), block overlay removal, and component-level styling for all roles. Ready for build spec.
+1. Any visual polish bugs surfaced from initial review of #60 work
+2. **#51** — Inline enrollment redesign in ActivityDetail
 3. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
 4. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
 5. **#21** — Customizable agenda start/end times
@@ -106,4 +106,4 @@ Ordered priority:
 | `layer-2-build-spec.md` | **Implemented** | Time-slot clustering, inter-group column layout, aggregate card expansion, filter bar, recurrence-aware conflict detection. Built session 18. |
 | `filter-bar-expansion-design-doc.md` | **Implemented** | Design doc for filter bar expansion (block, time range, student filters). |
 | `filter-bar-expansion-build-spec.md` | **Implemented** | Block, time range, and student filters added to CalendarFilterBar. Student dimming threaded through WeekGrid → DayColumn → EventCard. Built session 20. |
-| `visual-design-system-design-doc.md` | **Design doc — ready for build spec** | App-wide visual polish: palette, typography, Phosphor icon consolidation, interaction design, component styling, block overlay removal. Session 23. |
+| `visual-design-system-design-doc.md` | **Implemented** | App-wide visual polish: palette, typography, Phosphor icon consolidation, interaction design, component styling, block overlay removal. Design doc session 23; implemented session 24. |

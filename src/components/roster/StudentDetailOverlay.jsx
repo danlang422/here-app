@@ -1,7 +1,5 @@
-import { PiHandWaving } from 'react-icons/pi'
-import { IoCheckmarkCircle, IoExitOutline } from 'react-icons/io5'
-import { MdLocationDisabled } from 'react-icons/md'
-import { GiFlame } from 'react-icons/gi'
+import { useEffect } from 'react'
+import { HandWaving, CheckCircle, SignOut, Prohibit, Flame } from '@phosphor-icons/react'
 import { useStudentInstanceDetail } from '@/hooks/useStudentInstanceDetail'
 import { getBlockLabel } from '@/lib/constants'
 
@@ -26,6 +24,18 @@ function StudentDetailOverlay({
     activity,
     orgId
   )
+
+  useEffect(() => {
+    if (!isOpen) return
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation()
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
 
   if (!isOpen || !student) return null
 
@@ -84,7 +94,7 @@ function StudentDetailOverlay({
                   <SectionHeader>CHECK-IN</SectionHeader>
                   <div className="space-y-1.5 mt-2">
                     <div className="flex items-center gap-2 text-sm">
-                      <IoCheckmarkCircle size={16} className="text-success shrink-0" />
+                      <CheckCircle weight="fill" size={16} className="text-success shrink-0" />
                       <span>
                         Checked in at{' '}
                         {formatTimestamp(detail.checkIn.checked_in_at)}
@@ -92,7 +102,7 @@ function StudentDetailOverlay({
                     </div>
                     {detail.checkIn.checked_out_at && (
                       <div className="flex items-center gap-2 text-sm">
-                        <IoExitOutline size={16} className="text-success shrink-0" />
+                        <SignOut size={16} className="text-success shrink-0" />
                         <span>
                           Checked out at{' '}
                           {formatTimestamp(detail.checkIn.checked_out_at)}
@@ -101,7 +111,7 @@ function StudentDetailOverlay({
                     )}
                     {detail.checkIn.geofence_validated === false && (
                       <div className="flex items-center gap-2 text-sm text-error">
-                        <MdLocationDisabled size={16} className="shrink-0" />
+                        <Prohibit size={16} className="shrink-0" />
                         <span>Location check failed</span>
                       </div>
                     )}
@@ -120,14 +130,15 @@ function StudentDetailOverlay({
                   <SectionHeader>WAVE</SectionHeader>
                   <div className="space-y-1.5 mt-2">
                     <div className="flex items-center gap-2 text-sm">
-                      <PiHandWaving size={16} className="text-success shrink-0" />
+                      <HandWaving size={16} className="text-success shrink-0" />
                       <span>
                         Waved at {formatTimestamp(detail.wave.waved_at)}
                       </span>
                     </div>
                     {detail.streak > 0 && (
                       <div className="flex items-center gap-2 text-sm">
-                        <GiFlame
+                        <Flame
+                          weight="fill"
                           size={16}
                           className={`shrink-0 ${
                             detail.streak >= 5

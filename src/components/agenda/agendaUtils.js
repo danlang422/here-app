@@ -49,6 +49,20 @@ export function ceilToHour(timeStr) {
   return `${String(ceiled).padStart(2, '0')}:00`
 }
 
+// --- Time formatting ---
+
+export function formatTimeRange(startTime, endTime) {
+  if (!startTime || !endTime) return null
+  return `${formatTime(startTime)} – ${formatTime(endTime)}`
+}
+
+export function formatTime(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number)
+  const suffix = h >= 12 ? 'p' : 'a'
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return m === 0 ? `${hour12}${suffix}` : `${hour12}:${String(m).padStart(2, '0')}${suffix}`
+}
+
 // --- Grouping & filtering ---
 
 export function activityMeetsDay(activity, dayValue) {

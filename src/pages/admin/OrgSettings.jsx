@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { FaPlus, FaTimes, FaTrash } from 'react-icons/fa'
+import { Plus, X, Trash } from '@phosphor-icons/react'
 import useAuthStore from '@/store/authStore'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
@@ -437,7 +437,7 @@ function AcademicTermsSection({ terms, orgId, orgSettings }) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="card-title text-lg">Academic Terms</h3>
           <button className="btn btn-ghost btn-sm gap-1" onClick={startAdd}>
-            <FaPlus size={10} /> Add
+            <Plus size={10} /> Add
           </button>
         </div>
 
@@ -575,7 +575,7 @@ function TermForm({
         <div className="flex items-center gap-1">
           {isEdit && onDelete && (
             <button type="button" className="btn btn-ghost btn-xs text-error" onClick={onDelete}>
-              <FaTrash size={10} />
+              <Trash size={10} />
             </button>
           )}
           <button type="button" className="btn btn-ghost btn-xs" onClick={onCancel}>Cancel</button>
@@ -690,13 +690,13 @@ function RotationDaysSection({ orgSettings, orgId }) {
                         className="btn btn-ghost btn-xs btn-circle"
                         onClick={() => removeDayName(idx)}
                       >
-                        <FaTimes size={10} />
+                        <X size={10} />
                       </button>
                     )}
                   </div>
                 ))}
                 <button type="button" className="btn btn-ghost btn-xs gap-1" onClick={addDayName}>
-                  <FaPlus size={10} /> Add
+                  <Plus size={10} /> Add
                 </button>
               </div>
               <p className="text-xs text-base-content/40 mt-2">

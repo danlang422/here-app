@@ -1,5 +1,4 @@
 import { CalendarDayColumn } from './CalendarDayColumn'
-import AgendaBlockOverlay from '@/components/agenda/AgendaBlockOverlay'
 import { formatDateISO } from '@/lib/scheduleUtils'
 import {
   minutesToPx,
@@ -24,8 +23,6 @@ export function CalendarWeekGrid({
   enrollmentCountByActivity,
   gridStartMinutes,
   gridEndMinutes,
-  blockDefinitions,
-  blockLabels,
   onEmptyClick,
   onActivityClick,
   onAggregateClick,
@@ -111,13 +108,6 @@ export function CalendarWeekGrid({
               />
             )
           })}
-
-          {/* Block overlay (z-index 0) */}
-          <AgendaBlockOverlay
-            blockDefinitions={blockDefinitions ?? []}
-            gridStartMinutes={gridStartMinutes}
-            blockLabels={blockLabels}
-          />
 
           {/* Day columns */}
           {weekDates.map((date, idx) => {

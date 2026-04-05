@@ -218,8 +218,6 @@ export function CalendarView() {
           enrollmentCountByActivity={enrollmentCountByActivity}
           gridStartMinutes={gridStartMinutes}
           gridEndMinutes={gridEndMinutes}
-          blockDefinitions={template?.block_definitions}
-          blockLabels={orgSettings?.block_labels}
           onEmptyClick={handleEmptyClick}
           onActivityClick={handleActivityClick}
           onAggregateClick={handleAggregateClick}
