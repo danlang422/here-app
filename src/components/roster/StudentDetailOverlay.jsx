@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { HandWaving, CheckCircle, SignOut, Prohibit, Flame } from '@phosphor-icons/react'
 import { useStudentInstanceDetail } from '@/hooks/useStudentInstanceDetail'
 import { getBlockLabel } from '@/lib/constants'
@@ -23,6 +24,18 @@ function StudentDetailOverlay({
     activity,
     orgId
   )
+
+  useEffect(() => {
+    if (!isOpen) return
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation()
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
 
   if (!isOpen || !student) return null
 

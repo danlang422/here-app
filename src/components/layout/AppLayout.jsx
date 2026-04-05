@@ -40,16 +40,13 @@ function AppLayout({ children }) {
 
   const displayName = getDisplayName(profile)
   const initials = getInitials(profile)
-  const CurrentRoleIcon = roleIcons[currentRole] || Backpack
 
   return (
     <div className="min-h-screen bg-base-200">
       {/* Navbar */}
       <div className="navbar bg-base-100 shadow-lg">
         <div className="flex-1">
-          <Link to="/dashboard" className="btn btn-ghost text-xl">
-            Here
-          </Link>
+          <Link to="/dashboard" className="here-wordmark">Here</Link>
         </div>
 
         <div className="flex-none gap-2">
@@ -58,36 +55,42 @@ function AppLayout({ children }) {
             <Question size={20} />
           </Link>
 
-          {/* Role switcher — only show if user has multiple roles */}
+          {/* Role switcher — inline pills when multiple roles */}
           {availableRoles.length > 1 && (
-            <div className="dropdown dropdown-end">
-              <label tabIndex={0} className="btn btn-ghost gap-2">
-                <CurrentRoleIcon size={16} />
-                <span>{roleLabels[currentRole] || 'Menu'}</span>
-              </label>
-              <ul tabIndex={0} className="mt-3 p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 z-50">
-                {availableRoles.map(role => {
-                  const Icon = roleIcons[role]
-                  return (
-                    <li key={role}>
-                      <button
-                        onClick={() => handleRoleSwitch(role)}
-                        className={role === currentRole ? 'active' : ''}
-                      >
-                        <Icon size={16} /> {roleLabels[role]} View
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
+            <div className="flex items-center gap-1 bg-base-200 rounded-xl p-1">
+              {availableRoles.map(role => {
+                const Icon = roleIcons[role]
+                const isActive = role === currentRole
+                return (
+                  <button
+                    key={role}
+                    onClick={() => handleRoleSwitch(role)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                      isActive
+                        ? 'bg-base-100 text-base-content shadow-sm'
+                        : 'text-base-content/50 hover:text-base-content/80'
+                    }`}
+                  >
+                    <Icon size={14} />
+                    {roleLabels[role]}
+                  </button>
+                )
+              })}
             </div>
           )}
 
           {/* User menu */}
           <div className="dropdown dropdown-end">
-            <label tabIndex={0} className="btn btn-ghost btn-circle avatar placeholder">
-              <div className="w-10 rounded-full bg-neutral text-neutral-content flex items-center justify-center">
-                <span className="text-sm font-medium">{initials}</span>
+            <label tabIndex={0} className="btn btn-ghost btn-square avatar placeholder">
+              <div
+                className="w-10 rounded-xl flex items-center justify-center text-white"
+                style={{
+                  background: 'linear-gradient(135deg, oklch(62.31% 0.1881 259.82), oklch(60.56% 0.219 292.72))',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                {initials}
               </div>
             </label>
             <ul tabIndex={0} className="mt-3 p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 z-50">

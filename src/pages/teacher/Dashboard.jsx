@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
+import { CaretLeft, CaretRight, CalendarBlank } from '@phosphor-icons/react'
 import useAuthStore from '@/store/authStore'
 import { useTeacherAgenda } from '@/hooks/useTeacherAgenda'
 import { useTeacherActionSummary } from '@/hooks/useTeacherActionSummary'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
-import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
 import { ensureActivityInstances } from '@/api/agenda'
 import { formatDateISO, addDays, subDays, isSameDay } from '@/lib/scheduleUtils'
 import SingleDayAgenda from '@/components/agenda/SingleDayAgenda'
@@ -28,7 +28,6 @@ function Dashboard() {
   const { activities, allActivities, enrollmentCounts, schoolDay, isLoading, error } =
     useTeacherAgenda(teacherId, date, orgId)
   const { data: orgSettings } = useOrgSettings(orgId)
-  const { data: template } = useDefaultScheduleTemplate(orgId)
 
   // Action summary for wave counts on cards and icons in roster
   const allActivityIds = useMemo(
@@ -61,14 +60,6 @@ function Dashboard() {
       ? schoolDay.rotation_day + ' Day'
       : null
 
-  // Block overlay data
-  const blockDefinitions = useMemo(
-    () =>
-      (template?.block_definitions ?? []).filter(
-        (d) => d.start_time && d.end_time
-      ),
-    [template]
-  )
   const blockLabels = orgSettings?.block_labels ?? []
 
   // Block grouping with simplified two-tier density
@@ -197,21 +188,29 @@ function Dashboard() {
     <div className="max-w-2xl mx-auto">
       {/* Date navigation header */}
       <div className="flex items-center justify-between mb-4">
-        <button className="btn btn-ghost btn-sm" onClick={goToPrev}>
-          &#8249;
+        <button
+          className="btn btn-ghost btn-circle btn-sm"
+          onClick={goToPrev}
+          aria-label="Previous day"
+        >
+          <CaretLeft size={16} />
         </button>
         <div className="text-center">
-          <h1 className="text-lg font-semibold">
+          <h1 className="text-lg font-semibold flex items-center gap-2 justify-center">
             {fullDateLabel}
             {rotationLabel && (
-              <span className="text-base-content/60 font-normal">
-                {' \u2014 '}{rotationLabel}
+              <span className="badge badge-sm bg-base-200 border-base-300 text-base-content/60 font-normal">
+                {rotationLabel}
               </span>
             )}
           </h1>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={goToNext}>
-          &#8250;
+        <button
+          className="btn btn-ghost btn-circle btn-sm"
+          onClick={goToNext}
+          aria-label="Next day"
+        >
+          <CaretRight size={16} />
         </button>
       </div>
 
@@ -219,7 +218,7 @@ function Dashboard() {
       {!isToday && (
         <div className="text-center mb-3">
           <button
-            className="btn btn-ghost btn-xs text-primary"
+            className="text-xs text-primary hover:underline"
             onClick={() => setDate(new Date())}
           >
             Back to today
@@ -240,8 +239,6 @@ function Dashboard() {
           activities={displayItems}
           gridStartMinutes={gridStartMinutes}
           gridEndMinutes={gridEndMinutes}
-          blockDefinitions={blockDefinitions}
-          blockLabels={blockLabels}
           renderCard={renderCard}
         />
       )}
@@ -250,8 +247,9 @@ function Dashboard() {
       {!isLoading && displayItems.length === 0 && (
         <div className="card bg-base-100 shadow-sm border border-base-300">
           <div className="card-body items-center text-center py-16">
+            <CalendarBlank size={40} weight="thin" className="text-base-content/30 mb-2" />
             <p className="text-base-content/50">
-              No activities scheduled for this date.
+              {isToday ? "Nothing scheduled for today. Clear day!" : "No activities scheduled for this date."}
             </p>
           </div>
         </div>

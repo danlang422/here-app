@@ -1,4 +1,3 @@
-import AgendaBlockOverlay from './AgendaBlockOverlay'
 import {
   minutesToPx,
   activityTop,
@@ -11,8 +10,6 @@ function SingleDayAgenda({
   activities,
   gridStartMinutes,
   gridEndMinutes,
-  blockDefinitions,
-  blockLabels,
   renderCard,
 }) {
   const totalMinutes = gridEndMinutes - gridStartMinutes
@@ -63,13 +60,6 @@ function SingleDayAgenda({
             />
           )
         })}
-
-        {/* Block overlay bands */}
-        <AgendaBlockOverlay
-          blockDefinitions={blockDefinitions}
-          gridStartMinutes={gridStartMinutes}
-          blockLabels={blockLabels}
-        />
 
         {/* Positioned activity cards */}
         {activities.map((activity, idx) => (
