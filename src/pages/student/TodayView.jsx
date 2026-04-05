@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { HandWaving, CheckCircle, NotePencil, SignOut } from '@phosphor-icons/react'
+import { HandWaving, CheckCircle, NotePencil, SignOut, CaretLeft, CaretRight, CalendarBlank } from '@phosphor-icons/react'
 import useAuthStore from '@/store/authStore'
 import { useToastStore } from '@/store/toastStore'
 import { useStudentAgenda } from '@/hooks/useStudentAgenda'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
-import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
 import { useStudentActions } from '@/hooks/useStudentActions'
 import { useStreakData } from '@/hooks/useStreakData'
 import { formatDateISO, addDays, subDays, isSameDay } from '@/lib/scheduleUtils'
@@ -43,7 +42,6 @@ function TodayView() {
   const { activities, allActivities, schoolDay, isLoading, error } =
     useStudentAgenda(studentId, date, orgId)
   const { data: orgSettings } = useOrgSettings(orgId)
-  const { data: template } = useDefaultScheduleTemplate(orgId)
   const { data: actionData } = useStudentActions(studentId, activities, date, orgId)
   const { data: streakData } = useStreakData(studentId, allActivities ?? [], orgId)
 
@@ -72,14 +70,6 @@ function TodayView() {
       ? schoolDay.rotation_day + ' Day'
       : null
 
-  // Block overlay data
-  const blockDefinitions = useMemo(
-    () =>
-      (template?.block_definitions ?? []).filter(
-        (d) => d.start_time && d.end_time
-      ),
-    [template]
-  )
   const blockLabels = orgSettings?.block_labels ?? []
 
   // Grid bounds
@@ -111,6 +101,8 @@ function TodayView() {
         month: 'short',
         day: 'numeric',
       })
+
+  const greeting = getGreeting()
 
   // --- Modal state ---
   const [statusModal, setStatusModal] = useState(null)
@@ -353,6 +345,7 @@ function TodayView() {
         statusCount={actionData?.statusCounts?.get(activity.id) ?? 0}
         hasInstance={actionData?.instances?.has(activity.id) ?? false}
         streak={streakData?.get(activity.id) ?? 0}
+        calendarColor={activity.calendar?.color}
         onWave={handleWave}
         onStatusUpdate={handleStatusUpdate}
         onCheckIn={handleCheckIn}
@@ -373,21 +366,32 @@ function TodayView() {
     <div className="max-w-2xl mx-auto">
       {/* Date navigation header */}
       <div className="flex items-center justify-between mb-4">
-        <button className="btn btn-ghost btn-sm" onClick={goToPrev}>
-          &#8249;
+        <button
+          className="btn btn-ghost btn-circle btn-sm"
+          onClick={goToPrev}
+          aria-label="Previous day"
+        >
+          <CaretLeft size={16} />
         </button>
         <div className="text-center">
-          <h1 className="text-lg font-semibold">
+          {isToday && (
+            <p className="text-xs text-base-content/50 mb-0.5">{greeting}</p>
+          )}
+          <h1 className="text-lg font-semibold flex items-center gap-2 justify-center">
             {fullDateLabel}
             {rotationLabel && (
-              <span className="text-base-content/60 font-normal">
-                {' \u2014 '}{rotationLabel}
+              <span className="badge badge-sm bg-base-200 border-base-300 text-base-content/60 font-normal">
+                {rotationLabel}
               </span>
             )}
           </h1>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={goToNext}>
-          &#8250;
+        <button
+          className="btn btn-ghost btn-circle btn-sm"
+          onClick={goToNext}
+          aria-label="Next day"
+        >
+          <CaretRight size={16} />
         </button>
       </div>
 
@@ -395,7 +399,7 @@ function TodayView() {
       {!isToday && (
         <div className="text-center mb-3">
           <button
-            className="btn btn-ghost btn-xs text-primary"
+            className="text-xs text-primary hover:underline"
             onClick={() => setDate(new Date())}
           >
             Back to today
@@ -416,8 +420,6 @@ function TodayView() {
           activities={activities}
           gridStartMinutes={gridStartMinutes}
           gridEndMinutes={gridEndMinutes}
-          blockDefinitions={blockDefinitions}
-          blockLabels={blockLabels}
           renderCard={renderCard}
         />
       )}
@@ -426,8 +428,9 @@ function TodayView() {
       {!isLoading && activities.length === 0 && (
         <div className="card bg-base-100 shadow-sm border border-base-300">
           <div className="card-body items-center text-center py-16">
+            <CalendarBlank size={40} weight="thin" className="text-base-content/30 mb-2" />
             <p className="text-base-content/50">
-              No classes scheduled for this date.
+              {isToday ? "Nothing on your schedule today. Enjoy the break!" : "No classes scheduled for this date."}
             </p>
           </div>
         </div>
@@ -455,6 +458,13 @@ function TodayView() {
       />
     </div>
   )
+}
+
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
 }
 
 // Resolve staff display name: instructor_name > teacher last name > null

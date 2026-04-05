@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Stack, HandWaving, CheckCircle, SignOut, Prohibit, NotePencil } from '@phosphor-icons/react'
 import { useRoster } from '@/hooks/useRoster'
@@ -32,6 +32,14 @@ function RosterModal({
   const [saving, setSaving] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState(null)
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && !selectedStudent) onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose, selectedStudent])
 
   const getStudentStatus = useCallback(
     (studentId) => {

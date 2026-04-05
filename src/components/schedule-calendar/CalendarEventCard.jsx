@@ -26,12 +26,13 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
   }
 
   const borderColor = activity.calendar?.color ?? '#94a3b8'
+  const bgTint = activity.calendar?.color ? `${activity.calendar.color}0D` : undefined
 
   if (mode === 'few') {
     return (
       <div
-        className={`absolute inset-0 rounded-lg border-l-4 bg-base-100 overflow-hidden cursor-pointer transition-all duration-150 hover:-translate-y-px hover:shadow-md ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
-        style={{ borderLeftColor: borderColor }}
+        className={`absolute inset-0 rounded-lg border-l-4 overflow-hidden cursor-pointer transition-all duration-150 hover:-translate-y-px hover:shadow-md ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
+        style={{ borderLeftColor: borderColor, backgroundColor: bgTint ?? 'oklch(var(--color-base-100))' }}
         onClick={() => onClick(activity)}
       >
         <div className="flex flex-col gap-0.5 h-full p-1.5 overflow-hidden">
@@ -47,8 +48,8 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
   // single mode
   return (
     <div
-      className={`absolute inset-0 rounded-lg border-l-4 bg-base-100 overflow-hidden cursor-pointer transition-all duration-150 hover:-translate-y-px hover:shadow-md ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
-      style={{ borderLeftColor: borderColor }}
+      className={`absolute inset-0 rounded-lg border-l-4 overflow-hidden cursor-pointer transition-all duration-150 hover:-translate-y-px hover:shadow-md ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
+      style={{ borderLeftColor: borderColor, backgroundColor: bgTint ?? 'oklch(var(--color-base-100))' }}
       onClick={() => onClick(activity)}
     >
       <div className="flex flex-col gap-0.5 h-full p-1.5 overflow-hidden">
