@@ -1,26 +1,26 @@
 import { useState } from 'react'
 import {
-  FaClipboardList,
-  FaClock,
-  FaHandPaper,
-  FaTags,
-  FaMapMarkerAlt,
-  FaDoorOpen,
-  FaCalendarTimes,
-} from 'react-icons/fa'
+  ClipboardText,
+  CheckCircle,
+  HandWaving,
+  ListChecks,
+  MapPin,
+  DoorOpen,
+  CalendarX,
+} from '@phosphor-icons/react'
 import { getBlocks, getBlockLabel } from '@/lib/constants'
 import { useBulkEditActivities } from '@/hooks/useBulkEditActivities'
 import { useCalendars } from '@/hooks/useCalendars'
 
 // Mirrors BEHAVIOR_FLAGS in ActivityDetail.jsx
 const BEHAVIOR_FLAGS = [
-  { field: 'requires_attendance',  icon: FaClipboardList, label: 'Requires attendance' },
-  { field: 'requires_checkin',     icon: FaClock,         label: 'Requires check-in' },
-  { field: 'allows_presence_wave', icon: FaHandPaper,     label: 'Allows presence wave' },
-  { field: 'allows_freeform',      icon: FaTags,          label: 'Allows freeform tagging' },
-  { field: 'requires_geofence',    icon: FaMapMarkerAlt,  label: 'Requires geofence' },
-  { field: 'is_release',           icon: FaDoorOpen,      label: 'Release (no attendance)' },
-  { field: 'is_not_scheduled',     icon: FaCalendarTimes, label: 'Not scheduled' },
+  { field: 'requires_attendance',  icon: ClipboardText, label: 'Requires attendance' },
+  { field: 'requires_checkin',     icon: CheckCircle,   label: 'Requires check-in' },
+  { field: 'allows_presence_wave', icon: HandWaving,    label: 'Allows presence wave' },
+  { field: 'allows_freeform',      icon: ListChecks,    label: 'Allows freeform tagging' },
+  { field: 'requires_geofence',    icon: MapPin,        label: 'Requires geofence' },
+  { field: 'is_release',           icon: DoorOpen,      label: 'Release (no attendance)' },
+  { field: 'is_not_scheduled',     icon: CalendarX,     label: 'Not scheduled' },
 ]
 
 /**

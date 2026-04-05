@@ -1,5 +1,4 @@
-import { FaLayerGroup } from 'react-icons/fa6'
-import { PiHandWaving } from 'react-icons/pi'
+import { Stack, HandWaving } from '@phosphor-icons/react'
 import { getBlockLabel } from '@/lib/constants'
 
 function TeacherActivityCard({ item, blockLabels, waveCount = 0, onClick }) {
@@ -48,7 +47,7 @@ function SingleCard({ item, blockLabels, waveCount, onClick }) {
           <span>{count}</span>
           {waveCount > 0 && (
             <span className="ml-1.5 inline-flex items-center gap-0.5">
-              <PiHandWaving size={14} className="inline" />
+              <HandWaving size={14} />
               <span>{waveCount}</span>
             </span>
           )}
@@ -73,7 +72,7 @@ function AggregateCard({ item, blockLabels, waveCount, onClick }) {
     >
       <div className="p-3 flex flex-col gap-0.5">
         <div className="font-medium flex items-center gap-1.5">
-          <FaLayerGroup size={14} />
+          <Stack size={14} />
           <span className="truncate">{blockLabel}</span>
         </div>
         <div className="text-sm text-base-content/60 truncate">
@@ -82,7 +81,7 @@ function AggregateCard({ item, blockLabels, waveCount, onClick }) {
           <span> &middot; {item.totalEnrollment}</span>
           {waveCount > 0 && (
             <span className="ml-1.5 inline-flex items-center gap-0.5">
-              <PiHandWaving size={14} className="inline" />
+              <HandWaving size={14} />
               <span>{waveCount}</span>
             </span>
           )}

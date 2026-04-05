@@ -1,9 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { FaLayerGroup } from 'react-icons/fa6'
-import { PiHandWaving } from 'react-icons/pi'
-import { IoCheckmarkCircle, IoExitOutline } from 'react-icons/io5'
-import { MdLocationDisabled, MdOutlineAddComment } from 'react-icons/md'
+import { Stack, HandWaving, CheckCircle, SignOut, Prohibit, NotePencil } from '@phosphor-icons/react'
 import { useRoster } from '@/hooks/useRoster'
 import { upsertAttendanceRecord } from '@/api/agenda'
 import { getBlockLabel } from '@/lib/constants'
@@ -246,7 +243,7 @@ function StudentRow({
             className="text-success"
             title={`Waved at ${formatTimestamp(actionData.wave.waved_at)}`}
           >
-            <PiHandWaving size={16} />
+            <HandWaving size={16} />
           </span>
         )}
         {actionData.checkIn && (
@@ -254,7 +251,7 @@ function StudentRow({
         )}
         {actionData.checkIn?.geofence_validated === false && (
           <span className="text-error" title="Location check failed">
-            <MdLocationDisabled size={16} />
+            <Prohibit size={16} />
           </span>
         )}
         {actionData.statusCount > 0 && (
@@ -262,7 +259,7 @@ function StudentRow({
             className="flex items-center gap-0.5 text-base-content/50"
             title={`${actionData.statusCount} status update(s)`}
           >
-            <MdOutlineAddComment size={14} />
+            <NotePencil size={14} />
             <span className="text-xs">({actionData.statusCount})</span>
           </span>
         )}
@@ -302,7 +299,7 @@ function CheckInIcon({ checkIn }) {
         className="text-success"
         title={`Checked in ${formatTimestamp(checkIn.checked_in_at)}, out ${formatTimestamp(checkIn.checked_out_at)}`}
       >
-        <IoExitOutline size={16} />
+        <SignOut size={16} />
       </span>
     )
   }
@@ -311,7 +308,7 @@ function CheckInIcon({ checkIn }) {
       className="text-success"
       title={`Checked in at ${formatTimestamp(checkIn.checked_in_at)}`}
     >
-      <IoCheckmarkCircle size={16} />
+      <CheckCircle weight="fill" size={16} />
     </span>
   )
 }
@@ -352,7 +349,7 @@ function buildHeader(activities, isAggregate, blockLabels) {
     )
 
     return {
-      icon: <FaLayerGroup size={16} />,
+      icon: <Stack size={16} />,
       title: blockLabel,
       subtitle: subtitleParts.join(' \u00b7 '),
       count: `${totalStudents} students`,

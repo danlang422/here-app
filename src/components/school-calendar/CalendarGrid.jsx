@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa'
+import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { useSchoolDays } from '@/hooks/useSchoolDays'
 import { upsertSchoolDay, bulkUpsertSchoolDays, getSchoolDays } from '@/api/schoolDays'
 import { recalculateRotationDays } from '@/lib/business-logic/rotation'
@@ -262,7 +262,7 @@ export default function CalendarGrid({ orgId, orgSettings, terms }) {
           <h3 className="card-title text-lg">School Calendar</h3>
           <div className="flex items-center gap-1">
             <button className="btn btn-ghost btn-xs" onClick={prevMonth}>
-              <FaChevronLeft size={10} />
+              <CaretLeft size={10} />
             </button>
             <button
               className="btn btn-ghost btn-xs font-medium min-w-25"
@@ -272,7 +272,7 @@ export default function CalendarGrid({ orgId, orgSettings, terms }) {
               {getMonthLabel(viewDate.year, viewDate.month)}
             </button>
             <button className="btn btn-ghost btn-xs" onClick={nextMonth}>
-              <FaChevronRight size={10} />
+              <CaretRight size={10} />
             </button>
           </div>
         </div>

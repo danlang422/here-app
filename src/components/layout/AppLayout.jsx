@@ -1,6 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { FaUser, FaChalkboardTeacher, FaCog, FaSignOutAlt } from 'react-icons/fa'
-import { MdHelpOutline } from 'react-icons/md'
+import { Backpack, ChalkboardTeacher, UserGear, SignOut, Question } from '@phosphor-icons/react'
 import { signOut } from '@/api/auth'
 import useAuthStore from '@/store/authStore'
 import { getDisplayName, getInitials } from '@/lib/utils'
@@ -17,9 +16,9 @@ function AppLayout({ children }) {
   }
 
   const roleIcons = {
-    student: FaUser,
-    teacher: FaChalkboardTeacher,
-    admin: FaCog,
+    student: Backpack,
+    teacher: ChalkboardTeacher,
+    admin: UserGear,
   }
 
   const roleLabels = {
@@ -40,7 +39,7 @@ function AppLayout({ children }) {
 
   const displayName = getDisplayName(profile)
   const initials = getInitials(profile)
-  const CurrentRoleIcon = roleIcons[currentRole] || FaUser
+  const CurrentRoleIcon = roleIcons[currentRole] || Backpack
 
   return (
     <div className="min-h-screen bg-base-200">
@@ -55,14 +54,14 @@ function AppLayout({ children }) {
         <div className="flex-none gap-2">
           {/* Help link */}
           <Link to="/help" className="btn btn-ghost btn-circle" aria-label="Help">
-            <MdHelpOutline className="w-5 h-5" />
+            <Question size={20} />
           </Link>
 
           {/* Role switcher — only show if user has multiple roles */}
           {availableRoles.length > 1 && (
             <div className="dropdown dropdown-end">
               <label tabIndex={0} className="btn btn-ghost gap-2">
-                <CurrentRoleIcon className="w-4 h-4" />
+                <CurrentRoleIcon size={16} />
                 <span>{roleLabels[currentRole] || 'Menu'}</span>
               </label>
               <ul tabIndex={0} className="mt-3 p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 z-50">
@@ -74,7 +73,7 @@ function AppLayout({ children }) {
                         onClick={() => handleRoleSwitch(role)}
                         className={role === currentRole ? 'active' : ''}
                       >
-                        <Icon className="w-4 h-4" /> {roleLabels[role]} View
+                        <Icon size={16} /> {roleLabels[role]} View
                       </button>
                     </li>
                   )
@@ -99,7 +98,7 @@ function AppLayout({ children }) {
               </li>
               <li>
                 <button onClick={handleLogout}>
-                  <FaSignOutAlt className="w-4 h-4" /> Logout
+                  <SignOut size={16} /> Logout
                 </button>
               </li>
             </ul>

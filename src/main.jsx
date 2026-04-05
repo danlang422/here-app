@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import AuthProvider from '@/components/layout/AuthProvider'
+import '@fontsource-variable/outfit'
+import '@fontsource-variable/plus-jakarta-sans'
 import './index.css'
 import App from './App.jsx'
 
