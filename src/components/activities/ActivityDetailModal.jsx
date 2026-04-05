@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { FaTimes } from 'react-icons/fa'
+import { X } from '@phosphor-icons/react'
 import ActivityDetail from './ActivityDetail'
 
 /**
@@ -55,7 +55,7 @@ export default function ActivityDetailModal({
           onClick={onClose}
           title="Close"
         >
-          <FaTimes size={12} />
+          <X size={12} />
         </button>
 
         <ActivityDetail

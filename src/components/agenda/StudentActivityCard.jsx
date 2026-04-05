@@ -1,10 +1,11 @@
-import { GiFlame } from 'react-icons/gi'
+import { Flame } from '@phosphor-icons/react'
 import ActionButton from '@/components/student/ActionButton'
 import {
   getCheckinButtonState,
   getWaveButtonState,
   getStatusButtonState,
 } from '@/lib/actionAvailability'
+import { formatTimeRange } from './agendaUtils'
 
 function StudentActivityCard({
   activity,
@@ -20,6 +21,7 @@ function StudentActivityCard({
   onStatusUpdate,
   onCheckIn,
   onCheckOut,
+  calendarColor,
 }) {
   // Build the block · location · staff line
   const metaParts = [blockLabel, activity.location, staffDisplayName].filter(Boolean)
@@ -56,7 +58,10 @@ function StudentActivityCard({
   const buttonCount = (hasPrimary ? 1 : 0) + (hasSecondary ? 1 : 0)
 
   return (
-    <div className="bg-base-100 border border-base-300 rounded-lg shadow-sm overflow-visible h-full relative">
+    <div
+      className="bg-base-100 border border-base-300 border-l-4 rounded-2xl shadow-sm overflow-visible h-full relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
+      style={calendarColor ? { borderLeftColor: calendarColor } : undefined}
+    >
       {/* Content area */}
       <div className="p-3 pr-7 flex flex-col gap-0.5 h-full">
         {/* Row 1: title (left) + time (right) */}
@@ -67,25 +72,16 @@ function StudentActivityCard({
           </span>
         </div>
 
-        {/* Row 2: block · location · staff */}
-        {metaLine && (
-          <div className="text-sm text-base-content/60 truncate">{metaLine}</div>
-        )}
-
-        {/* Streak indicator (bottom-right, conditional) */}
-        {streak > 0 && (
-          <div className="mt-auto flex justify-end pr-1">
-            <span
-              className={`inline-flex items-center gap-0.5 text-sm ${
-                streak >= 5 ? 'text-base-content/70' : 'text-base-content/50'
-              }`}
-            >
-              <GiFlame
-                size={14}
-                className={streak >= 5 ? 'text-amber-500' : ''}
-              />
-              {streak}
-            </span>
+        {/* Row 2: block · location · staff [· 🔥 streak] */}
+        {(metaLine || streak > 0) && (
+          <div className="flex items-center gap-1 text-sm text-base-content/60">
+            {metaLine && <span className="truncate">{metaLine}</span>}
+            {streak > 0 && (
+              <span className={`inline-flex items-center gap-0.5 shrink-0 ${streak >= 5 ? 'text-amber-500' : 'text-base-content/40'}`}>
+                <Flame weight="fill" size={13} />
+                <span className="text-xs">{streak}</span>
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -95,7 +91,7 @@ function StudentActivityCard({
         <div
           className="absolute flex flex-col gap-1.5 items-center"
           style={{
-            right: '-14px',
+            right: '-18px',
             top: '50%',
             transform: 'translateY(-50%)',
           }}
@@ -119,19 +115,6 @@ function StudentActivityCard({
       )}
     </div>
   )
-}
-
-// Format "HH:MM" times into "7:30a – 9:00a" display format
-function formatTimeRange(startTime, endTime) {
-  if (!startTime || !endTime) return null
-  return `${formatTime(startTime)} – ${formatTime(endTime)}`
-}
-
-function formatTime(timeStr) {
-  const [h, m] = timeStr.split(':').map(Number)
-  const suffix = h >= 12 ? 'p' : 'a'
-  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return m === 0 ? `${hour12}${suffix}` : `${hour12}:${String(m).padStart(2, '0')}${suffix}`
 }
 
 export default StudentActivityCard

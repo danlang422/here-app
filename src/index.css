@@ -1,9 +1,109 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: 'Outfit Variable', sans-serif;
+  --font-sans: 'Plus Jakarta Sans Variable', sans-serif;
+}
+
 @plugin "daisyui";
 /* Multiline DaisyUI tooltips */
 .tooltip::before {
   white-space: pre-line;
   text-align: left;
+}
+
+/* ── Agenda card entrance ───────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Action button animations ───────────────────────────────── */
+@keyframes wave-hand {
+  0%   { transform: rotate(0deg); }
+  15%  { transform: rotate(14deg); }
+  30%  { transform: rotate(-8deg); }
+  45%  { transform: rotate(14deg); }
+  60%  { transform: rotate(-4deg); }
+  75%  { transform: rotate(10deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes check-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.15); }
+  70%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* Pulse ring — uses ::after pseudo-element for GPU compositing */
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+/* ── Toast entrance/exit ─────────────────────────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(8px); }
+}
+
+/* ── "Here" wordmark ────────────────────────────────────────── */
+.here-wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  color: oklch(var(--color-primary));
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.3s ease;
+}
+
+.here-wordmark:hover {
+  background-image: linear-gradient(
+    90deg,
+    oklch(var(--color-primary)),
+    oklch(var(--color-secondary)),
+    oklch(var(--color-accent)),
+    oklch(var(--color-warning)),
+    oklch(var(--color-primary))
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% center; }
+  to   { background-position: -200% center; }
+}
+
+/* ── Global button press feedback ───────────────────────────── */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* ── Pulse ring on available action buttons ──────────────────── */
+.pulse-available {
+  position: relative;
+}
+.pulse-available::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: pulse-ring 1.8s ease-out infinite;
 }
 
 @plugin "daisyui/theme" {
@@ -14,7 +114,9 @@
   --color-secondary: oklch(60.56% 0.2190 292.72);
   --color-accent: oklch(69.59% 0.1491 162.51);
   --color-neutral: oklch(27.81% 0.0296 256.86);
-  --color-base-100: oklch(100.00% 0.0001 263.28);
+  --color-base-100: oklch(99.2% 0.005 90);
+  --color-base-200: oklch(96.5% 0.008 85);
+  --color-base-300: oklch(91% 0.01 80);
   --color-info: oklch(68.47% 0.1479 237.34);
   --color-success: oklch(72.27% 0.1920 149.60);
   --color-warning: oklch(76.86% 0.1646 70.08);

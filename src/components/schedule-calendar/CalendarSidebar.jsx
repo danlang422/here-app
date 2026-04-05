@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { FaChevronLeft, FaChevronRight, FaTimes } from 'react-icons/fa'
+import { CaretLeft, CaretRight, X } from '@phosphor-icons/react'
 import { useCalendarUiStore } from '@/store/calendarUiStore'
 import {
   useCreateCalendar,
@@ -119,7 +119,7 @@ function CalendarModal({ mode, calendar, staffUsers, orgId, onClose }) {
           className="btn btn-sm btn-circle absolute right-3 top-3"
           onClick={onClose}
         >
-          <FaTimes size={12} />
+          <X size={12} />
         </button>
 
         <h3 className="font-semibold text-base mb-4">
@@ -235,7 +235,7 @@ export function CalendarSidebar({ calendars, staffUsers, orgId }) {
           onClick={toggleSidebarMinimized}
           title="Expand sidebar"
         >
-          <FaChevronRight size={10} />
+          <CaretRight size={10} />
         </button>
         {calendars.map((cal) => (
           <button
@@ -264,7 +264,7 @@ export function CalendarSidebar({ calendars, staffUsers, orgId }) {
             onClick={toggleSidebarMinimized}
             title="Minimize sidebar"
           >
-            <FaChevronLeft size={10} />
+            <CaretLeft size={10} />
           </button>
           <span className="text-sm font-semibold flex-1">Calendars</span>
         </div>

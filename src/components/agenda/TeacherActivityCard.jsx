@@ -1,6 +1,6 @@
-import { FaLayerGroup } from 'react-icons/fa6'
-import { PiHandWaving } from 'react-icons/pi'
+import { Stack, HandWaving } from '@phosphor-icons/react'
 import { getBlockLabel } from '@/lib/constants'
+import { formatTimeRange } from './agendaUtils'
 
 function TeacherActivityCard({ item, blockLabels, waveCount = 0, onClick }) {
   if (item.isAggregate) {
@@ -25,20 +25,17 @@ function TeacherActivityCard({ item, blockLabels, waveCount = 0, onClick }) {
 }
 
 function SingleCard({ item, blockLabels, waveCount, onClick }) {
-  const timeRange = formatTimeRange(
-    item.default_start_time,
-    item.default_end_time
-  )
-  const blockLabel =
-    item.block != null ? getBlockLabel(item.block, blockLabels) : null
+  const timeRange = formatTimeRange(item.default_start_time, item.default_end_time)
+  const blockLabel = item.block != null ? getBlockLabel(item.block, blockLabels) : null
   const metaParts = [timeRange, blockLabel, item.location].filter(Boolean)
   const metaLine = metaParts.join(' \u00b7 ')
-
   const count = item.enrollmentCount ?? 0
+  const calendarColor = item.calendar?.color
 
   return (
     <div
-      className="bg-base-100 border border-base-300 rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow h-full"
+      className="bg-base-100 border border-base-300 border-l-4 rounded-2xl shadow-sm overflow-visible cursor-pointer h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
+      style={calendarColor ? { borderLeftColor: calendarColor } : undefined}
       onClick={onClick}
     >
       <div className="p-3 flex flex-col gap-0.5">
@@ -47,8 +44,8 @@ function SingleCard({ item, blockLabels, waveCount, onClick }) {
           {metaLine && <>{metaLine} &middot; </>}
           <span>{count}</span>
           {waveCount > 0 && (
-            <span className="ml-1.5 inline-flex items-center gap-0.5">
-              <PiHandWaving size={14} className="inline" />
+            <span className="ml-1.5 inline-flex items-center gap-0.5 animate-bounce">
+              <HandWaving size={14} />
               <span>{waveCount}</span>
             </span>
           )}
@@ -59,21 +56,17 @@ function SingleCard({ item, blockLabels, waveCount, onClick }) {
 }
 
 function AggregateCard({ item, blockLabels, waveCount, onClick }) {
-  const timeRange = formatTimeRange(
-    item.default_start_time,
-    item.default_end_time
-  )
-  const blockLabel =
-    item.block != null ? getBlockLabel(item.block, blockLabels) : 'Unassigned'
+  const timeRange = formatTimeRange(item.default_start_time, item.default_end_time)
+  const blockLabel = item.block != null ? getBlockLabel(item.block, blockLabels) : 'Unassigned'
 
   return (
     <div
-      className="bg-base-200 border border-base-300 rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow h-full"
+      className="bg-base-200 border border-base-300 rounded-2xl shadow-sm overflow-visible cursor-pointer h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
       onClick={onClick}
     >
       <div className="p-3 flex flex-col gap-0.5">
         <div className="font-medium flex items-center gap-1.5">
-          <FaLayerGroup size={14} />
+          <Stack size={14} />
           <span className="truncate">{blockLabel}</span>
         </div>
         <div className="text-sm text-base-content/60 truncate">
@@ -81,8 +74,8 @@ function AggregateCard({ item, blockLabels, waveCount, onClick }) {
           <span>{item.activityCount} activities</span>
           <span> &middot; {item.totalEnrollment}</span>
           {waveCount > 0 && (
-            <span className="ml-1.5 inline-flex items-center gap-0.5">
-              <PiHandWaving size={14} className="inline" />
+            <span className="ml-1.5 inline-flex items-center gap-0.5 animate-bounce">
+              <HandWaving size={14} />
               <span>{waveCount}</span>
             </span>
           )}
@@ -90,20 +83,6 @@ function AggregateCard({ item, blockLabels, waveCount, onClick }) {
       </div>
     </div>
   )
-}
-
-function formatTimeRange(startTime, endTime) {
-  if (!startTime || !endTime) return null
-  return `${formatTime(startTime)} \u2013 ${formatTime(endTime)}`
-}
-
-function formatTime(timeStr) {
-  const [h, m] = timeStr.split(':').map(Number)
-  const suffix = h >= 12 ? 'p' : 'a'
-  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return m === 0
-    ? `${hour12}${suffix}`
-    : `${hour12}:${String(m).padStart(2, '0')}${suffix}`
 }
 
 export default TeacherActivityCard

@@ -1,13 +1,13 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { FaCalendarAlt, FaTasks, FaUsers, FaChartBar, FaTachometerAlt, FaCog } from 'react-icons/fa'
+import { SquaresFour, CalendarBlank, CardsThree, Users, ChartBar, Gear } from '@phosphor-icons/react'
 
 const adminNav = [
-  { to: '/admin', icon: FaTachometerAlt, label: 'Dashboard', end: true },
-  { to: '/admin/calendar', icon: FaCalendarAlt, label: 'Calendar' },
-  { to: '/admin/activities', icon: FaTasks, label: 'Activities' },
-  { to: '/admin/users', icon: FaUsers, label: 'Users' },
-  { to: '/admin/reports', icon: FaChartBar, label: 'Reports' },
-  { to: '/admin/settings', icon: FaCog, label: 'Settings' },
+  { to: '/admin', icon: SquaresFour, label: 'Dashboard', end: true },
+  { to: '/admin/calendar', icon: CalendarBlank, label: 'Calendar' },
+  { to: '/admin/activities', icon: CardsThree, label: 'Activities' },
+  { to: '/admin/users', icon: Users, label: 'Users' },
+  { to: '/admin/reports', icon: ChartBar, label: 'Reports' },
+  { to: '/admin/settings', icon: Gear, label: 'Settings' },
 ]
 
 function AdminLayout() {
@@ -21,10 +21,10 @@ function AdminLayout() {
             to={to}
             end={end}
             className={({ isActive }) =>
-              `tab gap-2 ${isActive ? 'tab-active' : ''}`
+              `tab gap-1.5 text-[13px] font-medium ${isActive ? 'tab-active' : 'text-base-content/60 hover:text-base-content'}`
             }
           >
-            <Icon className="w-4 h-4" />
+            <Icon size={15} />
             {label}
           </NavLink>
         ))}

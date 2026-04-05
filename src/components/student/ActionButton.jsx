@@ -1,68 +1,65 @@
-import { PiHandWaving } from 'react-icons/pi'
-import { IoCheckmarkCircle, IoCheckmarkCircleOutline } from 'react-icons/io5'
-import { MdOutlineAddComment } from 'react-icons/md'
-import { IoExitOutline } from 'react-icons/io5'
+import { HandWaving, CheckCircle, NotePencil, SignOut } from '@phosphor-icons/react'
 
+// State → border/text/bg color class sets
 const stateStyles = {
-  inactive: 'border-base-content/20 text-base-content/40',
-  available: 'border-info/85 text-info/85 cursor-pointer hover:border-info hover:text-info',
-  completed: 'border-success/80 text-success/80',
-  'checked-in': 'border-success/80 text-success/80',
-  'checkout-available': 'border-info/85 text-info/85 cursor-pointer hover:border-info hover:text-info',
-  'checked-out': 'border-success/80 text-success/80',
-  'has-updates': 'border-info/85 text-info/85 cursor-pointer hover:border-info hover:text-info',
+  inactive:             'border-base-content/20 text-base-content/30 bg-base-100 cursor-default',
+  available:            'border-info/80 text-info bg-info/8 shadow-[0_2px_6px_rgba(0,0,0,0.08)] cursor-pointer hover:border-info hover:bg-info/12',
+  completed:            'border-success/70 text-success bg-success/8',
+  'checked-in':         'border-success/70 text-success bg-success/8',
+  'checkout-available': 'border-info/80 text-info bg-info/8 shadow-[0_2px_6px_rgba(0,0,0,0.08)] cursor-pointer hover:border-info hover:bg-info/12',
+  'checked-out':        'border-success/70 text-success bg-success/8',
+  'has-updates':        'border-success/70 text-success bg-success/8 cursor-pointer',
 }
 
 const icons = {
   wave: {
-    available: <PiHandWaving size={20} />,
-    completed: <IoCheckmarkCircle size={20} />,
+    inactive:  <HandWaving size={18} />,
+    available: <HandWaving size={18} />,
+    completed: <CheckCircle weight="fill" size={18} />,
   },
   checkin: {
-    available: <IoCheckmarkCircleOutline size={20} />,
-    'checked-in': <IoCheckmarkCircle size={20} />,
-    'checkout-available': <IoExitOutline size={20} />,
-    'checked-out': <IoCheckmarkCircle size={20} />,
+    inactive:             <CheckCircle size={18} />,
+    available:            <CheckCircle size={18} />,
+    'checked-in':         <CheckCircle weight="fill" size={18} />,
+    'checkout-available': <SignOut size={18} />,
+    'checked-out':        <CheckCircle weight="fill" size={18} />,
   },
   status: {
-    available: <MdOutlineAddComment size={20} />,
-    'has-updates': <MdOutlineAddComment size={20} />,
+    inactive:     <NotePencil size={18} />,
+    available:    <NotePencil size={18} />,
+    'has-updates': <NotePencil size={18} />,
   },
 }
 
+// Which states allow clicking
+const CLICKABLE_STATES = new Set(['available', 'checkout-available', 'has-updates'])
+
 function ActionButton({ type, state, onClick, hasUpdates }) {
-  if (state === 'inactive') {
-    // Show the default icon in inactive state
-    const inactiveIcon =
-      type === 'wave' ? <PiHandWaving size={20} /> :
-      type === 'checkin' ? <IoCheckmarkCircleOutline size={20} /> :
-      <MdOutlineAddComment size={20} />
-
-    return (
-      <div
-        className={`w-7 h-7 rounded-full bg-base-100 border-2 flex items-center justify-center z-[15] ${stateStyles.inactive}`}
-      >
-        {inactiveIcon}
-      </div>
-    )
-  }
-
-  const icon = icons[type]?.[state]
+  const icon = icons[type]?.[state] ?? icons[type]?.inactive
   const style = stateStyles[state] ?? stateStyles.inactive
-  const isClickable = ['available', 'checkout-available', 'has-updates'].includes(state)
-    || (type === 'status' && state === 'available')
+  const isClickable = CLICKABLE_STATES.has(state)
+  const isAvailable = state === 'available' || state === 'checkout-available'
+
+  // Animation class: wave gets the hand-wave, checkin/status get the pop
+  const animClass = isAvailable
+    ? (type === 'wave' ? 'active:animate-[wave-hand_0.6s_ease]' : 'active:animate-[check-pop_0.4s_ease]')
+    : ''
 
   return (
     <button
       onClick={isClickable ? onClick : undefined}
       disabled={!isClickable}
-      className={`w-7 h-7 rounded-full bg-base-100 border-2 flex items-center justify-center z-[15] relative ${style} ${
-        !isClickable ? 'cursor-default' : ''
-      }`}
+      className={`
+        relative w-9 h-9 rounded-xl border-2 flex items-center justify-center z-[15]
+        transition-all duration-150
+        ${style}
+        ${animClass}
+        ${isAvailable ? 'pulse-available' : ''}
+      `}
     >
       {icon}
       {type === 'status' && hasUpdates && (
-        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-success" />
+        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-success border border-base-100" />
       )}
     </button>
   )
