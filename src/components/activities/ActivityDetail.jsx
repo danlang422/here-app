@@ -6,10 +6,11 @@ import {
   MapPin, DoorOpen, CalendarX, Student,
   Trash, CheckCircle,
 } from '@phosphor-icons/react'
-import { getBlocks, getBlockLabel, WEEKDAYS } from '@/lib/constants'
+import { getBlocks, getBlockLabel, DAYS_OF_WEEK, WEEKDAYS } from '@/lib/constants'
 import { useStaffUsers, useStudents } from '@/hooks/useUsers'
 import { useActivityTerms, useAddActivityTerm, useRemoveActivityTerm } from '@/hooks/useActivityTerms'
-import { useOrgEnrollments, useBulkEnrollStudents, useBulkUnenrollStudents } from '@/hooks/useEnrollments'
+import { useOrgEnrollments, useBulkEnrollStudents, useBulkUnenrollStudents, useUpdateEnrollment } from '@/hooks/useEnrollments'
+import { cleanOrphanedEnrollmentDays } from '@/api/enrollments'
 import { validateEnrollment } from '@/lib/enrollmentValidation'
 import { formatUserName } from '@/api/users'
 import useAuthStore from '@/store/authStore'
@@ -154,6 +155,9 @@ export default function ActivityDetail({
   const profile = useAuthStore((s) => s.profile)
   const orgId = orgIdProp || profile?.organization_id
   const { data: staffUsers = [] } = useStaffUsers(orgId)
+  const { data: orgEnrollments = [] } = useOrgEnrollments(orgId)
+
+  const [orphanWarning, setOrphanWarning] = useState(null) // { data, removedDays, pendingSave }
 
   const blockCount = orgSettings?.block_count ?? null
   const blockLabels = orgSettings?.block_labels ?? null
@@ -289,7 +293,39 @@ export default function ActivityDetail({
       // For new activities: carry pending terms to the parent for post-create insertion
       ...(!activity ? { _pendingTerms: pendingTerms } : {}),
     }
+
+    // Check for orphaned enrollment days before saving
+    if (activity?.id && activity?.days_of_week) {
+      const newDays = data.days_of_week ?? []
+      const removedDays = activity.days_of_week.filter((d) => !newDays.includes(d))
+      if (removedDays.length > 0) {
+        const affected = orgEnrollments.filter(
+          (e) => e.activity_id === activity.id &&
+            e.days_of_week?.some((d) => removedDays.includes(d))
+        )
+        if (affected.length > 0) {
+          setOrphanWarning({ data, removedDays, affectedCount: affected.length })
+          return
+        }
+      }
+    }
+
     onSave?.(data)
+  }
+
+  async function handleOrphanConfirm() {
+    if (!orphanWarning) return
+    const { data, removedDays } = orphanWarning
+    setOrphanWarning(null)
+    onSave?.(data)
+    // Clean up orphaned enrollment days after activity save
+    if (activity?.id) {
+      try {
+        await cleanOrphanedEnrollmentDays(activity.id, removedDays)
+      } catch (err) {
+        console.error('Failed to clean orphaned enrollment days:', err)
+      }
+    }
   }
 
   return (
@@ -494,8 +530,28 @@ export default function ActivityDetail({
         )}
       </div>
 
+      {/* ── Orphaned enrollment warning ── */}
+      {orphanWarning && (
+        <div className="bg-warning/10 border border-warning/40 rounded-lg p-3 space-y-2">
+          <p className="text-sm font-medium">
+            Removing these days affects {orphanWarning.affectedCount} student enrollment{orphanWarning.affectedCount !== 1 ? 's' : ''}.
+          </p>
+          <p className="text-xs text-base-content/60">
+            Enrollment day schedules will be adjusted to remove the days you&apos;re deleting. Students with no remaining days will be deactivated and need re-enrollment.
+          </p>
+          <div className="flex gap-2 pt-1">
+            <button type="button" className="btn btn-warning btn-sm" onClick={handleOrphanConfirm}>
+              Save and adjust
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOrphanWarning(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Inline enrollment section ── */}
-      <InlineEnrollmentSection key={activity?.id ?? 'new'} activity={activity} orgId={orgId} />
+      <InlineEnrollmentSection key={activity?.id ?? 'new'} activity={activity} orgId={orgId} orgSettings={orgSettings} />
 
       {/* ── Delete — only for existing activities in edit mode ── */}
       {mode === 'edit' && activity?.id && onDelete && (
@@ -863,7 +919,7 @@ function DatesEdit({ register, setValue, getValues, activity, terms, orgId, pend
 
 // ─── Inline enrollment section ─────────────────────────────────────────────────
 
-function InlineEnrollmentSection({ activity, orgId }) {
+function InlineEnrollmentSection({ activity, orgId, orgSettings = {} }) {
   const activityId = activity?.id
   const isNew = !activityId
 
@@ -871,6 +927,7 @@ function InlineEnrollmentSection({ activity, orgId }) {
   const { data: orgEnrollments = [] } = useOrgEnrollments(orgId)
   const enrollMutation = useBulkEnrollStudents()
   const unenrollMutation = useBulkUnenrollStudents()
+  const updateEnrollmentMutation = useUpdateEnrollment()
 
   const [stagedStudentIds, setStagedStudentIds] = useState(new Set())
   const [unstagedEnrollmentIds, setUnstagedEnrollmentIds] = useState(new Set())
@@ -878,6 +935,9 @@ function InlineEnrollmentSection({ activity, orgId }) {
   const [gradeFilter, setGradeFilter] = useState('')
   const [submitPhase, setSubmitPhase] = useState('ready') // 'ready' | 'confirm' | 'done'
   const [submitResult, setSubmitResult] = useState(null)
+  // Per-enrollment schedule editing state
+  const [expandedEnrollmentId, setExpandedEnrollmentId] = useState(null)
+  const [localSchedules, setLocalSchedules] = useState(new Map()) // enrollmentId → draft
 
   // Activity enrollments from org cache
   const activityEnrollments = useMemo(
@@ -904,7 +964,7 @@ function InlineEnrollmentSection({ activity, orgId }) {
       const studentEnrollments = orgEnrollments.filter(
         (e) => e.student_id === student.id && e.activity_id !== activityId
       )
-      const result = validateEnrollment(activity, studentEnrollments)
+      const result = validateEnrollment(activity, null, studentEnrollments)
       if (result.conflicts.length > 0) {
         map.set(student.id, { hasConflict: true, conflicts: result.conflicts })
       }
@@ -1092,16 +1152,49 @@ function InlineEnrollmentSection({ activity, orgId }) {
                     None enrolled
                   </div>
                 ) : (
-                  enrolledStudents.map((student) => (
-                    <EnrollmentStudentRow
-                      key={student.id}
-                      student={student}
-                      zone="enrolled"
-                      conflict={conflictMap.get(student.id)}
-                      onClick={() => handleUnstageStudent(student.id)}
-                      disabled={interactionDisabled}
-                    />
-                  ))
+                  enrolledStudents.map((student) => {
+                    const enrollment = enrollmentByStudentId.get(student.id)
+                    const isExpanded = enrollment && expandedEnrollmentId === enrollment.id
+                    return (
+                      <EnrollmentStudentRow
+                        key={student.id}
+                        student={student}
+                        zone="enrolled"
+                        conflict={conflictMap.get(student.id)}
+                        enrollment={enrollment ?? null}
+                        activity={activity}
+                        orgSettings={orgSettings}
+                        isExpanded={isExpanded}
+                        localSchedule={enrollment ? (localSchedules.get(enrollment.id) ?? null) : null}
+                        onToggleExpand={() => {
+                          if (!enrollment) return
+                          setExpandedEnrollmentId(isExpanded ? null : enrollment.id)
+                        }}
+                        onScheduleChange={(field, value) => {
+                          if (!enrollment) return
+                          setLocalSchedules((prev) => {
+                            const next = new Map(prev)
+                            next.set(enrollment.id, { ...(prev.get(enrollment.id) ?? {}), [field]: value })
+                            return next
+                          })
+                        }}
+                        onScheduleSave={async () => {
+                          if (!enrollment) return
+                          const draft = localSchedules.get(enrollment.id) ?? {}
+                          await updateEnrollmentMutation.mutateAsync({ id: enrollment.id, ...draft })
+                          setLocalSchedules((prev) => { const next = new Map(prev); next.delete(enrollment.id); return next })
+                          setExpandedEnrollmentId(null)
+                        }}
+                        onScheduleCancel={() => {
+                          if (!enrollment) return
+                          setLocalSchedules((prev) => { const next = new Map(prev); next.delete(enrollment.id); return next })
+                          setExpandedEnrollmentId(null)
+                        }}
+                        onClick={() => handleUnstageStudent(student.id)}
+                        disabled={interactionDisabled}
+                      />
+                    )
+                  })
                 )}
               </div>
             </div>
@@ -1156,47 +1249,220 @@ function InlineEnrollmentSection({ activity, orgId }) {
 
 // ─── EnrollmentStudentRow ───────────────────────────────────────────────────────
 
-function EnrollmentStudentRow({ student, zone, conflict, onClick, disabled }) {
+function EnrollmentStudentRow({
+  student, zone, conflict, onClick, disabled,
+  // Schedule editor props (enrolled zone only)
+  enrollment = null, activity = null, orgSettings = {},
+  isExpanded = false, localSchedule = null,
+  onToggleExpand, onScheduleChange, onScheduleSave, onScheduleCancel,
+}) {
   const isPendingUnenroll = student.pendingUnenroll
+  const canEdit = zone === 'enrolled' && !student.isNewlyStaged && !isPendingUnenroll && enrollment && activity?.days_of_week?.length > 0
+
+  // Compute collapsed schedule summary from current enrollment fields (or local draft)
+  const effectiveEnrollment = localSchedule
+    ? { ...enrollment, ...localSchedule }
+    : enrollment
+  const scheduleSummary = canEdit ? getEnrollmentScheduleSummary(effectiveEnrollment, activity) : null
 
   return (
-    <button
-      type="button"
-      className={[
-        'w-full text-left px-2 py-1.5 flex items-center gap-2 transition-colors text-sm',
-        disabled ? 'opacity-60 cursor-default' : 'cursor-pointer hover:bg-base-200',
-        isPendingUnenroll ? 'bg-error/10' : '',
-      ].join(' ')}
-      onClick={disabled ? undefined : onClick}
-      disabled={disabled}
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          {zone === 'available' && !isPendingUnenroll && conflict?.hasConflict && (
-            <span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" title="Has scheduling conflict" />
+    <div className={isPendingUnenroll ? 'bg-error/10' : ''}>
+      {/* Main row */}
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        className={[
+          'w-full text-left px-2 py-1.5 flex items-center gap-2 transition-colors text-sm',
+          disabled ? 'opacity-60 cursor-default' : 'cursor-pointer hover:bg-base-200',
+        ].join(' ')}
+        onClick={disabled ? undefined : onClick}
+        onKeyDown={disabled ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            {zone === 'available' && !isPendingUnenroll && conflict?.hasConflict && (
+              <span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" title="Has scheduling conflict" />
+            )}
+            <span className="text-sm truncate">{formatUserName(student)}</span>
+            {student.grade_level && (
+              <span className="text-xs text-base-content/40 flex-shrink-0">{student.grade_level}</span>
+            )}
+          </div>
+          {zone === 'enrolled' && conflict?.hasConflict && (
+            <div className="text-xs text-warning mt-0.5">
+              {conflict.conflicts.map((c, i) => (
+                <div key={i}>Conflicts with {c.activity.name}{c.activity.block != null && ` — ${getBlockLabel(c.activity.block)}`}</div>
+              ))}
+            </div>
           )}
-          <span className="text-sm truncate">{formatUserName(student)}</span>
-          {student.grade_level && (
-            <span className="text-xs text-base-content/40 flex-shrink-0">{student.grade_level}</span>
+          {isPendingUnenroll && (
+            <div className="text-xs text-error mt-0.5">Will be unenrolled</div>
+          )}
+          {scheduleSummary && (
+            <div className="text-xs text-base-content/40 mt-0.5">{scheduleSummary}</div>
           )}
         </div>
-        {zone === 'enrolled' && conflict?.hasConflict && (
-          <div className="text-xs text-warning mt-0.5">
-            {conflict.conflicts.map((c, i) => (
-              <div key={i}>Conflicts with {c.activity.name}{c.activity.block != null && ` — ${getBlockLabel(c.activity.block)}`}</div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {canEdit && !disabled && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs px-1 text-base-content/40 hover:text-base-content"
+              title="Edit schedule"
+              onClick={(e) => { e.stopPropagation(); onToggleExpand() }}
+            >
+              <PencilSimple size={12} />
+            </button>
+          )}
+          <span className="text-base-content/30 text-xs">
+            {zone === 'available' && !isPendingUnenroll && '+'}
+            {zone === 'enrolled' && '−'}
+            {isPendingUnenroll && '↩'}
+          </span>
+        </div>
+      </div>
+
+      {/* Inline schedule editor */}
+      {isExpanded && canEdit && (
+        <EnrollmentScheduleEditor
+          enrollment={effectiveEnrollment}
+          activity={activity}
+          orgSettings={orgSettings}
+          localSchedule={localSchedule ?? {}}
+          onChange={onScheduleChange}
+          onSave={onScheduleSave}
+          onCancel={onScheduleCancel}
+        />
+      )}
+    </div>
+  )
+}
+
+// Build a compact text summary of a student's enrollment schedule.
+// Returns null when the enrollment follows the activity (all null fields — most enrollments).
+function getEnrollmentScheduleSummary(enrollment, activity) {
+  if (!enrollment || !activity) return null
+  const hasDays = enrollment.days_of_week != null
+  const hasRotation = enrollment.rotation_day_type != null
+  const hasRecurrence = enrollment.recurrence_interval != null && enrollment.recurrence_interval > 1
+
+  if (!hasDays && !hasRotation && !hasRecurrence) return null
+
+  const parts = []
+  if (hasRecurrence) parts.push(`Every ${enrollment.recurrence_interval} wks`)
+  if (hasRotation) parts.push(`${enrollment.rotation_day_type} days`)
+  if (hasDays) {
+    const labels = enrollment.days_of_week
+      .map((v) => DAYS_OF_WEEK.find((d) => d.value === v)?.short ?? v)
+      .join(' ')
+    parts.push(labels)
+  }
+  return parts.join(' · ') || null
+}
+
+// ─── EnrollmentScheduleEditor ──────────────────────────────────────────────────
+
+function EnrollmentScheduleEditor({ enrollment, activity, orgSettings, localSchedule, onChange, onSave, onCancel }) {
+  const rotationDayNames = orgSettings?.rotation_day_names ?? ['A', 'B']
+
+  // The days the activity runs — only these are valid options
+  const activityDays = activity?.days_of_week ?? []
+  // Effective days for this enrollment (local draft takes precedence)
+  const effectiveDays = localSchedule.days_of_week !== undefined
+    ? localSchedule.days_of_week
+    : (enrollment.days_of_week ?? null)
+
+  // Effective rotation for this enrollment
+  const effectiveRotation = localSchedule.rotation_day_type !== undefined
+    ? localSchedule.rotation_day_type
+    : (enrollment.rotation_day_type ?? null)
+
+  // Show rotation control only when the activity doesn't fix a rotation
+  const showRotation = activity?.rotation_day_type == null && rotationDayNames.length > 0
+
+  // Show recurrence only when the activity uses recurrence
+  const activityRecurrence = activity?.recurrence_interval ?? 1
+  const showRecurrence = activityRecurrence > 1
+
+  function handleDayToggle(dayValue) {
+    const current = effectiveDays ?? activityDays
+    const next = current.includes(dayValue)
+      ? current.filter((d) => d !== dayValue)
+      : [...current, dayValue].sort((a, b) => a - b)
+    // If all activity days are selected, revert to null (follow activity)
+    const isAllDays = activityDays.length > 0 && activityDays.every((d) => next.includes(d)) && next.length === activityDays.length
+    onChange('days_of_week', isAllDays ? null : next)
+  }
+
+  return (
+    <div className="mx-2 mb-2 px-2 py-2 bg-base-200 rounded text-xs space-y-2">
+      {/* Day pills */}
+      {activityDays.length > 0 && (
+        <div>
+          <div className="text-base-content/50 mb-1">Days</div>
+          <div className="flex gap-1 flex-wrap">
+            {activityDays.map((dayVal) => {
+              const day = DAYS_OF_WEEK.find((d) => d.value === dayVal)
+              const isActive = effectiveDays == null
+                ? true // null = follows activity = all activity days active
+                : effectiveDays.includes(dayVal)
+              return (
+                <button
+                  key={dayVal}
+                  type="button"
+                  className={`btn btn-xs min-w-8 ${isActive ? 'btn-primary' : 'btn-outline'}`}
+                  onClick={() => handleDayToggle(dayVal)}
+                >
+                  {day?.short ?? dayVal}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Rotation control */}
+      {showRotation && (
+        <div>
+          <div className="text-base-content/50 mb-1">Rotation</div>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              className={`btn btn-xs ${effectiveRotation == null ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => onChange('rotation_day_type', null)}
+            >
+              Both
+            </button>
+            {rotationDayNames.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className={`btn btn-xs ${effectiveRotation === name ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => onChange('rotation_day_type', name)}
+              >
+                {name}
+              </button>
             ))}
           </div>
-        )}
-        {isPendingUnenroll && (
-          <div className="text-xs text-error mt-0.5">Will be unenrolled</div>
-        )}
+        </div>
+      )}
+
+      {/* Recurrence anchor (only when activity uses recurrence) */}
+      {showRecurrence && (
+        <div className="text-base-content/50 text-xs">
+          Recurrence follows activity ({activityRecurrence}-week cycle)
+        </div>
+      )}
+
+      {/* Save / Cancel */}
+      <div className="flex gap-2 pt-1">
+        <button type="button" className="btn btn-xs btn-primary" onClick={onSave}>
+          Save
+        </button>
+        <button type="button" className="btn btn-xs btn-ghost" onClick={onCancel}>
+          Cancel
+        </button>
       </div>
-      <span className="text-base-content/30 text-xs flex-shrink-0">
-        {zone === 'available' && !isPendingUnenroll && '+'}
-        {zone === 'enrolled' && '−'}
-        {isPendingUnenroll && '↩'}
-      </span>
-    </button>
+    </div>
   )
 }
 

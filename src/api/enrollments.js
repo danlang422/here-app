@@ -76,7 +76,8 @@ export async function getOrgEnrollments(organizationId) {
   const { data, error } = await supabase
     .from('enrollments')
     .select(`
-      *,
+      id, student_id, activity_id, block, is_active,
+      days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date,
       activity:activities!inner(
         id, name, block, days_of_week, rotation_day_type,
         default_start_time, default_end_time,
@@ -88,6 +89,53 @@ export async function getOrgEnrollments(organizationId) {
 
   if (error) throw error
   return data
+}
+
+// Clean up enrollment day constraints after an activity's days_of_week is narrowed.
+// For each enrollment that references removed days:
+//   - removes the orphaned days from enrollment.days_of_week
+//   - deactivates the enrollment if no valid days remain
+export async function cleanOrphanedEnrollmentDays(activityId, removedDays) {
+  const { data: affected, error } = await supabase
+    .from('enrollments')
+    .select('id, days_of_week')
+    .eq('activity_id', activityId)
+    .eq('is_active', true)
+    .not('days_of_week', 'is', null)
+
+  if (error) throw error
+
+  const updates = affected
+    .map((e) => ({
+      id: e.id,
+      newDays: e.days_of_week.filter((d) => !removedDays.includes(d)),
+    }))
+    .filter(({ newDays, id: _id }) => {
+      const orig = affected.find((e) => e.id === _id)
+      return newDays.length < orig.days_of_week.length
+    })
+
+  if (updates.length === 0) return 0
+
+  await Promise.all(
+    updates.map(({ id, newDays }) =>
+      newDays.length > 0
+        ? supabase
+            .from('enrollments')
+            .update({ days_of_week: newDays, updated_at: new Date().toISOString() })
+            .eq('id', id)
+        : supabase
+            .from('enrollments')
+            .update({
+              is_active: false,
+              notes: 'Deactivated: activity schedule changed',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id)
+    )
+  )
+
+  return updates.length
 }
 
 // Bulk unenroll students (soft delete — sets is_active = false)

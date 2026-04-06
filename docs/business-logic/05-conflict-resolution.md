@@ -72,18 +72,22 @@ Two activities with `rotation_day_type = 'A'` and `rotation_day_type = 'B'` resp
 When an admin enrolls a student in an activity:
 
 ```
-function validateEnrollment(studentId, newActivity):
+function validateEnrollment(newActivity, newEnrollmentSchedule, existingEnrollments):
   // Unscheduled activities (online courses) have no block — no conflict possible
   if newActivity.block is null:
     return { valid: true }
 
-  // Get all of this student's active enrollments, joined to their activities
-  existingEnrollments = getActiveEnrollments(studentId)
-    .map(e => { enrollment: e, activity: getActivity(e.activity_id) })
-    .filter(ea => ea.activity.block == newActivity.block)  // same block only
+  // Compute the effective schedule for the new enrollment
+  // (newEnrollmentSchedule is the enrollment-level overrides being set, may all be null)
+  newEffective = getEffectiveSchedule(newEnrollmentSchedule, newActivity)
 
-  for ea in existingEnrollments:
-    if wouldConflict(newActivity, ea.activity):
+  // Filter to same-block existing enrollments
+  sameBlock = existingEnrollments
+    .filter(ea => ea.activity.block == newActivity.block)
+
+  for ea in sameBlock:
+    existingEffective = getEffectiveSchedule(ea.enrollment, ea.activity)
+    if wouldConflict(newEffective, existingEffective):
       return {
         valid: false,
         reason: "This student already has " + ea.activity.name +
@@ -95,7 +99,11 @@ function validateEnrollment(studentId, newActivity):
   return { valid: true }
 ```
 
-The same validation runs when an activity's block, days_of_week, or rotation_day_type is changed — the application checks all existing enrollments for that activity to ensure no student would end up with a conflict.
+**Key change from the original:** Conflict detection now compares enrollment-effective schedules rather than raw activity fields. `getEffectiveSchedule(enrollment, activity)` resolves the enrollment-level override fields (falling back to activity fields when null). This means two students enrolled in the same activity on different days no longer produce false conflicts with each other's other enrollments. It also means a student with a per-enrollment day override is correctly checked against that narrowed schedule, not the full activity schedule.
+
+The `existingEnrollments` argument is the full list of active enrollments for the student being enrolled, each joined to its activity (`{ enrollment, activity }`). The caller fetches this once per student and passes it in. This keeps the validation function pure and easy to test.
+
+The same validation runs when an activity's block, days_of_week, or rotation_day_type is changed — the application checks all existing enrollments for that activity to ensure no student would end up with a conflict after the change.
 
 ---
 
@@ -109,23 +117,26 @@ function getStudentScheduleForDate(studentId, date, organizationId):
   if not schoolDay or not schoolDay.is_school_day:
     return { scheduled: [], unscheduled: [] }
 
-  enrolledActivities = getActiveEnrollments(studentId)
-    .map(e => getActivity(e.activity_id))
-    .filter(a => a.is_active)
+  enrollments = getActiveEnrollments(studentId)
+    .map(e => { enrollment: e, activity: getActivity(e.activity_id) })
+    .filter(ea => ea.activity.is_active)
 
   scheduled = []
   unscheduled = []
 
-  for activity in enrolledActivities:
-    if activity.is_not_scheduled:
-      unscheduled.push(activity)
+  for ea in enrollments:
+    if ea.activity.is_not_scheduled:
+      unscheduled.push(ea.activity)
       continue
 
-    if not activityMeetsToday(activity, date, organizationId):
+    // Use enrollmentMeetsToday — this applies both the activity predicate and
+    // any per-enrollment scheduling overrides (days_of_week, rotation_day_type,
+    // recurrence) before including the activity in the student's daily schedule.
+    if not enrollmentMeetsToday(ea.enrollment, ea.activity, date, schoolDay):
       continue
 
-    times = getActivityEffectiveTimes(activity, date, organizationId)
-    scheduled.push({ activity, times })
+    times = getActivityEffectiveTimes(ea.activity, date, organizationId)
+    scheduled.push({ activity: ea.activity, times })
 
   return {
     scheduled: scheduled.sort(byBlockThenStartTime),
@@ -139,21 +150,30 @@ Every activity in the `scheduled` list is real and non-overlapping. The student 
 
 ## Teacher Roster for a Date
 
-Similarly, the teacher roster is a direct query with no "away" filtering:
+The teacher roster applies `enrollmentMeetsToday` per student to account for per-enrollment scheduling:
 
 ```
 function getTeacherRosterForDate(activity, date, organizationId):
   // Does this activity meet today?
-  if not activityMeetsToday(activity, date, organizationId):
-    return []
+  schoolDay = getSchoolDay(date, organizationId)
+  if not activityMeetsToday(activity, date, schoolDay):
+    return { todayStudents: [], allStudents: [] }
 
-  // Get all actively enrolled students
+  // Get all actively enrolled students (with their enrollment scheduling fields)
   enrollments = getActiveEnrollments(activityId: activity.id)
 
-  return enrollments.map(e => getStudent(e.student_id))
+  allStudents = enrollments.map(e => ({ student: getStudent(e.student_id), enrollment: e }))
+
+  todayStudents = allStudents.filter(es =>
+    enrollmentMeetsToday(es.enrollment, activity, date, schoolDay)
+  )
+
+  return { todayStudents, allStudents }
 ```
 
-Every student on the roster is enrolled in this specific activity on this specific day. A teacher who monitors multiple activities in the same block (e.g., different students doing internships, online courses, or Kirkwood classes) sees all of them — grouped by activity in the UI, but all on their roster for attendance purposes.
+The UI defaults to showing `todayStudents` (the "X of Y students today" count). A "Show all enrolled" toggle reveals `allStudents`. Attendance buttons are only shown for `todayStudents` — students not scheduled today cannot have attendance marked for this activity on this date.
+
+A teacher who monitors multiple activities in the same block (e.g., different students doing internships, online courses, or Kirkwood classes) sees all of them — grouped by activity in the UI, but all on their roster for attendance purposes.
 
 ---
 
