@@ -22,16 +22,22 @@ function RosterModal({
   teacherId,
   blockLabels,
   actionSummary,
+  schoolDay = null,
   onClose,
 }) {
   const activityIds = activities.map((a) => a.id)
-  const { students, attendanceByStudent, instances, isLoading, error } =
-    useRoster(activityIds, date, orgId, activities)
+  const { todayStudents, allStudents, attendanceByStudent, instances, isLoading, error } =
+    useRoster(activityIds, date, orgId, activities, schoolDay)
 
   const [pendingChanges, setPendingChanges] = useState(new Map())
   const [saving, setSaving] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState(null)
+  const [showFullRoster, setShowFullRoster] = useState(false)
   const queryClient = useQueryClient()
+
+  // Students to display in the list
+  const students = showFullRoster ? allStudents : todayStudents
+  const hasFilteredStudents = todayStudents.length < allStudents.length
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -71,7 +77,7 @@ function RosterModal({
     try {
       const upserts = []
       for (const [studentId, status] of pendingChanges) {
-        const student = students.find((s) => s.studentId === studentId)
+        const student = allStudents.find((s) => s.studentId === studentId)
         if (!student) continue
         const instanceId = instances.get(student.activityId)
         if (!instanceId) continue
@@ -116,7 +122,7 @@ function RosterModal({
   }
 
   // Header content
-  const headerContent = buildHeader(activities, isAggregate, blockLabels)
+  const headerContent = buildHeader(activities, isAggregate, blockLabels, todayStudents.length, allStudents.length)
 
   return (
     <dialog className="modal modal-open">
@@ -134,7 +140,19 @@ function RosterModal({
             {headerContent.title}
           </h3>
           <p className="text-sm text-base-content/60">{headerContent.subtitle}</p>
-          <p className="text-sm text-base-content/50">{headerContent.count}</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-base-content/50">{headerContent.count}</p>
+            {hasFilteredStudents && (
+              <button
+                className="text-xs text-primary underline-offset-2 hover:underline"
+                onClick={() => setShowFullRoster((v) => !v)}
+              >
+                {showFullRoster
+                  ? 'Show today only'
+                  : `Show all ${allStudents.length} enrolled`}
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="divider my-0" />
@@ -153,9 +171,18 @@ function RosterModal({
             </div>
           )}
 
-          {!isLoading && !error && students.length === 0 && (
+          {!isLoading && !error && allStudents.length === 0 && (
             <p className="text-base-content/50 text-center py-8">
               No students enrolled.
+            </p>
+          )}
+
+          {!isLoading && !error && allStudents.length > 0 && students.length === 0 && (
+            <p className="text-base-content/50 text-center py-8">
+              No students scheduled today.{' '}
+              <button className="text-primary underline-offset-2 hover:underline" onClick={() => setShowFullRoster(true)}>
+                Show all enrolled
+              </button>
             </p>
           )}
 
@@ -275,7 +302,11 @@ function StudentRow({
 
       {/* PAET buttons — stop propagation */}
       <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-        {student.requiresAttendance ? (
+        {!student.scheduledToday ? (
+          <span className="text-xs text-base-content/30 shrink-0 italic">
+            Not today
+          </span>
+        ) : student.requiresAttendance ? (
           <div className="flex items-center gap-1">
             {STATUS_OPTIONS.map(({ key, label, fullLabel, btnClass }) => (
               <button
@@ -331,7 +362,11 @@ function formatTimestamp(isoString) {
   })
 }
 
-function buildHeader(activities, isAggregate, blockLabels) {
+function buildHeader(activities, isAggregate, blockLabels, todayCount, totalCount) {
+  const countLabel = todayCount < totalCount
+    ? `${todayCount} of ${totalCount} students today`
+    : `${totalCount} student${totalCount !== 1 ? 's' : ''}`
+
   if (isAggregate) {
     const block = activities[0]?.block
     const blockLabel =
@@ -347,20 +382,13 @@ function buildHeader(activities, isAggregate, blockLabels) {
       : null
 
     const timeRange = formatTimeRange(earliestStart, latestEnd)
-    const subtitleParts = [timeRange, `${activities.length} activities`].filter(
-      Boolean
-    )
-
-    const totalStudents = activities.reduce(
-      (sum, a) => sum + (a.enrollmentCount ?? 0),
-      0
-    )
+    const subtitleParts = [timeRange, `${activities.length} activities`].filter(Boolean)
 
     return {
       icon: <Stack size={16} />,
       title: blockLabel,
       subtitle: subtitleParts.join(' \u00b7 '),
-      count: `${totalStudents} students`,
+      count: countLabel,
     }
   }
 
@@ -379,7 +407,7 @@ function buildHeader(activities, isAggregate, blockLabels) {
     icon: null,
     title: activity.name,
     subtitle: metaParts.join(' \u00b7 '),
-    count: `${activity.enrollmentCount ?? 0} students`,
+    count: countLabel,
   }
 }
 

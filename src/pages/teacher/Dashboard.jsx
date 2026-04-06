@@ -265,6 +265,7 @@ function Dashboard() {
           teacherId={teacherId}
           blockLabels={blockLabels}
           actionSummary={actionSummary}
+          schoolDay={schoolDay}
           onClose={() => setRosterTarget(null)}
         />
       )}

@@ -77,7 +77,7 @@ export default function EnrollmentPanel({ orgId, initialActivityId = null }) {
       const studentEnrollments = orgEnrollments
         .filter((e) => e.student_id === student.id && e.activity_id !== selectedActivityId)
 
-      const result = validateEnrollment(selectedActivity, studentEnrollments)
+      const result = validateEnrollment(selectedActivity, null, studentEnrollments)
       if (result.conflicts.length > 0) {
         map.set(student.id, {
           hasConflict: true,
