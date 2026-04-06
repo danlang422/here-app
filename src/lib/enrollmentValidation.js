@@ -8,6 +8,13 @@
 //
 // All functions are pure — they take activity/enrollment objects, not IDs.
 // The calling code is responsible for loading data and passing it in.
+//
+// Block-based conflict detection operates on "effective schedules" — the intersection
+// of an enrollment's scheduling constraints with the parent activity's schedule.
+// Use getEffectiveSchedule (from scheduleUtils) to compute these before calling
+// wouldConflictByBlock or couldMeetOnSameDay.
+
+import { getEffectiveSchedule } from '@/lib/scheduleUtils'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -152,15 +159,21 @@ function couldMeetOnSameDay(activityA, activityB) {
 // ---------------------------------------------------------------------------
 
 /**
- * Check whether two activities conflict within the block system.
+ * Check whether two effective schedules conflict within the block system.
  * This is the enrollment gatekeeper — if this returns conflicts: true,
  * the enrollment should be rejected.
  *
- * @param {Object} activityA - Activity object with block, days_of_week, rotation_day_type
- * @param {Object} activityB - Activity object with block, days_of_week, rotation_day_type
+ * Accepts effective-schedule objects (output of getEffectiveSchedule), not raw
+ * activity objects. This allows two enrollments in the same activity at the same
+ * block to be non-conflicting with other activities when their effective days differ.
+ *
+ * @param {{ block, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date }} effectiveA
+ * @param {{ block, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date }} effectiveB
  * @returns {{ conflicts: boolean, reason: string|null }}
  */
-export function wouldConflictByBlock(activityA, activityB) {
+export function wouldConflictByBlock(effectiveA, effectiveB) {
+  const activityA = effectiveA
+  const activityB = effectiveB
   // Different blocks (or either is null) — no conflict possible
   if (activityA.block == null || activityB.block == null) {
     return { conflicts: false, reason: null }
@@ -252,22 +265,28 @@ export function wouldConflictByTime(activityA, activityB) {
 
 /**
  * Validate whether a student can be enrolled in a new activity, given their
- * existing enrollments. Uses block-based conflict detection.
+ * existing enrollments. Uses block-based conflict detection with enrollment-effective
+ * schedules — two enrollments in the same block only conflict if their effective
+ * days_of_week actually overlap.
  *
  * Each enrollment in existingEnrollments must have its activity joined in,
  * i.e. enrollment.activity should be the full activity object.
- * (This matches the shape returned by getStudentEnrollments.)
+ * (This matches the shape returned by getOrgEnrollments.)
  *
  * @param {Object} newActivity - The activity the student would be enrolled in
+ * @param {{ days_of_week?, rotation_day_type?, recurrence_interval?, recurrence_anchor_date? }|null} newEnrollmentSchedule
+ *   Proposed per-enrollment scheduling constraints for the new enrollment.
+ *   Pass null (or omit) for the default "follow the activity" behavior.
  * @param {Array} existingEnrollments - Student's current enrollments, each with .activity
  * @returns {{ valid: boolean, conflicts: Array<{ enrollment: Object, activity: Object, reason: string }> }}
  */
-export function validateEnrollment(newActivity, existingEnrollments) {
+export function validateEnrollment(newActivity, newEnrollmentSchedule, existingEnrollments) {
   // Unscheduled activities (no block) can't conflict by block
   if (newActivity.block == null) {
     return { valid: true, conflicts: [] }
   }
 
+  const newEffective = getEffectiveSchedule(newEnrollmentSchedule ?? {}, newActivity)
   const conflicts = []
 
   for (const enrollment of existingEnrollments) {
@@ -277,7 +296,8 @@ export function validateEnrollment(newActivity, existingEnrollments) {
     // Only check active enrollments against activities in the same block
     if (existingActivity.block !== newActivity.block) continue
 
-    const result = wouldConflictByBlock(newActivity, existingActivity)
+    const existingEffective = getEffectiveSchedule(enrollment, existingActivity)
+    const result = wouldConflictByBlock(newEffective, existingEffective)
 
     if (result.conflicts) {
       conflicts.push({
