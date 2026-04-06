@@ -21,10 +21,10 @@ function AdminLayout() {
             to={to}
             end={end}
             className={({ isActive }) =>
-              `tab gap-1.5 text-[13px] font-medium ${isActive ? 'tab-active' : 'text-base-content/60 hover:text-base-content'}`
+              `tab gap-2 text-[15px] font-medium ${isActive ? 'tab-active' : 'text-base-content/60 hover:text-base-content'}`
             }
           >
-            <Icon size={15} />
+            <Icon size={18} />
             {label}
           </NavLink>
         ))}

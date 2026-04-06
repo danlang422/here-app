@@ -52,13 +52,13 @@ export function CalendarFilterBar({
   }, [studentSearch, students, selectedStudents])
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 border-b border-base-200">
+    <div className="flex items-center gap-x-3 px-3 py-2 border-b border-base-200">
 
       {/* Text search */}
       <div className="flex items-center gap-1">
         <input
           type="text"
-          className="input input-bordered input-sm w-56"
+          className="input input-bordered input-sm w-44"
           placeholder="Filter activities..."
           value={filterText}
           onChange={(e) => onFilterChange(e.target.value)}
@@ -99,7 +99,7 @@ export function CalendarFilterBar({
       <div className="flex items-center gap-1.5">
         <span className="text-xs text-base-content/60">Time:</span>
         <select
-          className="select select-bordered select-sm"
+          className="select select-bordered select-sm w-28"
           value={timeFrom ?? ''}
           onChange={(e) => onTimeFromChange(e.target.value || null)}
         >
@@ -110,7 +110,7 @@ export function CalendarFilterBar({
         </select>
         <span className="text-xs text-base-content/40">to</span>
         <select
-          className="select select-bordered select-sm"
+          className="select select-bordered select-sm w-28"
           value={timeTo ?? ''}
           onChange={(e) => onTimeToChange(e.target.value || null)}
         >
@@ -133,11 +133,11 @@ export function CalendarFilterBar({
       <div className="border-l border-base-300 self-stretch" />
 
       {/* Student filter */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-1.5">
         <div className="relative">
           <input
             type="text"
-            className="input input-bordered input-sm w-40"
+            className="input input-bordered input-sm w-44"
             placeholder="Search students..."
             value={studentSearch}
             onChange={(e) => setStudentSearch(e.target.value)}
