@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** April 5, 2026 (session 24.2)
+**Last updated:** April 5, 2026 (session 25)
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed. Migrations through `20260331000001_presence_wave_checkin_constraint` (mutual exclusivity constraint on `allows_presence_wave` / `requires_checkin`). Real data: City View org with admin account (Daniel Lang), staff users, and activities being entered (schedule normalized and data entry underway).
+**Database:** V2 schema deployed. Migrations through `20260331000001_presence_wave_checkin_constraint` (mutual exclusivity constraint on `allows_presence_wave` / `requires_checkin`). Real data: City View org with admin account (Daniel Lang), staff users, and activities being entered (schedule normalized and data entry underway). **Data will be cleared and re-entered** once enrollment-level scheduling is implemented — current activity splits are redundant under the new model.
 
 **Application:**
 
@@ -18,7 +18,7 @@
 | User management (CRUD, bulk paste-from-spreadsheet entry) | Built | — |
 | Dashboard & agenda view | Replaced by calendar redesign | — |
 | Admin calendar redesign — Layers 0, 1, 2 + filter bar expansion | Built | `layer-0-build-spec.md`, `layer-1-build-spec.md`, `layer-2-build-spec.md`, `filter-bar-expansion-build-spec.md` |
-| Enrollment — activity-centric (Entry A) | Built (floating panel); **pending redesign** | #51 — moving inline into ActivityDetail |
+| Enrollment — activity-centric (Entry A) | Built (inline in ActivityDetail); **pending enrollment-level scheduling** | #51 done; `enrollment-level-scheduling-design-doc.md` |
 | Enrollment — student-centric (Entry B) | Designed, not built | #7 |
 | Org settings (block schedule, terms, rotation days) | Built | `org-settings-build-spec.md` |
 | Calendar management (school days, exceptions, per-reason rotation) | Built | `calendar-management-build-spec.md`, #12 |
@@ -38,7 +38,7 @@
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI, calendar UI) | Built | — |
-| Enrollment validation (block-based + time-based, recurrence-aware) | Built | #52 resolved — recurrence fields added to `getOrgEnrollments` select |
+| Enrollment validation (block-based + time-based, recurrence-aware) | Built; **needs refactor for enrollment-level scheduling** | #52 resolved; `enrollment-level-scheduling-design-doc.md` |
 | RLS policies | Comprehensive — all tables, all roles | `20260313000000_comprehensive_rls_policies.sql`, `10-rls-policies.md` |
 | Edge Functions (`submit-feedback`, `create-user`) | Deployed with `--no-verify-jwt`; config in `supabase/config.toml`. `submit-feedback` posts to GitHub Issues. | Session 16, 19 |
 | Realtime subscriptions | Not started | — |
@@ -47,7 +47,7 @@
 
 Decisions that are settled live in CLAUDE.md (if they're lasting architectural principles) or in the relevant spec doc (if they're feature-specific). This section is only for genuinely open questions affecting near-term work.
 
-**Enrollment panel redesign (#51):** Floating panel enrollment is being retired. The `EnrollmentPanel` is moving inline into `ActivityDetail` as a permanently-resident bottom section with a two-column (enrolled / available) layout. `EnrollmentPanel.jsx` stays dormant for Entry B (#7). See #51 for full spec.
+**Enrollment-level scheduling (session 25):** Per-student scheduling constraints (`days_of_week`, `rotation_day_type`, `recurrence_interval`, `recurrence_anchor_date`) are moving onto the `enrollments` table as nullable narrowing fields. This reverses the "activity splitting, not enrollment overrides" decision from the calendar redesign design doc. Design doc complete, ready for build spec. See `enrollment-level-scheduling-design-doc.md`.
 
 ## Known Issues / Tech Debt
 
@@ -61,12 +61,13 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 Ordered priority:
 
-1. **#51** — Inline enrollment redesign in ActivityDetail
-2. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
-3. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
-4. **#21** — Customizable agenda start/end times
+1. **Enrollment-level scheduling** — Build spec + implementation from `enrollment-level-scheduling-design-doc.md`. Schema migration (4 nullable columns on enrollments), new `enrollmentMeetsToday` predicate, conflict detection refactor, enrollment UI with inline day/rotation/recurrence editors, roster filtering, agenda count updates.
+2. **Data re-entry** — Clear existing activities/enrollments and re-enter using the new consolidated model (~120–150 activities instead of ~460).
+3. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
+4. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
+5. **#21** — Customizable agenda start/end times
 
-**Data entry:** Schedule fully normalized for the first time — consistent structure identified in City View's spreadsheet, making complete data entry tractable. Activities being entered manually; enrollments unblocked by #52/#54 fixes.
+**Data entry:** Schedule fully normalized. Enrollment-level scheduling will dramatically reduce the number of activities needed (from ~460 to ~120–150). Data entry paused until the schema change lands, then a fresh re-entry pass.
 
 ---
 
@@ -101,10 +102,11 @@ Ordered priority:
 | `student-schedule-view-build-spec.md` | **Pending Decisions** | Admin view of individual student schedule |
 | `activity-management-overhaul-build-spec.md` | **Built** | Admin activity page revamp + activity_term changes |
 | `user-feedback-system-build-spec.md` | **Implemented** | /Help page, FeedbackModal, submit-feedback Edge Function. Built session 16. GitHub Issues integration added session 19. |
-| `admin-calendar-redesign-design-doc.md` | **Current** | Full design doc for the calendar redesign feature. Layer breakdown, data model, UI patterns. |
+| `admin-calendar-redesign-design-doc.md` | **Current (partially reversed)** | Full design doc for the calendar redesign feature. The "activity splitting, not enrollment overrides" decision has been reversed by `enrollment-level-scheduling-design-doc.md`. |
 | `layer-0-build-spec.md` | **Implemented** | Schema integration, recurrence predicate, calendar CRUD API/hooks, ActivityDetail form fields. Built session 17. |
 | `layer-1-build-spec.md` | **Implemented** | Week view, calendar sidebar, event cards, block overlay fix, empty-slot create. Built session 17. |
 | `layer-2-build-spec.md` | **Implemented** | Time-slot clustering, inter-group column layout, aggregate card expansion, filter bar, recurrence-aware conflict detection. Built session 18. |
 | `filter-bar-expansion-design-doc.md` | **Implemented** | Design doc for filter bar expansion (block, time range, student filters). |
 | `filter-bar-expansion-build-spec.md` | **Implemented** | Block, time range, and student filters added to CalendarFilterBar. Student dimming threaded through WeekGrid → DayColumn → EventCard. Built session 20. |
 | `visual-design-system-design-doc.md` | **Implemented** | App-wide visual polish: palette, typography, Phosphor icon consolidation, interaction design, component styling, block overlay removal. Design doc session 23; implemented session 24. |
+| `enrollment-level-scheduling-design-doc.md` | **Design complete — ready for build spec** | Per-student scheduling on enrollments. Schema change, predicate changes, UI changes, conflict detection refactor. Session 25. |
