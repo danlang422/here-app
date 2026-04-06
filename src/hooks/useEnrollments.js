@@ -4,6 +4,7 @@ import {
   getActivityEnrollments,
   bulkEnrollStudents,
   bulkUnenrollStudents,
+  updateEnrollment,
 } from '@/api/enrollments'
 
 export function useOrgEnrollments(orgId) {
@@ -38,6 +39,17 @@ export function useBulkUnenrollStudents() {
 
   return useMutation({
     mutationFn: (enrollmentIds) => bulkUnenrollStudents(enrollmentIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+    },
+  })
+}
+
+export function useUpdateEnrollment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, ...updates }) => updateEnrollment(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrollments'] })
     },

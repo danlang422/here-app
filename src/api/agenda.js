@@ -53,6 +53,10 @@ export async function getStudentActivitiesForDate(studentId, orgId) {
       ...enrollment.activity,
       enrollment_id: enrollment.id,
       enrollment_block: enrollment.block,
+      enrollment_days_of_week: enrollment.days_of_week,
+      enrollment_rotation_day_type: enrollment.rotation_day_type,
+      enrollment_recurrence_interval: enrollment.recurrence_interval,
+      enrollment_recurrence_anchor_date: enrollment.recurrence_anchor_date,
     }))
 
   // Fetch teacher/monitor display names via SECURITY DEFINER function
@@ -102,25 +106,28 @@ export async function getTeacherActivitiesForDate(teacherId, orgId) {
 
   const { data: enrollments, error: enrollError } = await supabase
     .from('enrollments')
-    .select('activity_id')
+    .select('activity_id, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date')
     .in('activity_id', activityIds)
     .eq('is_active', true)
 
   if (enrollError) throw enrollError
 
-  const countMap = new Map()
+  // Return enrollment rows grouped by activity_id.
+  // The hook computes date-filtered counts client-side where schoolDay is available.
+  const enrollmentsByActivity = new Map()
   for (const e of enrollments) {
-    countMap.set(e.activity_id, (countMap.get(e.activity_id) ?? 0) + 1)
+    if (!enrollmentsByActivity.has(e.activity_id)) enrollmentsByActivity.set(e.activity_id, [])
+    enrollmentsByActivity.get(e.activity_id).push(e)
   }
 
-  return { activities: data, enrollmentCounts: countMap }
+  return { activities: data, enrollmentsByActivity }
 }
 
 // Fetch enrollment rosters for one or more activities with student profiles.
 export async function getRosterForActivities(activityIds) {
   const { data, error } = await supabase
     .from('enrollments')
-    .select('*, student:student_id(id, first_name, last_name, preferred_name)')
+    .select('id, activity_id, student_id, block, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date, student:student_id(id, first_name, last_name, preferred_name, grade_level)')
     .in('activity_id', activityIds)
     .eq('is_active', true)
 
