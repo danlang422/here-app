@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 6, 2026 (session 26)
+**Last updated:** April 6, 2026 (session 27)
 
 ---
 
@@ -18,7 +18,7 @@
 | User management (CRUD, bulk paste-from-spreadsheet entry) | Built | — |
 | Dashboard & agenda view | Replaced by calendar redesign | — |
 | Admin calendar redesign — Layers 0, 1, 2 + filter bar expansion | Built | `layer-0-build-spec.md`, `layer-1-build-spec.md`, `layer-2-build-spec.md`, `filter-bar-expansion-build-spec.md` |
-| Enrollment — activity-centric (Entry A) | Built — inline in ActivityDetail with per-enrollment scheduling UI (day pills, rotation, recurrence) | #51 done; `enrollment-level-scheduling-design-doc.md` |
+| Enrollment — activity-centric (Entry A) | Built — inline in ActivityDetail with per-enrollment scheduling UI (day pills, rotation, recurrence); unenroll is hard-delete; conflict detection is advisory (enroll all, resolve after) | #51 done; `enrollment-level-scheduling-design-doc.md`, `allow-enrollment-despite-conflicts-build-spec.md` |
 | Enrollment — student-centric (Entry B) | Designed, not built | #7 |
 | Org settings (block schedule, terms, rotation days) | Built | `org-settings-build-spec.md` |
 | Calendar management (school days, exceptions, per-reason rotation) | Built | `calendar-management-build-spec.md`, #12 |
@@ -66,7 +66,7 @@ Ordered priority:
 3. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
 4. **#21** — Customizable agenda start/end times
 
-**Data entry:** Schedule fully normalized. Enrollment-level scheduling is complete — a fresh re-entry pass using the consolidated model is the next concrete action item.
+**Data entry:** Schedule fully normalized. Enrollment-level scheduling is complete (including hard-delete unenrollments and advisory conflict detection) — a fresh re-entry pass using the consolidated model is the next concrete action item.
 
 ---
 

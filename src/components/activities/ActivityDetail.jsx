@@ -1074,11 +1074,12 @@ function InlineEnrollmentSection({ activity, orgId, orgSettings = {} }) {
 
   async function handleConfirm() {
     const { clean, conflicted, unenrollIds } = submitSummary
+    const allToEnroll = [...clean, ...conflicted.map((c) => c.studentId)]
     try {
       const promises = []
-      if (clean.length > 0) {
+      if (allToEnroll.length > 0) {
         promises.push(enrollMutation.mutateAsync(
-          clean.map((studentId) => ({
+          allToEnroll.map((studentId) => ({
             student_id: studentId,
             activity_id: activityId,
             block: activity?.block ?? null,
@@ -1090,10 +1091,9 @@ function InlineEnrollmentSection({ activity, orgId, orgSettings = {} }) {
       }
       await Promise.all(promises)
       setSubmitResult({
-        enrolled: clean.length,
-        skipped: conflicted.length,
+        enrolled: allToEnroll.length,
+        enrolledWithConflicts: conflicted.length,
         unenrolled: unenrollIds.length,
-        skippedStudents: conflicted,
       })
       setStagedStudentIds(new Set())
       setUnstagedEnrollmentIds(new Set())
@@ -1292,7 +1292,7 @@ function EnrollmentStudentRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             {zone === 'available' && !isPendingUnenroll && conflict?.hasConflict && (
-              <span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" title="Has scheduling conflict" />
+              <span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" title="Has same-block enrollment — may need day adjustment" />
             )}
             <span className="text-sm truncate">{formatUserName(student)}</span>
             {student.grade_level && (
@@ -1538,8 +1538,10 @@ function InlineEnrollmentFooter({
         {submitResult.enrolled > 0 && (
           <div className="text-success">{submitResult.enrolled} enrolled</div>
         )}
-        {submitResult.skipped > 0 && (
-          <div className="text-warning">{submitResult.skipped} skipped (conflicts)</div>
+        {submitResult.enrolledWithConflicts > 0 && (
+          <div className="text-warning">
+            {submitResult.enrolledWithConflicts} enrolled with conflicts — adjust their days below
+          </div>
         )}
         {submitResult.unenrolled > 0 && (
           <div className="text-error">{submitResult.unenrolled} unenrolled</div>
@@ -1560,7 +1562,7 @@ function InlineEnrollmentFooter({
           )}
           {submitSummary.conflicted.length > 0 && (
             <div className="text-warning">
-              {submitSummary.conflicted.length} student{submitSummary.conflicted.length !== 1 ? 's' : ''} will be skipped (conflicts)
+              {submitSummary.conflicted.length} student{submitSummary.conflicted.length !== 1 ? 's' : ''} with scheduling conflicts — adjust days after enrolling
             </div>
           )}
           {submitSummary.unenrollIds.length > 0 && (
