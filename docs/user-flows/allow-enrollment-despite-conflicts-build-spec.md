@@ -146,12 +146,12 @@ Currently, the available zone shows a small warning dot next to students with co
 
 **Current (line ~1295):**
 ```jsx
-<span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" title="Has scheduling conflict" />
+<span className="w-2 h-2 rounded-full bg-warning shrink-0" title="Has scheduling conflict" />
 ```
 
 **New:**
 ```jsx
-<span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" title="Has same-block enrollment — may need day adjustment" />
+<span className="w-2 h-2 rounded-full bg-warning shrink-0" title="Has same-block enrollment — may need day adjustment" />
 ```
 
 ### 4. No changes to `submitSummary` or `conflictMap`
