@@ -1292,11 +1292,11 @@ function EnrollmentStudentRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             {zone === 'available' && !isPendingUnenroll && conflict?.hasConflict && (
-              <span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" title="Has same-block enrollment — may need day adjustment" />
+              <span className="w-2 h-2 rounded-full bg-warning shrink-0" title="Has same-block enrollment — may need day adjustment" />
             )}
             <span className="text-sm truncate">{formatUserName(student)}</span>
             {student.grade_level && (
-              <span className="text-xs text-base-content/40 flex-shrink-0">{student.grade_level}</span>
+              <span className="text-xs text-base-content/40 shrink-0">{student.grade_level}</span>
             )}
           </div>
           {zone === 'enrolled' && conflict?.hasConflict && (
@@ -1313,7 +1313,7 @@ function EnrollmentStudentRow({
             <div className="text-xs text-base-content/40 mt-0.5">{scheduleSummary}</div>
           )}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {canEdit && !disabled && (
             <button
               type="button"
