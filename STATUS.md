@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 5, 2026 (session 24)
+**Last updated:** April 5, 2026 (session 24.2)
 
 ---
 
@@ -25,6 +25,8 @@
 | Student schedule view | Designed, waiting on decisions to finalize | `student-schedule-view-build-spec.md` |
 | User feedback & bug reporting (/help page, FeedbackModal, Edge Function → GitHub Issues) | Built | `user-feedback-system-build-spec.md` |
 | Password reset + change password | Built | #56 — `/forgot-password`, `/reset-password`, `/account` |
+| Visual design system — icons, fonts, animations, component polish | Built | `visual-design-system-design-doc.md`, #60 |
+| Visual design post-review polish — wordmark bug, navbar stacking, tab bar, week nav, CalendarView card, filter bar layout | Built | Session 24.2 |
 | Reports | Placeholder | — |
 | **Student** | | |
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
@@ -59,11 +61,10 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 Ordered priority:
 
-1. Any visual polish bugs surfaced from initial review of #60 work
-2. **#51** — Inline enrollment redesign in ActivityDetail
-3. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
-4. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
-5. **#21** — Customizable agenda start/end times
+1. **#51** — Inline enrollment redesign in ActivityDetail
+2. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
+3. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
+4. **#21** — Customizable agenda start/end times
 
 **Data entry:** Schedule fully normalized for the first time — consistent structure identified in City View's spreadsheet, making complete data entry tractable. Activities being entered manually; enrollments unblocked by #52/#54 fixes.
 

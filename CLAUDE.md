@@ -92,6 +92,8 @@ src/
 
 **Raw fetch in useAuthListener.** `fetchProfile` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 inside `onAuthStateChange`. Don't change this pattern until supabase-js is upgraded.
 
+**DaisyUI v5 CSS variable format.** DaisyUI v5 stores theme color variables as full color values (e.g. `--color-primary: oklch(62.31% 0.1881 259.82)`), not as raw channel values. Use `var(--color-primary)` directly in CSS — never `oklch(var(--color-primary))`, which double-wraps the value and produces invalid CSS. This differs from DaisyUI v4 behavior.
+
 ## Database
 
 V2 schema with migrations in `supabase/migrations/`. Key migrations:
