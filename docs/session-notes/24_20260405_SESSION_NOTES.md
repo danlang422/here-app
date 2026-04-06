@@ -92,3 +92,44 @@
 - `AgendaBlockOverlay.jsx` can be fully deleted in a future cleanup pass once the prop removal is confirmed stable
 - `@fontsource-variable` packages may require confirming font weights are loading correctly (variable fonts load the full axis range — verify Outfit and Plus Jakarta Sans weight ranges match the design doc's intended weight stops)
 - #51, #61 are next in the priority queue
+
+---
+
+## 24.2 — Post-Visual-Design Bug Fixes and UI Polish
+
+**What happened:** Visual review pass after session 24.1 revealed several bugs and rough spots. All fixes are CSS/JSX only — no database changes, no new hooks or stores.
+
+### Bug fixes
+
+**Here wordmark hover disappearing** (`src/index.css`) — The shimmer gradient hover effect was making the wordmark text invisible. Root cause: DaisyUI v5 stores theme color variables as full `oklch(...)` values (e.g. `--color-primary: oklch(62.31% 0.1881 259.82)`), not as raw channel values. The `.here-wordmark:hover` styles were wrapping them as `oklch(var(--color-primary))`, which double-wrapped the value into invalid CSS. Fixed by using `var(--color-primary)` directly throughout the wordmark styles.
+
+**Navbar right-side stacking** (`src/components/layout/AppLayout.jsx`) — The help icon, role switcher pill row, and avatar were stacking vertically instead of sitting side-by-side. Fixed by changing `flex-none gap-2` to `flex items-center gap-2` on the right-side container.
+
+### Visual polish
+
+- **Wordmark size** (`src/index.css`) — Font-size bumped from 22px to 26px.
+- **Admin tab bar** (`src/components/layout/AdminLayout.jsx`) — Icon size 15→18, text 13px→15px, gap 1.5→2. Better legibility and touch target.
+- **Week nav buttons** (`src/components/schedule-calendar/CalendarWeekNav.jsx`) — Removed `btn-sm` from `‹`, `›`, and "Today" buttons. Larger touch targets.
+- **CalendarView background card** (`src/components/schedule-calendar/CalendarView.jsx`) — Added `bg-base-100 rounded-xl shadow-sm overflow-hidden` to the outer wrapper div. This creates visual separation from the `bg-base-200` page background; the existing internal borders now read as section dividers rather than floating lines.
+- **Filter bar layout** (`src/components/schedule-calendar/CalendarFilterBar.jsx`) — Removed `flex-wrap`. Set the two time selects to `w-28` (wide enough for "All day" / "7:00 AM" without truncation). Set "Filter activities" and "Search students" inputs to fixed `w-44`. Filter bar now stays on one line.
+
+### Architectural note established this session
+
+DaisyUI v5 stores theme color variables as complete color values, not raw channel values. Use `var(--color-primary)` directly — never `oklch(var(--color-primary))`. This is a breaking change from DaisyUI v4 behavior. This note has been added to CLAUDE.md.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `src/index.css` | Fixed `.here-wordmark` gradient to use `var(--color-primary)` directly; bumped font-size to 26px |
+| `src/components/layout/AppLayout.jsx` | Fixed navbar right-side container to `flex items-center gap-2` |
+| `src/components/layout/AdminLayout.jsx` | Icon size, text size, and gap bumped |
+| `src/components/schedule-calendar/CalendarWeekNav.jsx` | Removed `btn-sm` from nav buttons |
+| `src/components/schedule-calendar/CalendarView.jsx` | Added `bg-base-100 rounded-xl shadow-sm overflow-hidden` to outer div |
+| `src/components/schedule-calendar/CalendarFilterBar.jsx` | Removed `flex-wrap`; fixed widths on time selects and text inputs |
+
+### What's ready for next session
+
+- Visual polish bugs are resolved. App is in a clean state for user testing preparation.
+- #51 (inline enrollment redesign in ActivityDetail) is the top priority build item.
+- #61 (help and knowledge pages) is next after that.
