@@ -29,7 +29,9 @@
       "mcp__playwright__browser_press_key",
       "Bash(grep:*)",
       "Bash(npm install:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(git add:*)",
+      "Bash(git merge feat/enrollment-level-scheduling --no-ff -m ':*)"
     ]
   }
 }
