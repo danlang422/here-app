@@ -215,9 +215,32 @@ CREATE TABLE enrollments (
   enrolled_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
 
+  -- Enrollment-level scheduling (all nullable — null means "follow the activity")
+  -- These fields narrow a student's participation within the activity's schedule.
+  -- They must be subsets of / compatible with the parent activity's scheduling fields.
+  days_of_week INTEGER[],
+  -- Which days of week this student attends. Must be a subset of the activity's days_of_week.
+  -- NULL = follow the activity's days_of_week. Same encoding as activities.days_of_week
+  -- (EXTRACT(DOW) values: 0=Sun, 1=Mon, ..., 6=Sat).
+  rotation_day_type TEXT,
+  -- Which rotation day this student attends. Must match one of org's rotation_day_names.
+  -- NULL = follow the activity's rotation_day_type.
+  recurrence_interval INTEGER CHECK (recurrence_interval IS NULL OR recurrence_interval >= 1),
+  -- Weeks between this student's occurrences. Overrides the activity's recurrence_interval.
+  -- NULL = follow the activity's recurrence_interval.
+  recurrence_anchor_date DATE,
+  -- Anchor week for this student's recurrence. Required when enrollment recurrence_interval > 1.
+  -- NULL = follow the activity's recurrence_anchor_date.
+
   CONSTRAINT unique_student_activity UNIQUE (student_id, activity_id),
-  CONSTRAINT valid_block CHECK (block IS NULL OR block >= 0)
+  CONSTRAINT valid_block CHECK (block IS NULL OR block >= 0),
   -- Upper bound enforced at app layer against organization.settings.block_count
+  CONSTRAINT valid_enrollment_days_of_week CHECK (
+    days_of_week IS NULL OR (
+      array_length(days_of_week, 1) > 0
+      AND days_of_week <@ ARRAY[0,1,2,3,4,5,6]
+    )
+  )
 );
 
 CREATE INDEX idx_enrollments_student ON enrollments(student_id);
@@ -227,9 +250,9 @@ CREATE INDEX idx_enrollments_student_block ON enrollments(student_id, block)
   WHERE is_active = true AND block IS NOT NULL;
 ```
 
-**Scheduling overlap prevention:** A student should not be enrolled in two activities that actually overlap in time. This is enforced at the **application layer** during enrollment, not by a database constraint. The application checks the new activity's `block`, `days_of_week`, and `rotation_day_type` against the student's existing enrollments to determine whether there is a genuine scheduling overlap. See [business-logic/05-conflict-resolution.md](../business-logic/05-conflict-resolution.md) for the full validation algorithm.
+**Scheduling overlap prevention:** A student should not be enrolled in two activities that actually overlap in time. This is enforced at the **application layer** during enrollment, not by a database constraint. The application computes each enrollment's effective schedule via `getEffectiveSchedule(enrollment, activity)` — which uses enrollment-level scheduling fields when set, or falls back to the activity's fields — and checks for overlap between the new enrollment's effective schedule and existing enrollments' effective schedules. See [business-logic/05-conflict-resolution.md](../business-logic/05-conflict-resolution.md) for the full validation algorithm.
 
-This approach allows legitimate scheduling patterns that a simple unique constraint would reject — for example, two activities in the same block on alternating rotation days (Block 0 on A days and Block 0 on B days), or two activities in the same block on non-overlapping weekdays (Block 2 MWF and Block 2 TuTh).
+This approach allows legitimate scheduling patterns that a simple unique constraint would reject — for example, two activities in the same block on alternating rotation days (Block 0 on A days and Block 0 on B days), or two activities in the same block on non-overlapping weekdays (Block 2 MWF and Block 2 TuTh). Enrollment-level scheduling further allows two students in the same activity to attend on different days without conflicting with each other's other enrollments.
 
 The denormalized `block` on enrollments exists for query convenience, not constraint enforcement. The `idx_enrollments_student_block` index accelerates schedule lookups but is not unique.
 

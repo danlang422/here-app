@@ -226,6 +226,74 @@ The activity's occurrence is driven entirely by the district rotation calendar, 
 
 ---
 
+## Enrollment-Level Schedule Resolution
+
+**Purpose:** Resolve the effective scheduling constraints for a specific student's enrollment, accounting for per-enrollment overrides.
+
+An enrollment's scheduling fields (`days_of_week`, `rotation_day_type`, `recurrence_interval`, `recurrence_anchor_date`) are all nullable. Null means "follow the activity." Non-null values narrow the student's participation to a subset of the activity's schedule.
+
+```
+function getEffectiveSchedule(enrollment, activity):
+  return {
+    days_of_week:          enrollment.days_of_week ?? activity.days_of_week,
+    rotation_day_type:     enrollment.rotation_day_type ?? activity.rotation_day_type,
+    recurrence_interval:   enrollment.recurrence_interval ?? activity.recurrence_interval ?? 1,
+    recurrence_anchor_date: enrollment.recurrence_anchor_date ?? activity.recurrence_anchor_date
+  }
+```
+
+The returned object has the same shape as the scheduling fields on an activity. It can be passed directly to any code that expects activity-like scheduling fields — including conflict detection.
+
+---
+
+## Enrollment Meets Today
+
+**Purpose:** The per-student scheduling predicate — determine whether a specific student's enrollment is active on a given date.
+
+This runs after `activityMeetsToday`. If the activity doesn't meet today, the enrollment never does. If the activity does meet today, `enrollmentMeetsToday` applies the enrollment's effective schedule as an additional filter.
+
+**Algorithm:**
+
+```
+function enrollmentMeetsToday(enrollment, activity, date, schoolDay):
+  // Gate 1: the activity itself must meet today
+  if not activityMeetsToday(activity, date, schoolDay):
+    return false
+
+  // Gate 2: apply enrollment-level narrowing
+  effective = getEffectiveSchedule(enrollment, activity)
+
+  // Check rotation day constraint
+  if effective.rotation_day_type is not null:
+    if schoolDay.rotation_day != effective.rotation_day_type:
+      return false
+
+  // Check day of week
+  if effective.days_of_week is not null:
+    dayNumber = extractDOW(date)
+    if dayNumber not in effective.days_of_week:
+      return false
+
+  // Check recurrence interval
+  if effective.recurrence_interval > 1 and effective.recurrence_anchor_date is not null:
+    daysDiff = (date - effective.recurrence_anchor_date).days
+    weeksSinceAnchor = floor(daysDiff / 7)
+    if weeksSinceAnchor < 0:
+      return false
+    if weeksSinceAnchor % effective.recurrence_interval != 0:
+      return false
+
+  return true
+```
+
+**Key distinction from `activityMeetsToday`:**
+
+`activityMeetsToday` determines whether the activity container is running today. `enrollmentMeetsToday` determines whether *this student* attends today. All student-facing filtering — teacher rosters, student agenda, roster "today" counts — uses `enrollmentMeetsToday`. The `activityMeetsToday` predicate is used as the first gate inside `enrollmentMeetsToday`, and is also used for activity-level filtering (e.g., showing which activities are scheduled on the admin calendar).
+
+Both functions receive a `schoolDay` object (the `school_days` record for that date). The caller is responsible for fetching the school day once and passing it to both predicates — don't fetch it twice.
+
+---
+
 ## Activity Instance Creation
 
 **Purpose:** Ensure an `activity_instances` record exists for an activity on a given date.
