@@ -56,11 +56,11 @@ export async function bulkEnrollStudents(enrollments) {
   return data
 }
 
-// Unenroll a student (soft delete — sets is_active = false)
+// Unenroll a student (hard delete)
 export async function unenrollStudent(enrollmentId) {
   const { data, error } = await supabase
     .from('enrollments')
-    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .delete()
     .eq('id', enrollmentId)
     .select()
     .single()
@@ -126,11 +126,7 @@ export async function cleanOrphanedEnrollmentDays(activityId, removedDays) {
             .eq('id', id)
         : supabase
             .from('enrollments')
-            .update({
-              is_active: false,
-              notes: 'Deactivated: activity schedule changed',
-              updated_at: new Date().toISOString(),
-            })
+            .delete()
             .eq('id', id)
     )
   )
@@ -138,11 +134,11 @@ export async function cleanOrphanedEnrollmentDays(activityId, removedDays) {
   return updates.length
 }
 
-// Bulk unenroll students (soft delete — sets is_active = false)
+// Bulk unenroll students (hard delete)
 export async function bulkUnenrollStudents(enrollmentIds) {
   const { data, error } = await supabase
     .from('enrollments')
-    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .delete()
     .in('id', enrollmentIds)
     .select()
 
