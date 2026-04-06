@@ -964,13 +964,24 @@ function InlineEnrollmentSection({ activity, orgId, orgSettings = {} }) {
       const studentEnrollments = orgEnrollments.filter(
         (e) => e.student_id === student.id && e.activity_id !== activityId
       )
-      const result = validateEnrollment(activity, null, studentEnrollments)
+      // Use the student's actual enrollment schedule for this activity (if enrolled)
+      // so conflict detection sees the narrowed effective schedule, not the full activity schedule.
+      const thisEnrollment = enrollmentByStudentId.get(student.id)
+      const enrollmentSchedule = thisEnrollment
+        ? {
+            days_of_week: thisEnrollment.days_of_week,
+            rotation_day_type: thisEnrollment.rotation_day_type,
+            recurrence_interval: thisEnrollment.recurrence_interval,
+            recurrence_anchor_date: thisEnrollment.recurrence_anchor_date,
+          }
+        : null
+      const result = validateEnrollment(activity, enrollmentSchedule, studentEnrollments)
       if (result.conflicts.length > 0) {
         map.set(student.id, { hasConflict: true, conflicts: result.conflicts })
       }
     }
     return map
-  }, [activity, activityId, orgEnrollments, students])
+  }, [activity, activityId, orgEnrollments, students, enrollmentByStudentId])
 
   // Grade options for filter
   const gradeOptions = useMemo(() => {
@@ -1379,9 +1390,22 @@ function EnrollmentScheduleEditor({ enrollment, activity, orgSettings, localSche
   // Show rotation control only when the activity doesn't fix a rotation
   const showRotation = activity?.rotation_day_type == null && rotationDayNames.length > 0
 
-  // Show recurrence only when the activity uses recurrence
   const activityRecurrence = activity?.recurrence_interval ?? 1
-  const showRecurrence = activityRecurrence > 1
+
+  // Effective recurrence interval for this enrollment (local draft > saved > activity default)
+  const effectiveRecurrenceInterval = (() => {
+    if (localSchedule.recurrence_interval !== undefined) return localSchedule.recurrence_interval ?? activityRecurrence
+    return enrollment.recurrence_interval ?? activityRecurrence
+  })()
+
+  // Activity start date for anchor computation
+  const activityStartDate = activity?.start_date ?? null
+
+  // Derive starting week from current anchor date
+  const effectiveAnchorDate = localSchedule.recurrence_anchor_date !== undefined
+    ? localSchedule.recurrence_anchor_date
+    : (enrollment.recurrence_anchor_date ?? null)
+  const effectiveStartingWeek = deriveStartingWeek(effectiveAnchorDate, activityStartDate)
 
   function handleDayToggle(dayValue) {
     const current = effectiveDays ?? activityDays
@@ -1446,12 +1470,48 @@ function EnrollmentScheduleEditor({ enrollment, activity, orgSettings, localSche
         </div>
       )}
 
-      {/* Recurrence anchor (only when activity uses recurrence) */}
-      {showRecurrence && (
-        <div className="text-base-content/50 text-xs">
-          Recurrence follows activity ({activityRecurrence}-week cycle)
+      {/* Recurrence controls */}
+      <div>
+        <div className="text-base-content/50 mb-1">Repeats every</div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            className="select select-bordered select-xs w-16"
+            value={effectiveRecurrenceInterval}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10)
+              const isDefault = val === activityRecurrence
+              onChange('recurrence_interval', isDefault ? null : val)
+              if (val <= 1 || isDefault) {
+                onChange('recurrence_anchor_date', null)
+              }
+            }}
+          >
+            {[1, 2, 3, 4].map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <span className="text-base-content/50">week(s)</span>
+
+          {effectiveRecurrenceInterval > 1 && (
+            <>
+              <span className="text-base-content/50 ml-1">starting week</span>
+              <select
+                className="select select-bordered select-xs w-14"
+                value={effectiveStartingWeek}
+                onChange={(e) => {
+                  const week = parseInt(e.target.value, 10)
+                  const anchor = computeAnchorDate(activityStartDate, week, effectiveRecurrenceInterval)
+                  onChange('recurrence_anchor_date', anchor)
+                }}
+              >
+                {Array.from({ length: effectiveRecurrenceInterval }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Save / Cancel */}
       <div className="flex gap-2 pt-1">
