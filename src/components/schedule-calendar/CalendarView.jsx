@@ -184,7 +184,7 @@ export function CalendarView() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-base-100 rounded-xl shadow-sm overflow-hidden">
       <CalendarWeekNav />
       <CalendarFilterBar
         filterText={filterText}

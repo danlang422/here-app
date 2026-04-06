@@ -36,7 +36,7 @@ export function CalendarWeekNav() {
   return (
     <div className="flex items-center gap-2 px-3 py-2 border-b border-base-200">
       <button
-        className="btn btn-ghost btn-sm btn-square"
+        className="btn btn-ghost btn-square"
         onClick={() => setSelectedDate(subDays(anchor, 7))}
         title="Previous week"
       >
@@ -46,13 +46,13 @@ export function CalendarWeekNav() {
         {formatNavRange(weekStart, weekFriday)}
       </span>
       <button
-        className="btn btn-ghost btn-sm btn-square"
+        className="btn btn-ghost btn-square"
         onClick={() => setSelectedDate(addDays(anchor, 7))}
         title="Next week"
       >
         &#8250;
       </button>
-      <button className="btn btn-ghost btn-sm" onClick={() => setSelectedDate(new Date())}>
+      <button className="btn btn-ghost" onClick={() => setSelectedDate(new Date())}>
         Today
       </button>
     </div>

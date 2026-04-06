@@ -49,7 +49,7 @@ function AppLayout({ children }) {
           <Link to="/dashboard" className="here-wordmark">Here</Link>
         </div>
 
-        <div className="flex-none gap-2">
+        <div className="flex items-center gap-2">
           {/* Help link */}
           <Link to="/help" className="btn btn-ghost btn-circle" aria-label="Help">
             <Question size={20} />
