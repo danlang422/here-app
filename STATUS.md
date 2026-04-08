@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 8, 2026 (session 28)
+**Last updated:** April 8, 2026 (session 28.2)
 
 ---
 
@@ -16,6 +16,7 @@
 | **Admin** | | |
 | Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster, bulk edit, bulk calendar assignment) | Built | `activity-detail-and-form-redesign-spec.md`, `activity-management-overhaul-build-spec.md`, #55 |
 | Geofence location search (Nominatim autocomplete, lat/lng capture, GPS-fix indicator, radius input) | Built | `geofence-location-search-build-spec.md` |
+| Admin calendar — aggregate card student count fix (#63) and card height fix (#65) | Built | Session 28.2 |
 | User management (CRUD, bulk paste-from-spreadsheet entry) | Built | — |
 | Dashboard & agenda view | Replaced by calendar redesign | — |
 | Admin calendar redesign — Layers 0, 1, 2 + filter bar expansion | Built | `layer-0-build-spec.md`, `layer-1-build-spec.md`, `layer-2-build-spec.md`, `filter-bar-expansion-build-spec.md` |

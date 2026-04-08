@@ -20,7 +20,7 @@ export function CalendarWeekGrid({
   weekDates,
   schoolDaysByDate,
   activities,
-  enrollmentCountByActivity,
+  enrollmentCountByDateAndActivity,
   gridStartMinutes,
   gridEndMinutes,
   onEmptyClick,
@@ -123,7 +123,7 @@ export function CalendarWeekGrid({
                   date={date}
                   schoolDay={schoolDay}
                   activities={activities}
-                  enrollmentCountByActivity={enrollmentCountByActivity}
+                  enrollmentCountByActivity={enrollmentCountByDateAndActivity[isoStr] ?? {}}
                   gridStartMinutes={gridStartMinutes}
                   onEmptyClick={onEmptyClick}
                   onActivityClick={onActivityClick}

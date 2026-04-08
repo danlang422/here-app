@@ -11,7 +11,7 @@ import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useStaffUsers, useStudents } from '@/hooks/useUsers'
 import { getBlocks, getBlockLabel } from '@/lib/constants'
 import { useTerms } from '@/hooks/useTerms'
-import { addDays, formatDateISO } from '@/lib/scheduleUtils'
+import { addDays, formatDateISO, enrollmentMeetsToday } from '@/lib/scheduleUtils'
 import {
   timeToMinutes,
   floorToHour,
@@ -137,14 +137,36 @@ export function CalendarView() {
     })
   }
 
-  // Enrollment count map
-  const enrollmentCountByActivity = useMemo(() => {
-    const map = {}
+  // Per-day unique student count — uses enrollmentMeetsToday to filter by actual schedule
+  const enrollmentCountByDateAndActivity = useMemo(() => {
+    const byActivity = {}
     orgEnrollments.forEach((e) => {
-      map[e.activity_id] = (map[e.activity_id] ?? 0) + 1
+      if (!byActivity[e.activity_id]) byActivity[e.activity_id] = []
+      byActivity[e.activity_id].push(e)
     })
-    return map
-  }, [orgEnrollments])
+
+    const result = {}
+    for (const date of weekDates) {
+      const dateStr = formatDateISO(date)
+      const schoolDay = schoolDaysByDate[dateStr] ?? null
+      const dayMap = {}
+
+      for (const [activityId, enrollments] of Object.entries(byActivity)) {
+        const activity = activities.find((a) => a.id === activityId)
+        if (!activity || !schoolDay) {
+          dayMap[activityId] = new Set(enrollments.map((e) => e.student_id)).size
+          continue
+        }
+        const studentSet = new Set()
+        enrollments.forEach((e) => {
+          if (enrollmentMeetsToday(e, activity, date, schoolDay)) studentSet.add(e.student_id)
+        })
+        dayMap[activityId] = studentSet.size
+      }
+      result[dateStr] = dayMap
+    }
+    return result
+  }, [orgEnrollments, weekDates, schoolDaysByDate, activities])
 
   // Grid bounds — same pattern as AgendaView
   const gridBounds = useMemo(() => {
@@ -179,8 +201,8 @@ export function CalendarView() {
     setPopover({ prefillData: { date, startTime, calendarId: null } })
   }
 
-  function handleAggregateClick(aggregateData, event) {
-    setAggregatePopover({ aggregateData, position: { x: event.clientX, y: event.clientY } })
+  function handleAggregateClick(aggregateData, event, date) {
+    setAggregatePopover({ aggregateData, position: { x: event.clientX, y: event.clientY }, date })
   }
 
   return (
@@ -215,7 +237,7 @@ export function CalendarView() {
           weekDates={weekDates}
           schoolDaysByDate={schoolDaysByDate}
           activities={filteredActivities}
-          enrollmentCountByActivity={enrollmentCountByActivity}
+          enrollmentCountByDateAndActivity={enrollmentCountByDateAndActivity}
           gridStartMinutes={gridStartMinutes}
           gridEndMinutes={gridEndMinutes}
           onEmptyClick={handleEmptyClick}
@@ -234,7 +256,11 @@ export function CalendarView() {
             setAggregatePopover(null)
             handleActivityClick(activity)
           }}
-          enrollmentCountByActivity={enrollmentCountByActivity}
+          enrollmentCountByActivity={
+            aggregatePopover.date
+              ? (enrollmentCountByDateAndActivity[formatDateISO(aggregatePopover.date)] ?? {})
+              : {}
+          }
         />
       )}
 
