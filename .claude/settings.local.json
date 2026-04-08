@@ -31,7 +31,14 @@
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
       "Bash(git add:*)",
-      "Bash(git merge feat/enrollment-level-scheduling --no-ff -m ':*)"
+      "Bash(git merge feat/enrollment-level-scheduling --no-ff -m ':*)",
+      "Bash(ls -la C:/Users/dansl/Files/DevProjects/here-app/.env*)",
+      "Bash(npm --version)",
+      "Bash(semgrep --version)",
+      "Bash(gitleaks version:*)",
+      "Bash(trivy --version)",
+      "Bash(npm audit:*)",
+      "Bash(node \"C:/Users/dansl/.claude/plugins/cache/variant-systems-skills/code-audit/2.1.0/code-audit/scripts/audit.mjs\" .)"
     ]
   }
 }
