@@ -170,7 +170,7 @@ export function CalendarDayColumn({
 
       const top = minutesToPx(earliestStart - gridStartMinutes) + GRID_PAD_Y
       const rawHeight = minutesToPx(latestEnd - earliestStart)
-      const height = Math.max(rawHeight, PX_PER_HOUR * 1.5)
+      const height = Math.max(rawHeight, 48)
 
       const totalEnrollment = groupActivities.reduce(
         (sum, a) => sum + (enrollmentCountByActivity[a.id] ?? 0),
@@ -196,7 +196,7 @@ export function CalendarDayColumn({
             enrollmentCount={totalEnrollment}
             mode="aggregate"
             aggregateData={aggregateData}
-            onClick={(e) => onAggregateClick(aggregateData, e)}
+            onClick={(e) => onAggregateClick(aggregateData, e, date)}
             isDimmed={isDimmed}
           />
         </div>
