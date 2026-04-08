@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   PencilSimple, Check, X,
   ClipboardText, HandWaving, ListChecks,
   MapPin, DoorOpen, CalendarX, Student,
-  Trash, CheckCircle,
+  Trash, CheckCircle, Gps, GpsFix,
 } from '@phosphor-icons/react'
+import { searchAddress } from '@/lib/nominatimSearch'
 import { getBlocks, getBlockLabel, DAYS_OF_WEEK, WEEKDAYS } from '@/lib/constants'
 import { useStaffUsers, useStudents } from '@/hooks/useUsers'
 import { useActivityTerms, useAddActivityTerm, useRemoveActivityTerm } from '@/hooks/useActivityTerms'
@@ -43,6 +44,9 @@ const DEFAULT_VALUES = {
   start_date: '',
   end_date: '',
   location: '',
+  location_lat: null,
+  location_lng: null,
+  geofence_radius: 100,
   requires_attendance: true,
   requires_checkin: false,
   allows_presence_wave: false,
@@ -89,6 +93,9 @@ function buildInitialValues(activity) {
     start_date: activity.start_date || '',
     end_date: activity.end_date || '',
     location: activity.location || '',
+    location_lat: activity.location_lat ?? null,
+    location_lng: activity.location_lng ?? null,
+    geofence_radius: activity.geofence_radius ?? 100,
     requires_attendance: activity.requires_attendance ?? true,
     requires_checkin: activity.requires_checkin ?? false,
     allows_presence_wave: activity.allows_presence_wave ?? false,
@@ -172,6 +179,9 @@ export default function ActivityDetail({
   const [showDescription, setShowDescription] = useState(!!(activity?.description))
   const [pendingTerms, setPendingTerms] = useState([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [nominatimResults, setNominatimResults] = useState([])
+  const [nominatimLoading, setNominatimLoading] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
 
   // Reset form, staff rows, and pending terms when activity changes
   useEffect(() => {
@@ -187,6 +197,8 @@ export default function ActivityDetail({
   const watchedRotation = watch('rotation_day_type')
   const watchedName = watch('name')
   const watchedRecurrenceInterval = watch('recurrence_interval')
+  const watchedGeofence = watch('requires_geofence')
+  const watchedLocationLat = watch('location_lat')
 
   // Clamp starting_week when interval drops below the current selection
   useEffect(() => {
@@ -280,6 +292,11 @@ export default function ActivityDetail({
       start_date: formValues.start_date || null,
       end_date: formValues.end_date || null,
       location: formValues.location?.trim() || null,
+      location_lat: formValues.location_lat,
+      location_lng: formValues.location_lng,
+      geofence_radius: formValues.requires_geofence
+        ? (formValues.geofence_radius ?? 100)
+        : (formValues.geofence_radius ?? null),
       requires_attendance: formValues.requires_attendance,
       requires_checkin: formValues.requires_checkin,
       allows_presence_wave: formValues.allows_presence_wave,
@@ -292,6 +309,14 @@ export default function ActivityDetail({
       recurrence_anchor_date: computeAnchorDate(formValues.start_date, formValues.starting_week, formValues.recurrence_interval),
       // For new activities: carry pending terms to the parent for post-create insertion
       ...(!activity ? { _pendingTerms: pendingTerms } : {}),
+    }
+
+    // If geofence is off AND location text changed, clear coordinates
+    const locationChanged = activity?.location !== formValues.location?.trim()
+    if (!formValues.requires_geofence && locationChanged) {
+      data.location_lat = null
+      data.location_lng = null
+      data.geofence_radius = null
     }
 
     // Check for orphaned enrollment days before saving
@@ -414,21 +439,21 @@ export default function ActivityDetail({
       <div className="space-y-4">
 
         {/* Location — full width, above staff */}
-        {mode === 'view' ? (
-          activity?.location ? (
-            <span className="text-sm text-base-content/70">{activity.location}</span>
-          ) : null
-        ) : (
-          <div>
-            <label className="label-text text-xs text-base-content/50 mb-1 block">Location</label>
-            <input
-              type="text"
-              className="input input-bordered input-sm w-full"
-              placeholder="Room, building, or address"
-              {...register('location')}
-            />
-          </div>
-        )}
+        <LocationField
+          register={register}
+          watch={watch}
+          setValue={setValue}
+          geofenceEnabled={watchedGeofence}
+          hasCoordinates={watchedLocationLat != null}
+          mode={mode}
+          activity={activity}
+          nominatimResults={nominatimResults}
+          setNominatimResults={setNominatimResults}
+          nominatimLoading={nominatimLoading}
+          setNominatimLoading={setNominatimLoading}
+          showDropdown={showDropdown}
+          setShowDropdown={setShowDropdown}
+        />
 
         {/* Staff */}
         <div>
@@ -598,6 +623,158 @@ export default function ActivityDetail({
         </div>
       )}
     </form>
+  )
+}
+
+// ─── LocationField ─────────────────────────────────────────────────────────────
+
+function LocationField({
+  register, watch, setValue,
+  geofenceEnabled, hasCoordinates, mode, activity,
+  nominatimResults, setNominatimResults,
+  nominatimLoading, setNominatimLoading,
+  showDropdown, setShowDropdown,
+}) {
+  const debounceRef = useRef(null)
+  const containerRef = useRef(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleOutsideClick(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [setShowDropdown])
+
+  function handleLocationChange(e) {
+    const value = e.target.value
+    // Clear stored coordinates when user manually edits after a geocoded selection
+    setValue('location_lat', null)
+    setValue('location_lng', null)
+
+    if (!geofenceEnabled) return
+
+    clearTimeout(debounceRef.current)
+    if (value.length < 3) {
+      setNominatimResults([])
+      setShowDropdown(false)
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      setNominatimLoading(true)
+      try {
+        const results = await searchAddress(value)
+        setNominatimResults(results)
+        setShowDropdown(results.length > 0)
+      } catch {
+        setNominatimResults([])
+        setShowDropdown(false)
+      } finally {
+        setNominatimLoading(false)
+      }
+    }, 600)
+  }
+
+  function handleSelectResult(result) {
+    setValue('location', result.display_name)
+    setValue('location_lat', parseFloat(result.lat))
+    setValue('location_lng', parseFloat(result.lon))
+    setShowDropdown(false)
+    setNominatimResults([])
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Escape') {
+      setShowDropdown(false)
+    }
+  }
+
+  if (mode === 'view') {
+    if (!activity?.location) return null
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="text-sm text-base-content/70">{activity.location}</span>
+        {activity.requires_geofence && (
+          activity.location_lat != null && activity.location_lng != null
+            ? <GpsFix size={14} className="text-success shrink-0" />
+            : <Gps size={14} className="text-base-content/40 shrink-0" />
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div ref={containerRef}>
+      <label className="label-text text-xs text-base-content/50 mb-1 block">Location</label>
+      <div className="relative">
+        <input
+          type="text"
+          className="input input-bordered input-sm w-full pr-8"
+          placeholder="Room, building, or address"
+          {...register('location')}
+          onChange={(e) => {
+            register('location').onChange(e)
+            handleLocationChange(e)
+          }}
+          onKeyDown={handleKeyDown}
+        />
+        {geofenceEnabled && (
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+            {hasCoordinates
+              ? <GpsFix size={14} className="text-success" />
+              : <Gps size={14} className="text-base-content/40" />
+            }
+          </span>
+        )}
+
+        {/* Nominatim dropdown */}
+        {geofenceEnabled && showDropdown && (
+          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg overflow-hidden">
+            {nominatimLoading ? (
+              <div className="flex justify-center py-3">
+                <span className="loading loading-spinner loading-xs text-base-content/40" />
+              </div>
+            ) : (
+              nominatimResults.map((result, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-base-200 transition-colors truncate"
+                  onMouseDown={(e) => {
+                    e.preventDefault() // prevent input blur before click registers
+                    handleSelectResult(result)
+                  }}
+                >
+                  {result.display_name}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Geofence radius — only when geofence enabled */}
+      {geofenceEnabled && (
+        <div className="mt-2">
+          <label className="label-text text-xs text-base-content/50 mb-1 block">Geofence radius</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              className="input input-bordered input-sm w-24"
+              min="1"
+              {...register('geofence_radius', { valueAsNumber: true, min: 1 })}
+            />
+            <span className="text-sm text-base-content/60">meters</span>
+          </div>
+          <p className="text-xs text-base-content/40 mt-0.5">
+            How close the student needs to be to check in. 100m ≈ a short city block.
+          </p>
+        </div>
+      )}
+    </div>
   )
 }
 

@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 6, 2026 (session 27)
+**Last updated:** April 8, 2026 (session 28)
 
 ---
 
@@ -15,6 +15,7 @@
 | Auth & navigation | Built | — |
 | **Admin** | | |
 | Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster, bulk edit, bulk calendar assignment) | Built | `activity-detail-and-form-redesign-spec.md`, `activity-management-overhaul-build-spec.md`, #55 |
+| Geofence location search (Nominatim autocomplete, lat/lng capture, GPS-fix indicator, radius input) | Built | `geofence-location-search-build-spec.md` |
 | User management (CRUD, bulk paste-from-spreadsheet entry) | Built | — |
 | Dashboard & agenda view | Replaced by calendar redesign | — |
 | Admin calendar redesign — Layers 0, 1, 2 + filter bar expansion | Built | `layer-0-build-spec.md`, `layer-1-build-spec.md`, `layer-2-build-spec.md`, `filter-bar-expansion-build-spec.md` |
@@ -109,3 +110,4 @@ Ordered priority:
 | `filter-bar-expansion-build-spec.md` | **Implemented** | Block, time range, and student filters added to CalendarFilterBar. Student dimming threaded through WeekGrid → DayColumn → EventCard. Built session 20. |
 | `visual-design-system-design-doc.md` | **Implemented** | App-wide visual polish: palette, typography, Phosphor icon consolidation, interaction design, component styling, block overlay removal. Design doc session 23; implemented session 24. |
 | `enrollment-level-scheduling-design-doc.md` | **Implemented** | Per-student scheduling on enrollments. Schema migration, `enrollmentMeetsToday` predicate, conflict detection refactor, inline enrollment UI. Sessions 25–26. |
+| `geofence-location-search-build-spec.md` | **Implemented** | Nominatim geocoding on location field, silent lat/lng capture, GPS-fix indicator, geofence radius input. Built session 28. |
