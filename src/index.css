@@ -103,7 +103,7 @@
   border-radius: inherit;
   border: 2px solid currentColor;
   opacity: 0;
-  animation: pulse-ring 1.8s ease-out infinite;
+  animation: pulse-ring 1.8s ease-out 2;
 }
 
 @plugin "daisyui/theme" {

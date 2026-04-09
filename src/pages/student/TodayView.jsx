@@ -123,7 +123,7 @@ function TodayView() {
   // --- Flow A: Presence Wave ---
   const handleWave = useCallback(async (activity) => {
     const instanceId = actionData?.instances?.get(activity.id)
-    if (!instanceId) return
+    if (!instanceId) { console.warn('Wave skipped: no instanceId for activity', activity.id); return }
     try {
       await createPresenceWave(studentId, instanceId)
       useToastStore.getState().show('Hey!', <HandWaving size={16} />)
@@ -137,7 +137,7 @@ function TodayView() {
   // --- Flow B: Standalone Status Update ---
   const handleStatusUpdate = useCallback((activity) => {
     const instanceId = actionData?.instances?.get(activity.id)
-    if (!instanceId) return
+    if (!instanceId) { console.warn('Status update skipped: no instanceId for activity', activity.id); return }
     setStatusModal({
       activityName: activity.name,
       instanceId,
@@ -155,7 +155,7 @@ function TodayView() {
   // --- Flow C: Check-In ---
   const handleCheckIn = useCallback(async (activity) => {
     const instanceId = actionData?.instances?.get(activity.id)
-    if (!instanceId) return
+    if (!instanceId) { console.warn('Check-in skipped: no instanceId for activity', activity.id); return }
 
     // Step 1: Geofence check (if required)
     let locationData = {}
