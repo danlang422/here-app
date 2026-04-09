@@ -1,4 +1,5 @@
 import { Flame } from '@phosphor-icons/react'
+import { getDevNow } from '@/lib/devOverrides' // DEV OVERRIDE — remove for production
 import ActionButton from '@/components/student/ActionButton'
 import {
   getCheckinButtonState,
@@ -28,7 +29,7 @@ function StudentActivityCard({
   const metaLine = metaParts.join(' \u00b7 ')
 
   // Determine button states
-  const now = new Date()
+  const now = getDevNow() // DEV OVERRIDE
   const waveState = activity.allows_presence_wave
     ? getWaveButtonState(activity, wave, isToday, now)
     : null

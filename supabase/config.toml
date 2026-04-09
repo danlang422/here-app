@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.create-user]
 verify_jwt = false
+
+[functions.reset-passwords]
+   verify_jwt = false

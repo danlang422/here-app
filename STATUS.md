@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 8, 2026 (session 28.2)
+**Last updated:** April 8, 2026 (session 29)
 
 ---
 
@@ -43,6 +43,8 @@
 | Enrollment validation (block-based + time-based, recurrence-aware, enrollment-effective schedules) | Built | #52 resolved; `enrollment-level-scheduling-design-doc.md` |
 | RLS policies | Comprehensive — all tables, all roles | `20260313000000_comprehensive_rls_policies.sql`, `10-rls-policies.md` |
 | Edge Functions (`submit-feedback`, `create-user`) | Deployed with `--no-verify-jwt`; config in `supabase/config.toml`. `submit-feedback` posts to GitHub Issues. | Session 16, 19 |
+| Bulk password reset (Edge Function, user_metadata flag) | Built | Session 29 |
+| Dev date/time override | Built | Session 29, #67 |
 | Realtime subscriptions | Not started | — |
 
 ## Active Decisions
