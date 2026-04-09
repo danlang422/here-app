@@ -21,6 +21,7 @@ import {
   DEFAULT_GRID_START,
   DEFAULT_GRID_END,
 } from '@/components/agenda/agendaUtils'
+import { getDevNow, getDevToday, isDevOverrideActive } from '@/lib/devOverrides' // DEV OVERRIDE — remove for production
 import {
   ensureActivityInstances,
   createPresenceWave,
@@ -32,7 +33,7 @@ import {
 } from '@/api/agenda'
 
 function TodayView() {
-  const [date, setDate] = useState(new Date())
+  const [date, setDate] = useState(getDevToday()) // DEV OVERRIDE
   const profile = useAuthStore((s) => s.profile)
   const orgId = profile?.organization_id
   const studentId = profile?.id
@@ -48,7 +49,7 @@ function TodayView() {
   // Date navigation
   const goToPrev = () => setDate((d) => subDays(d, 1))
   const goToNext = () => setDate((d) => addDays(d, 1))
-  const isToday = isSameDay(date, new Date())
+  const isToday = isSameDay(date, getDevNow()) // DEV OVERRIDE
   const dateStr = formatDateISO(date)
 
   // Ensure activity instances exist (fire-and-forget)
@@ -400,7 +401,7 @@ function TodayView() {
         <div className="text-center mb-3">
           <button
             className="text-xs text-primary hover:underline"
-            onClick={() => setDate(new Date())}
+            onClick={() => setDate(getDevToday())} // DEV OVERRIDE
           >
             Back to today
           </button>
@@ -461,7 +462,7 @@ function TodayView() {
 }
 
 function getGreeting() {
-  const hour = new Date().getHours()
+  const hour = getDevNow().getHours() // DEV OVERRIDE
   if (hour < 12) return 'Good morning'
   if (hour < 17) return 'Good afternoon'
   return 'Good evening'
