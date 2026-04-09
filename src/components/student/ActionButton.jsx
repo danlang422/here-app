@@ -54,7 +54,7 @@ function ActionButton({ type, state, onClick, hasUpdates }) {
         transition-all duration-150
         ${style}
         ${animClass}
-        ${isAvailable ? 'pulse-available' : ''}
+        ${isAvailable && type !== 'status' ? 'pulse-available' : ''}
       `}
     >
       {icon}
