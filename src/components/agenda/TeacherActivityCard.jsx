@@ -1,14 +1,15 @@
-import { Stack, HandWaving } from '@phosphor-icons/react'
+import { Stack, HandWaving, CheckCircle } from '@phosphor-icons/react'
 import { getBlockLabel } from '@/lib/constants'
 import { formatTimeRange } from './agendaUtils'
 
-function TeacherActivityCard({ item, blockLabels, waveCount = 0, onClick }) {
+function TeacherActivityCard({ item, blockLabels, waveCount = 0, hasAttendanceRecords = false, onClick }) {
   if (item.isAggregate) {
     return (
       <AggregateCard
         item={item}
         blockLabels={blockLabels}
         waveCount={waveCount}
+        hasAttendanceRecords={hasAttendanceRecords}
         onClick={onClick}
       />
     )
@@ -19,12 +20,13 @@ function TeacherActivityCard({ item, blockLabels, waveCount = 0, onClick }) {
       item={item}
       blockLabels={blockLabels}
       waveCount={waveCount}
+      hasAttendanceRecords={hasAttendanceRecords}
       onClick={onClick}
     />
   )
 }
 
-function SingleCard({ item, blockLabels, waveCount, onClick }) {
+function SingleCard({ item, blockLabels, waveCount, hasAttendanceRecords, onClick }) {
   const timeRange = formatTimeRange(item.default_start_time, item.default_end_time)
   const blockLabel = item.block != null ? getBlockLabel(item.block, blockLabels) : null
   const metaParts = [timeRange, blockLabel, item.location].filter(Boolean)
@@ -43,6 +45,9 @@ function SingleCard({ item, blockLabels, waveCount, onClick }) {
         <div className="text-sm text-base-content/60 truncate">
           {metaLine && <>{metaLine} &middot; </>}
           <span>{count}</span>
+          {hasAttendanceRecords && (
+            <CheckCircle size={14} weight="fill" className="inline ml-1 text-success/60 align-middle" />
+          )}
           {waveCount > 0 && (
             <span className="ml-1.5 inline-flex items-center gap-0.5 wave-badge">
               <HandWaving size={14} />
@@ -55,7 +60,7 @@ function SingleCard({ item, blockLabels, waveCount, onClick }) {
   )
 }
 
-function AggregateCard({ item, blockLabels, waveCount, onClick }) {
+function AggregateCard({ item, blockLabels, waveCount, hasAttendanceRecords, onClick }) {
   const timeRange = formatTimeRange(item.default_start_time, item.default_end_time)
   const blockLabel = item.block != null ? getBlockLabel(item.block, blockLabels) : 'Unassigned'
 
@@ -73,6 +78,9 @@ function AggregateCard({ item, blockLabels, waveCount, onClick }) {
           {timeRange && <>{timeRange} &middot; </>}
           <span>{item.activityCount} activities</span>
           <span> &middot; {item.totalEnrollment}</span>
+          {hasAttendanceRecords && (
+            <CheckCircle size={14} weight="fill" className="inline ml-1 text-success/60 align-middle" />
+          )}
           {waveCount > 0 && (
             <span className="ml-1.5 inline-flex items-center gap-0.5 wave-badge">
               <HandWaving size={14} />

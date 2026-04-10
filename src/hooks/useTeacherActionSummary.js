@@ -5,6 +5,7 @@ import {
   getWavesForInstances,
   getCheckInsForInstances,
   getStatusUpdatesForInstances,
+  getAttendanceForInstances,
 } from '@/api/agenda'
 
 export function useTeacherActionSummary(activityIds, date, orgId) {
@@ -24,15 +25,17 @@ export function useTeacherActionSummary(activityIds, date, orgId) {
           waves: new Map(),
           checkIns: new Map(),
           statusCounts: new Map(),
+          hasAttendanceRecords: new Map(),
           instances: instanceMap,
         }
       }
 
       // 2. Fetch all action data in parallel
-      const [wavesData, checkInsData, statusData] = await Promise.all([
+      const [wavesData, checkInsData, statusData, attendanceData] = await Promise.all([
         getWavesForInstances(instanceIds),
         getCheckInsForInstances(instanceIds),
         getStatusUpdatesForInstances(instanceIds),
+        getAttendanceForInstances(instanceIds),
       ])
 
       // Build reverse map: instanceId → activityId
@@ -72,7 +75,14 @@ export function useTeacherActionSummary(activityIds, date, orgId) {
         }
       }
 
-      return { waveCounts, waves, checkIns, statusCounts, instances: instanceMap }
+      // Activities with at least one attendance record
+      const hasAttendanceRecords = new Map()
+      for (const record of attendanceData) {
+        const actId = instanceToActivity.get(record.activity_instance_id)
+        if (actId) hasAttendanceRecords.set(actId, true)
+      }
+
+      return { waveCounts, waves, checkIns, statusCounts, hasAttendanceRecords, instances: instanceMap }
     },
     enabled: activityIds.length > 0 && !!orgId,
   })

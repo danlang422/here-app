@@ -150,7 +150,7 @@ function Dashboard() {
         day: 'numeric',
       })
 
-  // Render card function with wave counts
+  // Render card function with wave counts and attendance indicator
   const renderCard = (item) => {
     const waveCount = item.isAggregate
       ? item.activities.reduce(
@@ -159,11 +159,16 @@ function Dashboard() {
         )
       : (actionSummary?.waveCounts?.get(item.id) ?? 0)
 
+    const hasAttendanceRecords = item.isAggregate
+      ? item.activities.some((a) => actionSummary?.hasAttendanceRecords?.get(a.id))
+      : (actionSummary?.hasAttendanceRecords?.get(item.id) ?? false)
+
     return (
       <TeacherActivityCard
         item={item}
         blockLabels={blockLabels}
         waveCount={waveCount}
+        hasAttendanceRecords={hasAttendanceRecords}
         onClick={() => handleCardClick(item)}
       />
     )
