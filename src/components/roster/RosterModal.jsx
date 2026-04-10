@@ -72,6 +72,20 @@ function RosterModal({
     })
   }
 
+  function markAllPresent() {
+    setPendingChanges((prev) => {
+      const next = new Map(prev)
+      for (const student of todayStudents) {
+        if (!student.scheduledToday || !student.requiresAttendance) continue
+        const existingStatus = attendanceByStudent.get(student.studentId)?.status ?? null
+        if (!existingStatus && !next.has(student.studentId)) {
+          next.set(student.studentId, 'present')
+        }
+      }
+      return next
+    })
+  }
+
   async function handleSave() {
     setSaving(true)
     try {
@@ -93,6 +107,7 @@ function RosterModal({
       queryClient.invalidateQueries({
         queryKey: ['teacher-agenda', teacherId, dateStr],
       })
+      queryClient.invalidateQueries({ queryKey: ['teacher-action-summary'] })
 
       onClose()
     } catch (err) {
@@ -142,6 +157,12 @@ function RosterModal({
           <p className="text-sm text-base-content/60">{headerContent.subtitle}</p>
           <div className="flex items-center gap-3">
             <p className="text-sm text-base-content/50">{headerContent.count}</p>
+            <button
+              className="text-xs text-primary underline-offset-2 hover:underline"
+              onClick={markAllPresent}
+            >
+              Mark all P
+            </button>
             {hasFilteredStudents && (
               <button
                 className="text-xs text-primary underline-offset-2 hover:underline"
@@ -307,11 +328,11 @@ function StudentRow({
             Not today
           </span>
         ) : student.requiresAttendance ? (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center">
             {STATUS_OPTIONS.map(({ key, label, fullLabel, btnClass }) => (
               <button
                 key={key}
-                className={`btn btn-xs rounded ${
+                className={`btn btn-sm rounded-none first:rounded-l last:rounded-r ${
                   currentStatus === key ? btnClass : 'btn-ghost'
                 }`}
                 title={fullLabel}

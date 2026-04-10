@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 9, 2026 (session 31)
+**Last updated:** April 9, 2026 (session 32)
 
 ---
 
@@ -38,6 +38,8 @@
 | Dashboard / agenda | Built | `teacher-agenda-build-spec.md` |
 | Attendance marking | Built | `teacher-agenda-build-spec.md` |
 | Student action visibility | Built | `teacher-roster-student-actions-build-spec.md` |
+| Attendance indicator on agenda cards | Built | Session 32, #74 |
+| PAET buttons — larger size + "Mark all P" bulk action | Built | Session 32, #75 |
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI, calendar UI) | Built | — |
