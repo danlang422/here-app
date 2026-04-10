@@ -44,7 +44,7 @@ function SingleCard({ item, blockLabels, waveCount, onClick }) {
           {metaLine && <>{metaLine} &middot; </>}
           <span>{count}</span>
           {waveCount > 0 && (
-            <span className="ml-1.5 inline-flex items-center gap-0.5 animate-bounce">
+            <span className="ml-1.5 inline-flex items-center gap-0.5 wave-badge">
               <HandWaving size={14} />
               <span>{waveCount}</span>
             </span>
@@ -74,7 +74,7 @@ function AggregateCard({ item, blockLabels, waveCount, onClick }) {
           <span>{item.activityCount} activities</span>
           <span> &middot; {item.totalEnrollment}</span>
           {waveCount > 0 && (
-            <span className="ml-1.5 inline-flex items-center gap-0.5 animate-bounce">
+            <span className="ml-1.5 inline-flex items-center gap-0.5 wave-badge">
               <HandWaving size={14} />
               <span>{waveCount}</span>
             </span>
