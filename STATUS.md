@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 9, 2026 (session 30)
+**Last updated:** April 9, 2026 (session 31)
 
 ---
 
@@ -29,7 +29,8 @@
 | Password reset + change password | Built | #56 — `/forgot-password`, `/reset-password`, `/account` |
 | Visual design system — icons, fonts, animations, component polish | Built | `visual-design-system-design-doc.md`, #60 |
 | Visual design post-review polish — wordmark bug, navbar stacking, tab bar, week nav, CalendarView card, filter bar layout | Built | Session 24.2 |
-| Reports | Placeholder | — |
+| Admin attendance rollup — date picker, block-grouped view, status coloring, exception/full toggle, conflict detection | Built | `attendance-rollup-design-doc.md`, #66 |
+| Reports | Placeholder (attendance rollup wired in) | — |
 | **Student** | | |
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
 | Check-in flows | Built | `student-actions-build-spec.md` |
@@ -115,3 +116,4 @@ Ordered priority:
 | `enrollment-level-scheduling-design-doc.md` | **Implemented** | Per-student scheduling on enrollments. Schema migration, `enrollmentMeetsToday` predicate, conflict detection refactor, inline enrollment UI. Sessions 25–26. |
 | `geofence-location-search-build-spec.md` | **Implemented** | Nominatim geocoding on location field, silent lat/lng capture, GPS-fix indicator, geofence radius input. Built session 28. |
 | `dev-override-implementation-guide.md` | **Implemented** | Dev date/time override for demo — `getDevNow()`, `getDevToday()`, constant toggle. Built session 29. |
+| `attendance-rollup-design-doc.md` | **Implemented** | Admin attendance rollup view — block groups, status sorting, exception/full toggle, conflict detection. Built session 31. |
