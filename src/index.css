@@ -92,6 +92,20 @@
   transition: transform 0.1s ease;
 }
 
+/* ── Wave badge on teacher agenda cards ─────────────────────── */
+@keyframes wave-badge-bounce {
+  0%   { transform: translateY(0); }
+  25%  { transform: translateY(-30%); }
+  50%  { transform: translateY(0); }
+  75%  { transform: translateY(-15%); }
+  100% { transform: translateY(0); }
+}
+
+.wave-badge {
+  animation: wave-badge-bounce 0.8s ease 2;
+  animation-fill-mode: forwards;
+}
+
 /* ── Pulse ring on available action buttons ──────────────────── */
 .pulse-available {
   position: relative;
