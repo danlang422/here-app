@@ -2,11 +2,17 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import AdminLayout from '@/components/layout/AdminLayout'
+import PublicLayout from '@/components/layout/PublicLayout'
+import RootRedirect from '@/components/layout/RootRedirect'
 
 // Auth pages
 import Login from '@/pages/auth/Login'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
 import ResetPassword from '@/pages/auth/ResetPassword'
+
+// Public pages
+import TrustPage from '@/pages/public/TrustPage'
+import AboutPage from '@/pages/public/AboutPage'
 
 // Account page
 import Account from '@/pages/Account'
@@ -34,7 +40,14 @@ import OrgSettings from '@/pages/admin/OrgSettings'
 function App() {
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Root — auth-aware: landing page for visitors, role redirect for authenticated users */}
+      <Route path="/" element={<RootRedirect />} />
+
+      {/* Public pages */}
+      <Route path="/trust" element={<PublicLayout><TrustPage /></PublicLayout>} />
+      <Route path="/about" element={<PublicLayout><AboutPage /></PublicLayout>} />
+
+      {/* Auth routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -96,9 +109,8 @@ function App() {
         </ProtectedRoute>
       } />
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

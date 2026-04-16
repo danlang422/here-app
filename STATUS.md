@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 9, 2026 (session 32)
+**Last updated:** April 16, 2026 (session 33)
 
 ---
 
@@ -40,6 +40,8 @@
 | Student action visibility | Built | `teacher-roster-student-actions-build-spec.md` |
 | Attendance indicator on agenda cards | Built | Session 32, #74 |
 | PAET buttons — larger size + "Mark all P" bulk action | Built | Session 32, #75 |
+| **Public-facing site** | | |
+| Public landing page, trust/privacy page, about page, public layout, auth-aware root routing | Built (feat/public-facing-site) | `public-facing-site-build-spec.md`, Session 33 |
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI, calendar UI) | Built | — |
@@ -68,10 +70,12 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 Ordered priority:
 
-1. **Data re-entry** — Clear existing activities/enrollments and re-enter using the consolidated model (~120–150 activities instead of ~460). Branch `feat/enrollment-level-scheduling` merged to main (commit `026179d`).
-2. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
-3. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
-4. **#21** — Customizable agenda start/end times
+1. **Merge feat/public-facing-site** — Branch is ready; merge to main and deploy.
+2. **Follow-up marketing issue** — Create a GitHub issue for polished public site work (screenshots, richer copy) once the UI is more stable.
+3. **Data re-entry** — Clear existing activities/enrollments and re-enter using the consolidated model (~120–150 activities instead of ~460). Branch `feat/enrollment-level-scheduling` merged to main (commit `026179d`).
+4. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
+5. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
+6. **#21** — Customizable agenda start/end times
 
 **Data entry:** Schedule fully normalized. Enrollment-level scheduling is complete (including hard-delete unenrollments and advisory conflict detection) — a fresh re-entry pass using the consolidated model is the next concrete action item.
 
@@ -119,3 +123,4 @@ Ordered priority:
 | `geofence-location-search-build-spec.md` | **Implemented** | Nominatim geocoding on location field, silent lat/lng capture, GPS-fix indicator, geofence radius input. Built session 28. |
 | `dev-override-implementation-guide.md` | **Implemented** | Dev date/time override for demo — `getDevNow()`, `getDevToday()`, constant toggle. Built session 29. |
 | `attendance-rollup-design-doc.md` | **Implemented** | Admin attendance rollup view — block groups, status sorting, exception/full toggle, conflict detection. Built session 31. |
+| `public-facing-site-build-spec.md` | **Implemented** | Public landing page, trust/privacy page, about page, public layout, auth-aware root routing. Built session 33. |
