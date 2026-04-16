@@ -127,7 +127,7 @@ A layout wrapper for all public pages. Distinct from `AppLayout`:
 ```
 
 - Simple, centered or left-aligned text
-- Links: Trust page, Privacy data sheet PDF (opens in new tab), `mailto:` contact link
+- Links: Trust page, Privacy data sheet PDF (opens in new tab), `mailto:` contact link (danslang@gmail.com)
 - `base-200` background, `base-content/70` text color for muted feel
 - `py-8` vertical padding
 
@@ -352,9 +352,9 @@ For the initial build, the About page renders the same About copy as the landing
 
 **Additional section — "Who's behind Here"**
 
-> Here is built by Daniel Lang, a former high school teacher turned developer. The app was designed specifically for City View Community High School in Cedar Rapids, Iowa, where traditional Student Information Systems couldn't accommodate the school's flexible, individualized schedules. It's a solo project built with care, and if you have questions or feedback, you can reach me at [contact email].
+> Here is built by Daniel Lang, a former high school teacher turned developer. The app was designed specifically for City View Community High School in Cedar Rapids, Iowa, where traditional Student Information Systems couldn't accommodate the school's flexible, individualized schedules. It's a solo project built with care, and if you have questions or feedback, you can reach Daniel here.
 
-(Daniel — feel free to edit the "Who's behind Here" copy. This is a first draft capturing what feels relevant for a district reviewer without over-explaining.)
+("here" should be a mailto link to danslang@gmail.com)
 
 ### Layout
 
@@ -376,7 +376,7 @@ public/
 
 This makes it accessible at `https://sayhere.xyz/documents/here-privacy-data-sheet.pdf`.
 
-Daniel will add the PDF to this location once the document is finalized and signed.
+✅ - done, PDF has contact info and signature included, and is located in `public/documents/`
 
 ### Links
 
@@ -455,7 +455,7 @@ Manual testing after implementation:
 
 ## Open Questions / Deferred Decisions
 
-1. **Contact email.** Daniel needs to decide whether to use a personal email or set up a dedicated address like `privacy@sayhere.xyz` or `contact@sayhere.xyz`. The contact link in the footer and the mention in the About page copy both reference this. Can be a placeholder string that Daniel replaces before deploy.
+1. **Contact email.** Daniel needs to decide whether to use a personal email or set up a dedicated address like `privacy@sayhere.xyz` or `contact@sayhere.xyz`. The contact link in the footer and the mention in the About page copy both reference this. Can be a placeholder string that Daniel replaces before deploy. (Daniel is using his personal email for now, which has been added to the relevant docs as well as this build doc)
 
 2. **Social links / other channels.** None for now. If Here ever has a Twitter/LinkedIn/GitHub public presence, add links to the footer.
 
@@ -465,4 +465,4 @@ Manual testing after implementation:
 
 5. **Analytics.** None for now. If added later, it should be privacy-respecting (e.g., Plausible or Umami) rather than Google Analytics — consistent with the trust positioning.
 
-6. **"Who's behind Here" copy.** Daniel to review and refine.
+6. **"Who's behind Here" copy.** Daniel to review and refine. ✅ - made a couple small tweaks; looks good now
