@@ -1,5 +1,12 @@
 # Schedule & Calendar Logic
 
+## What Blocks Are
+**Purpose:** Provide an attendance-reporting grouping for activities that maps to the school's external SIS and internal reporting habits.
+Blocks are numbered buckets (0 through organization.settings.block_count - 1). Activities are tagged with one or more blocks, and the admin attendance rollup groups student attendance by block for the day.
+Blocks are not a scheduling primitive. Activity start and end times are stored on the activity itself (default_start_time, default_end_time) and are independent of the block's nominal times in the schedule template. When an admin selects a block in the activity form, the block's template times pre-fill the activity's time fields as a convenience, but the admin can adjust them freely.
+
+**Consequence for UI:** Student- and teacher-facing views lay out activities by their actual times. Block labels appear on cards as metadata, not as structural groupings. Only the admin attendance rollup view uses blocks as structural containers, because rollup is the explicit reporting context where that structure is the point.
+
 ## Rotation Day Calculation
 
 **Purpose:** Determine the rotation day (e.g., "A" or "B") for a given school date.
