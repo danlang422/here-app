@@ -76,6 +76,8 @@ src/
 
 **Everything is an activity.** Regular classes, college courses, internships, freeform blocks — all in one `activities` table, configured entirely through scheduling fields and behavior flags. There is no type system.
 
+**Blocks are reporting labels, not scheduling units.** Activities have their own start and end times; those are the source of truth for when things happen. Blocks are tags used for attendance rollup and external SIS alignment. Teacher-facing UI lays out activities by actual time, with block labels shown as metadata. Admin attendance rollup is the one place where blocks drive structure, because rollup is reporting.
+
 **Prevent conflicts, don't resolve them.** Enrollment validation checks block + days_of_week + rotation_day_type overlap at enrollment time. A student's schedule is exactly what it appears to be — there's no runtime priority system.
 
 **Lazy instance creation.** `activity_instances` rows (a specific activity on a specific date) are created on first interaction, not pre-generated.
