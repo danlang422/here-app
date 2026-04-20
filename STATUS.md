@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 16, 2026 (session 33)
+**Last updated:** April 20, 2026 (session 34)
 
 ---
 
@@ -35,7 +35,7 @@
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
 | Check-in flows | Built | `student-actions-build-spec.md` |
 | **Teacher** | | |
-| Dashboard / agenda | Built | `teacher-agenda-build-spec.md` |
+| Dashboard / agenda | Built; layout rewrite planned | `teacher-agenda-build-spec.md`; epic #84, #86 |
 | Attendance marking | Built | `teacher-agenda-build-spec.md` |
 | Student action visibility | Built | `teacher-roster-student-actions-build-spec.md` |
 | Attendance indicator on agenda cards | Built | Session 32, #74 |
@@ -70,14 +70,16 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 Ordered priority:
 
-1. **Merge feat/public-facing-site** — Branch is ready; merge to main and deploy.
-2. **Follow-up marketing issue** — Create a GitHub issue for polished public site work (screenshots, richer copy) once the UI is more stable.
-3. **Data re-entry** — Clear existing activities/enrollments and re-enter using the consolidated model (~120–150 activities instead of ~460). Branch `feat/enrollment-level-scheduling` merged to main (commit `026179d`).
+1. **Data re-entry** — Clear existing activities/enrollments and re-enter using the consolidated model (~120–150 activities instead of ~460). Branch `feat/enrollment-level-scheduling` merged to main (commit `026179d`). Expected to run alongside #85 (concepting needs real scheduling scenarios to stress-test mockups against).
+2. **#85 — Teacher UI concepting** (pre-phase 1 of epic #84) — HTML mockups of several agenda design directions, teacher feedback sessions, design direction doc. Unblocks #86 and informs #79.
+3. **#87** — Per-enrollment arrival time override (small, independent; the Iowa BIG late-arriver case)
 4. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
 5. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
 6. **#21** — Customizable agenda start/end times
 
-**Data entry:** Schedule fully normalized. Enrollment-level scheduling is complete (including hard-delete unenrollments and advisory conflict detection) — a fresh re-entry pass using the consolidated model is the next concrete action item.
+**Data entry:** Schedule fully normalized. Enrollment-level scheduling is complete (including hard-delete unenrollments and advisory conflict detection) — a fresh re-entry pass using the consolidated model is the next concrete action item. Some schedule nuance (e.g., actual arrival times for students coming back from off-campus activities) may require surveying students rather than pulling from the spreadsheet.
+
+**Teacher UI & staff model redesign (epic #84):** Umbrella issue covering the set of changes surfaced in the April 2026 staff conversation. Phases: pre-phase 1 concepting (#85), Phase 1 agenda layout rewrite (#86), Phase 2 staff model (#70, #77, #78), Phase 3 teacher visibility UI (#79), downstream (#80, #81). Phase 2 can run parallel to Phase 1. See session 34 notes for decisions and context.
 
 ---
 
