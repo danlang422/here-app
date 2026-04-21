@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** April 21, 2026 (session 34)
+**Last updated:** April 21, 2026 (session 35)
 
 ---
 
@@ -92,7 +92,7 @@ Ordered priority:
 | `CLAUDE.md` | Project overview, commands, conventions, key architectural decisions — **Claude's entry point** |
 | `docs/schema/` | Database tables, constraints, indexes, queries, RLS policies, migration strategy |
 | `docs/business-logic/` | Schedule logic, check-in rules, attendance rules, enrollment validation, notifications |
-| `docs/architecture/` | Tech stack, data flow, auth, realtime, UI patterns (some patterns aspirational — see status notes) |
+| `docs/architecture/` | Tech stack, data flow, auth, realtime, UI patterns — audited against codebase April 2026 (session 35) |
 | `docs/session-notes/` | Per-session development logs |
 | `docs/user-flows/` | Per-feature UX narratives and build specs (see below) |
 | `supabase/migrations/` | SQL migration files |

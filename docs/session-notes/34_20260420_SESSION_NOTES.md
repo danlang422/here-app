@@ -59,3 +59,17 @@ Three threads surfaced from the conversation with staff:
 Work on this epic will unfold in chunks, not a single push. The natural first step is #85 (concepting) because it unblocks both #86 and #79 and is the lowest-risk, highest-information piece.
 
 **#85 and data re-entry are expected to run together.** Concepting needs real scheduling scenarios to stress-test the mockups against — including "odd" cases like the Iowa BIG late arrivers — and surfacing those scenarios is the same work that data re-entry depends on. The teachers likely don't have all the schedule nuance documented in the spreadsheet, so some of it may need to be gathered through student surveys or staff conversations during concepting. Expect these two threads to interleave.
+
+---
+
+# Session 35 — April 21, 2026
+
+## 35.1 — Architecture docs accuracy pass
+
+**What happened:** Documentation-only session. Three files in `docs/architecture/` were audited against the actual codebase and corrected — no code changes.
+
+- `01-tech-stack-and-structure.md` — Replaced stale `src/` directory tree with the actual current layout. Fixed icon library (`react-icons` → `@phosphor-icons/react`), added variable fonts, removed references to nonexistent `preferencesStore`, `router.jsx`, and `styles/` directory.
+- `04-realtime-and-notifications.md` — Replaced fabricated realtime and notification system descriptions with accurate statements (neither is implemented; realtime planned in #80). Removed `date-fns-tz` (not a dependency); timezone handling now correctly points to `src/lib/scheduleUtils.js` using `Intl.DateTimeFormat`.
+- `05-ui-and-styling.md` — Replaced aspirational component hierarchy (compound `BlockCard`, `TodayViewPresenter`, `BottomNav`, `NotificationCenter`, etc.) with the actual component tree derived from real files. Added the DaisyUI v5 CSS variable format warning. Corrected the responsive/navigation section.
+
+All three files received a "Last updated: April 2026 (session 35)" header note.

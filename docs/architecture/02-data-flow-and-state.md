@@ -1,12 +1,6 @@
 # Data Flow & State Management
 
-> **Implementation status (March 2026):** React Query (TanStack Query v5) and React Hook Form are integrated across existing pages (ActivityManagement, UserManagement, ActivityForm, UserForm, Login). Custom hooks in `src/hooks/` wrap API functions with React Query. The patterns described below are implemented for activity management, user management, and auth. Zustand is in use for auth and UI state. Example hooks for future features (useCheckIn, useMarkAttendance, etc.) are aspirational and should follow the same patterns.
->
-> **Query key conventions in use:**
-> - `['activities', orgId]` — all activities for an org
-> - `['users', orgId]` — all users for an org
-> - `['staff-users', orgId]` — staff users for an org (activity form dropdowns)
-> - `['org-settings', orgId]` — organization settings
+**Last updated:** April 2026 (session 34)
 
 ## High-Level Data Flow
 
@@ -15,406 +9,196 @@ User Interaction
     ↓
 React Component
     ↓
-React Hook Form (if form) OR Direct Handler
+React Hook Form (if collecting/validating form inputs)
+  OR Direct Handler (if single action — e.g. attendance button)
     ↓
-Custom Hook (useCheckIn, useStudentSchedule, useTeacherRoster, etc.)
+Custom Hook (src/hooks/)
     ↓
-React Query (useQuery or useMutation)
+TanStack Query — useQuery (reads) or useMutation (writes)
     ↓
 API Function (src/api/*.js)
     ↓
-Supabase Client
+Supabase Client → PostgreSQL (with RLS)
     ↓
-PostgreSQL Database (with RLS)
-    ↓
-Real-time Subscription (if applicable)
-    ↓
-React Query Cache Update
-    ↓
-Component Re-render
+TanStack Query Cache Update → Component Re-render
 ```
 
-Every read goes through React Query for caching and background refresh. Every write goes through a React Query mutation, which invalidates relevant query keys on success to trigger refetches. Supabase Realtime subscriptions supplement this by pushing changes from other users into the cache.
+Every database read goes through TanStack Query for caching and background refresh. Every write goes through a mutation, which on success invalidates the relevant query keys so dependent components re-fetch automatically.
+
+React Hook Form vs. direct handler: use React Hook Form when a user is filling out multiple fields before submitting (creating an activity, editing a user, posting a status update). Use a direct onClick handler when the user is triggering a single action with no inputs to collect or validate (PAET attendance buttons, check-out, wave).
 
 ---
 
 ## Activity Instance Upsert Pattern
 
-A critical data flow pattern in V2 is **lazy instance creation**. Many records — attendance, check-ins, presence waves, posts, status updates — reference an `activity_instance_id` rather than carrying `activity_id + date` directly. The instance record represents "this activity on this specific date" and is created on demand.
+All student actions (check-ins, presence waves, status updates) and attendance records reference an `activity_instance_id` — a row representing "this specific activity on this specific date" — rather than storing `activity_id + date` directly. Instance rows are created lazily on first access via an `ensure_activity_instance` RPC function, so they don't need to be pre-generated for every activity on every day.
 
-The `useActivityInstance` hook handles this transparently:
+The `upsertActivityInstance` API function handles this:
 
-```jsx
-// src/hooks/useActivityInstance.js
-export function useActivityInstance(activityId, date) {
-  return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase
-        .from('activity_instances')
-        .upsert(
-          { activity_id: activityId, organization_id: orgId, date },
-          { onConflict: 'activity_id,date' }
-        )
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    }
-  })
+```js
+// src/api/instances.js
+export async function upsertActivityInstance(activityId, organizationId, date) {
+  const { data, error } = await supabase
+    .rpc('ensure_activity_instance', {
+      p_activity_id: activityId,
+      p_organization_id: organizationId,
+      p_date: date,
+    })
+  if (error) throw error
+  return data?.[0] ?? data
 }
 ```
 
-Any component that needs to write data against a specific activity + date calls this first, uses the returned `id` as the `activity_instance_id`, then proceeds with the actual insert. In practice this is wrapped into higher-level hooks so individual components don't manage the two-step flow themselves.
+Hooks that need to write student actions call `getInstancesForActivities` first (which resolves or creates instances for a set of activity IDs on a date), then use the returned instance IDs for their actual inserts. Components never manage the two-step flow directly — it's handled inside the hooks.
 
 ---
 
-## Example: Student Check-In Flow
+## Hooks Reference
 
-```jsx
-// 1. Component calls custom hook
-function CheckInButton({ activity, date }) {
-  const { mutate: checkIn, isPending } = useCheckIn()
+All custom hooks live in `src/hooks/`. Each wraps one or more API functions with TanStack Query.
 
-  const handleCheckIn = async () => {
-    const location = await getCurrentLocation()
-    checkIn({
-      activityId: activity.id,
-      date,
-      location,
-      requiresGeofence: activity.requires_geofence,
-      geofenceCenter: { lat: activity.location_lat, lng: activity.location_lng },
-      geofenceRadius: activity.geofence_radius
-    })
-  }
+### Student hooks
 
-  return (
-    <button onClick={handleCheckIn} disabled={isPending} className="btn btn-primary">
-      {isPending ? 'Checking in...' : 'Check In'}
-    </button>
-  )
-}
+**`useStudentAgenda(studentId, date, orgId)`**
+Fetches all active enrollments for a student (via `getStudentActivitiesForDate` in `src/api/agenda.js`), then filters client-side using `enrollmentMeetsToday()` to show only activities that meet on the given date. Also fetches the school day record for that date. Returns `activities` (filtered), `allActivities` (unfiltered), `schoolDay`, `isLoading`, `error`.
 
-// 2. Custom hook ensures instance exists, then creates check-in
-function useCheckIn() {
-  const queryClient = useQueryClient()
+**`useStudentActions(studentId, activities, date, orgId)`**
+For a student's set of activities on a date: resolves instance IDs, then fetches the student's check-ins, waves, and status update counts for those instances in parallel. Returns Maps keyed by activityId. Drives the action button state on the student TodayView.
 
-  return useMutation({
-    mutationFn: async ({ activityId, date, location, requiresGeofence, geofenceCenter, geofenceRadius }) => {
-      // Step 1: Ensure activity instance exists
-      const instance = await upsertActivityInstance(activityId, date)
+**`useStreakData(studentId, activities, orgId)`**
+Fetches 90 days of wave history for wave-enabled activities and school day records for the same window, then calls `calculateStreak()` for each activity. Returns a Map of activityId → streak count. `staleTime` is 5 minutes.
 
-      // Step 2: Validate geofence if required
-      const geofenceValidated = requiresGeofence
-        ? validateGeofence(location, geofenceCenter, geofenceRadius)
-        : null
+**`useStudentInstanceDetail(studentId, instanceId, activity, orgId)`**
+Fetches full detail for a single student on a single instance: check-in record, wave record, all status updates, and any freeform check-in tags. Also calculates streak for the activity if a wave exists. Used by the teacher roster's student detail overlay.
 
-      // Step 3: Create check-in record
-      const { data, error } = await supabase
-        .from('check_ins')
-        .insert({
-          student_id: currentUserId,
-          activity_instance_id: instance.id,
-          checked_in_at: new Date().toISOString(),
-          check_in_location_lat: location?.lat,
-          check_in_location_lng: location?.lng,
-          geofence_validated: geofenceValidated
-        })
-        .select()
-        .single()
+### Teacher hooks
 
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['student-schedule'] })
-      queryClient.invalidateQueries({ queryKey: ['check-ins'] })
-    }
-  })
-}
-```
+**`useTeacherAgenda(teacherId, date, orgId)`**
+Fetches all active activities where `teacher_id = me OR monitor_id = me` (via `getTeacherActivitiesForDate`), along with active enrollment rows for those activities. Filters activities client-side with `activityMeetsToday()`. Computes enrollment counts per activity filtered by `enrollmentMeetsToday()`. Returns `activities` (filtered), `enrollmentCounts` (Map), `schoolDay`.
+
+> **Note:** The `teacher_id / monitor_id` two-column model is being replaced by an `activity_staff` junction table (#70). This hook will need significant changes when that migration lands.
+
+**`useTeacherActionSummary(activityIds, date, orgId)`**
+For a set of activity IDs on a date: resolves instance IDs, then fetches waves, check-ins, status updates, and attendance records for those instances in parallel. Returns aggregated Maps for rendering action icons on agenda cards and tracking whether attendance has been started. Used alongside `useTeacherAgenda` on the teacher dashboard.
+
+**`useRoster(activityIds, date, orgId, activities, schoolDay)`**
+Fetches enrollment rows with student profiles for a set of activity IDs, resolves instance IDs, and fetches existing attendance records. Computes a `scheduledToday` flag per student using `enrollmentMeetsToday()`. Returns `todayStudents` (scheduled today), `allStudents`, `attendanceByStudent` (Map), `instances` (Map).
+
+### Admin hooks
+
+**`useActivities(orgId)`** / **`useCreateActivity`** / **`useUpdateActivity`** / **`useDeleteActivity`**
+Standard CRUD hooks for the activities table. Query key: `['activities', orgId]`.
+
+**`useAttendanceRollup(orgId, date)`**
+Four coordinated queries: all active enrollments (stale 5 min), school day for the date, all instances for the date, and attendance records for those instances. Merges everything into block-grouped rows with status sort order. The one place in the app where blocks drive structure — because attendance rollup is a reporting view, not a scheduling view.
+
+**`useOrgEnrollments(orgId)`** / **`useActivityEnrollments(activityId)`**
+Two variants: org-wide (all enrollments) and per-activity. Used by the admin enrollment panel. Mutations: `useBulkEnrollStudents`, `useBulkUnenrollStudents`, `useUpdateEnrollment`.
+
+### Shared / infrastructure hooks
+
+**`useOrgSettings(orgId)`** — Fetches org settings (block count, schedule config). Query key: `['org-settings', orgId]`.
+
+**`useSchoolDays(orgId, startDate, endDate)`** / **`useCalendars(orgId)`** — Calendar data. `getSchoolDays` is called in multiple hooks; TanStack Query's deduplication means it only fires once per unique key even when multiple hooks request it simultaneously.
+
+**`useUsers(orgId)`** / **`useStaffUsers(orgId)`** / **`useStudents(orgId)`** — User profile queries. Query keys: `['users', orgId]`, `['staff-users', orgId]`, `['students', orgId]`.
+
+**`useAuth()`** — Convenience hook that returns the Zustand auth store directly (`user`, `profile`, `session`, `loading`, `currentRole`, `availableRoles`). Not a TanStack Query hook — auth state lives in Zustand, initialized by `useAuthListener()` in `AuthProvider`.
+
+---
+
+## Query Key Reference
+
+All active query keys in the codebase as of session 34:
+
+| Key | Hook | Scope |
+|-----|------|-------|
+| `['activities', orgId]` | `useActivities` | All active activities for org |
+| `['student-agenda', studentId, dateStr]` | `useStudentAgenda` | Student's enrollments |
+| `['teacher-agenda', teacherId, dateStr]` | `useTeacherAgenda` | Teacher's activities + enrollment rows |
+| `['teacher-action-summary', sortedKey, dateStr]` | `useTeacherActionSummary` | Waves/check-ins/status/attendance for instances |
+| `['roster', sortedKey, dateStr]` | `useRoster` | Enrollments + attendance for activity set |
+| `['student-actions', studentId, dateStr]` | `useStudentActions` | Student's check-ins/waves/statuses |
+| `['streaks', studentId]` | `useStreakData` | 90-day wave history |
+| `['student-instance-detail', studentId, instanceId]` | `useStudentInstanceDetail` | Single student × instance detail |
+| `['enrollments', orgId]` | `useOrgEnrollments` | All org enrollments |
+| `['enrollments', 'activity', activityId]` | `useActivityEnrollments` | Per-activity enrollments |
+| `['rollup-enrollments', orgId]` | `useAttendanceRollup` | All active enrollments (stale 5 min) |
+| `['rollup-school-day', orgId, dateStr]` | `useAttendanceRollup` | School day for rollup date |
+| `['rollup-attendance', orgId, dateStr]` | `useAttendanceRollup` | Attendance records for rollup date |
+| `['activity-instances', orgId, dateStr]` | `useAttendanceRollup` | All instances for a date |
+| `['school-days', orgId, dateStr, dateStr]` | Multiple hooks | School day records for date range |
+| `['org-settings', orgId]` | `useOrgSettings` | Org config including block count |
+| `['users', orgId]` | `useUsers` | All user profiles |
+| `['staff-users', orgId]` | `useStaffUsers` | Staff-role users (for dropdowns) |
+| `['students', orgId]` | `useStudents` | Student-role users |
 
 ---
 
 ## State Management Strategy
 
-### Three Types of State
+### Three types of state
 
-**Server State (React Query)** — Data from Supabase. Activities, enrollments, attendance records, check-ins, posts, notifications. Always use React Query for any data that lives in the database.
+**Server state (TanStack Query)** — Any data that lives in Supabase. Activities, enrollments, attendance records, check-ins, waves, status updates, school days, users. Always goes through a custom hook wrapping `useQuery` or `useMutation`.
 
-**Client State (Zustand)** — UI-only state that doesn't persist to the server. Modal visibility, sidebar open/closed, currently selected date, active role for multi-role users, user preferences like theme.
+**Client state (Zustand)** — UI state that doesn't persist to the server. Two stores:
+- `authStore` — session, user profile, current role, available roles. The `currentRole` field is persisted to localStorage so multi-role users don't re-select on page reload. Everything else is ephemeral.
+- `uiStore` — selected date, sidebar open/closed, active modal + modal data.
 
-**Form State (React Hook Form)** — Input values, validation errors, submission state. Used for any form: status updates, attendance marking, activity creation, enrollment management.
+**Form state (React Hook Form)** — Input values, validation errors, and submission state for forms. Used in `ActivityForm`, `UserForm`, `BulkUserEntry`, `StatusUpdateModal`, login, and password flows. React Hook Form's `watch()` drives conditional field visibility (e.g. geofence fields only appear when `requires_geofence` is true).
 
-### Decision Tree
+### Decision tree
 
 ```
 Is this data from Supabase?
-  YES → React Query
+  YES → TanStack Query (custom hook in src/hooks/)
   NO ↓
 
-Is this form input / validation?
+Is this form input or validation state?
   YES → React Hook Form
   NO ↓
 
-Is this UI state (modals, preferences, navigation)?
-  YES → Zustand
+Is this shared UI state (date, modals, sidebar, auth)?
+  YES → Zustand (uiStore or authStore)
   NO ↓
 
-Is this local to one component (toggle, counter)?
+Is this local to one component?
   YES → useState
 ```
 
 ---
 
-## React Query Patterns
-
-### Global Configuration
-
-```jsx
-// src/main.jsx
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,    // 5 minutes
-      gcTime: 10 * 60 * 1000,       // 10 minutes
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-})
-```
-
-### Query Key Conventions
-
-Query keys follow a hierarchical pattern so invalidation can target broad or narrow scopes:
-
-```jsx
-// Broad: invalidate everything for a student's schedule
-['student-schedule', studentId]
-
-// Narrow: invalidate one specific date
-['student-schedule', studentId, date]
-
-// Teacher roster for a block on a date
-['teacher-roster', teacherId, block, date]
-
-// Check-ins for a student on a date
-['check-ins', studentId, date]
-
-// Posts for an activity instance
-['posts', activityInstanceId]
-
-// Notifications for a user
-['notifications', userId]
-```
-
-### Query Examples
-
-```jsx
-// Student schedule for a date
-export function useStudentSchedule(studentId, date) {
-  return useQuery({
-    queryKey: ['student-schedule', studentId, date],
-    queryFn: () => getStudentSchedule(studentId, date),
-    staleTime: 5 * 60 * 1000,
-    enabled: !!studentId && !!date,
-  })
-}
-
-// Teacher roster for a block
-export function useTeacherRoster(teacherId, block, date) {
-  return useQuery({
-    queryKey: ['teacher-roster', teacherId, block, date],
-    queryFn: () => getTeacherRoster(teacherId, block, date),
-    enabled: !!teacherId && block != null && !!date,
-  })
-}
-```
-
-### Mutation Pattern
-
-All mutations follow the same shape: call the API function, invalidate relevant query keys on success.
-
-```jsx
-export function useMarkAttendance() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({ activityInstanceId, studentId, status }) => {
-      const { data, error } = await supabase
-        .from('attendance_records')
-        .upsert(
-          {
-            activity_instance_id: activityInstanceId,
-            student_id: studentId,
-            status,
-            marked_by_id: currentUserId,
-            marked_at: new Date().toISOString()
-          },
-          { onConflict: 'activity_instance_id,student_id' }
-        )
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    },
-    onSuccess: (_, { activityInstanceId }) => {
-      queryClient.invalidateQueries({ queryKey: ['teacher-roster'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', activityInstanceId] })
-    }
-  })
-}
-```
-
----
-
-## Zustand Stores
-
-### UI Store
-
-```jsx
-// src/store/uiStore.js
-import { create } from 'zustand'
-
-export const useUIStore = create((set) => ({
-  statusModalOpen: false,
-  openStatusModal: () => set({ statusModalOpen: true }),
-  closeStatusModal: () => set({ statusModalOpen: false }),
-
-  sidebarOpen: false,
-  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-
-  selectedDate: new Date(),
-  setSelectedDate: (date) => set({ selectedDate: date }),
-}))
-```
-
-### Auth Store
-
-```jsx
-// src/store/authStore.js
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-
-export const useAuthStore = create(
-  persist(
-    (set) => ({
-      currentRole: null,       // 'student' | 'teacher' | 'admin'
-      availableRoles: [],      // from user_profiles.roles
-      setCurrentRole: (role) => set({ currentRole: role }),
-      setAvailableRoles: (roles) => set({ availableRoles: roles }),
-    }),
-    { name: 'auth-storage' }
-  )
-)
-```
-
-The `currentRole` is persisted to localStorage so multi-role users don't have to re-select on every page load. The available roles come from `user_profiles.roles` (a `TEXT[]` column) and are set on login.
-
----
-
-## React Hook Form Patterns
-
-### Form with Mutation
-
-```jsx
-function StatusUpdateForm({ activityInstanceId }) {
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
-    defaultValues: { status_type: 'plans', content: '' }
-  })
-
-  const createStatus = useMutation({
-    mutationFn: (data) => supabase
-      .from('status_updates')
-      .insert({ ...data, student_id: currentUserId, activity_instance_id: activityInstanceId })
-      .select(),
-    onSuccess: () => reset()
-  })
-
-  return (
-    <form onSubmit={handleSubmit((data) => createStatus.mutate(data))}>
-      <select {...register('status_type')} className="select select-bordered">
-        <option value="plans">📝 Plans</option>
-        <option value="progress">📊 Progress</option>
-        <option value="reflection">💭 Reflection</option>
-      </select>
-
-      <textarea
-        {...register('content', {
-          required: 'Content is required',
-          maxLength: { value: 500, message: 'Max 500 characters' }
-        })}
-        className="textarea textarea-bordered"
-        placeholder="What are you working on?"
-      />
-      {errors.content && <span className="text-error text-sm">{errors.content.message}</span>}
-
-      <button type="submit" disabled={isSubmitting} className="btn btn-primary">
-        {isSubmitting ? 'Posting...' : 'Post Update'}
-      </button>
-    </form>
-  )
-}
-```
-
-### Admin Activity Form
-
-The unified activity form is the most complex form in the app. It uses the `type` field to conditionally show/hide field groups — for instance, `internship_opportunity_id` and geofence fields only appear when `type === 'internship'`, while `rotation_day_type` only appears when the organization uses rotation schedules. React Hook Form's `watch()` drives this conditional rendering without additional state management.
-
----
-
 ## API Layer
 
-### Supabase Client Setup
-
-```jsx
-// src/api/supabase.js
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-```
-
-### API File Organization
-
-One file per domain. Each file exports functions that return data (for queries) or perform writes (for mutations). All functions throw on error so React Query's error handling works.
+One file per domain in `src/api/`. All functions throw on error so TanStack Query's error handling works. All functions return data directly (not `{ data, error }`).
 
 ```
 src/api/
-├── supabase.js        # Client setup
-├── auth.js            # signIn, signOut, getCurrentUser, getCurrentUserProfile
-├── activities.js      # getStudentSchedule, getTeacherRoster, getActivity, createActivity, updateActivity
-├── attendance.js      # getAttendance, markAttendance, bulkMarkAttendance
-├── checkins.js        # createCheckIn, checkOut, getCheckInsForDate
-├── enrollments.js     # getEnrollments, enrollStudent, unenrollStudent
-├── instances.js       # upsertActivityInstance, getInstancesForDate
-├── posts.js           # createPost, getPostsForInstance, createComment, createPostResponse
-├── notifications.js   # getNotifications, markNotificationRead
-└── calendar.js        # getSchoolDay, getTerms, getScheduleTemplates
+├── supabase.js          — Supabase client singleton
+├── auth.js              — signIn, signOut, getCurrentUser, password reset/update
+├── activities.js        — getActivities, getActivity, createActivity, updateActivity,
+│                          deleteActivity, getTeacherActivities, bulkUpdateActivityFields
+├── agenda.js            — getStudentActivitiesForDate, getTeacherActivitiesForDate,
+│                          getRosterForActivities, getAttendanceForInstances,
+│                          upsertAttendanceRecord, getInstancesForActivities,
+│                          getWavesForInstances, getCheckInsForInstances,
+│                          getStatusUpdatesForInstances, getStudentInstanceDetail,
+│                          getStudentCheckIns, getStudentWaves, getStudentStatusCounts,
+│                          getWaveHistory, createPresenceWave, createStatusUpdate,
+│                          createCheckIn, deleteCheckIn, createCheckinTags, checkOut
+├── attendance.js        — getAllActiveEnrollments (used by rollup)
+├── calendars.js         — calendar CRUD
+├── enrollments.js       — getOrgEnrollments, getActivityEnrollments, bulkEnrollStudents,
+│                          bulkUnenrollStudents, updateEnrollment
+├── instances.js         — upsertActivityInstance (via ensure_activity_instance RPC),
+│                          getInstancesForDate, cancelInstance
+├── organizations.js     — getOrgSettings
+├── schoolDays.js        — getSchoolDays, getSchoolDay
+├── scheduleTemplates.js — schedule template queries
+├── terms.js             — academic term queries
+├── activityTerms.js     — activity ↔ term junction queries
+├── feedback.js          — submit feedback (posts to GitHub via Edge Function)
+└── users.js             — getUsers, getStaffUsers, getStudents, createUser, updateUser
 ```
 
-### Error Handling Pattern
-
-```jsx
-export async function getStudentSchedule(studentId, date) {
-  const { data, error } = await supabase
-    .from('activities')
-    .select(`
-      *,
-      enrollments!inner(student_id),
-      activity_instances(id, cancelled)
-    `)
-    .eq('enrollments.student_id', studentId)
-    .eq('enrollments.is_active', true)
-    .eq('is_active', true)
-
-  if (error) throw error
-  return data
-}
-```
-
-The `!inner` join modifier on enrollments ensures only activities where the student has an active enrollment are returned. Additional filtering for "does this activity meet today?" (checking `days_of_week`, `rotation_day_type`, and the school day calendar) happens either in the query or in a post-processing step — see business logic docs for the full resolution algorithm.
+The `agenda.js` file is the largest and most complex — it handles everything related to what's happening on a given day for a given user, including student and teacher agenda queries, all action data (check-ins, waves, status updates), attendance writes, and instance resolution.

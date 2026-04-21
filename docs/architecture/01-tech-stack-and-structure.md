@@ -1,5 +1,7 @@
 # Tech Stack & Project Structure
 
+**Last updated:** April 2026 (session 35)
+
 ## Technology Stack
 
 ### Core Framework
@@ -31,8 +33,9 @@
 
 - **Tailwind CSS** — Utility-first CSS framework. Rapid development, consistent design system, tree-shakeable output.
 - **DaisyUI** — Component library for Tailwind. Pre-built accessible components (buttons, cards, modals, badges, etc.), customizable themes, semantic class names.
-- **React Icons** — Icon library. Tree-shakeable imports from Lucide, Hero Icons, Font Awesome, and others.
-- **DiceBear** — Avatar generation. Deterministic SVG avatars from seed strings.
+- **Phosphor Icons** (`@phosphor-icons/react`) — Icon library. Consistent design language, tree-shakeable imports.
+- **DiceBear** (`@dicebear/core`, `@dicebear/collection`) — Avatar generation. Deterministic SVG avatars from seed strings.
+- **Variable fonts** — `@fontsource-variable/outfit` and `@fontsource-variable/plus-jakarta-sans` for UI typography.
 
 ### Development Tools
 
@@ -44,8 +47,6 @@
 
 ## Project Structure
 
-> **Note (March 2026):** The structure below is the planned layout. Many files listed here don't exist yet — particularly in `src/hooks/`, `src/components/ui/`, `src/components/student/`, `src/components/teacher/`, and `src/components/shared/`. What currently exists: `src/hooks/useAuth.js`, `src/components/activities/`, `src/components/users/`, `src/components/layout/`, `src/api/` (activities, auth, calendar, enrollments, instances, organizations, supabase, users), `src/store/` (authStore, uiStore), and `src/lib/` (constants, date, utils, enrollmentValidation, business-logic/rotation.js, business-logic/scheduling.js). The structure also omits `src/lib/enrollmentValidation.js` which lives at the `lib/` level rather than inside `business-logic/`. Treat this as a target, not a directory listing.
-
 ```
 here-app/
 ├── docs/                           # Project documentation
@@ -55,136 +56,112 @@ here-app/
 │   └── user-flows/                # Role-specific UX narratives
 │
 ├── public/                         # Static assets
-│   ├── favicon.ico
-│   └── manifest.json              # PWA manifest (future)
 │
 ├── src/
-│   ├── api/                       # Supabase API functions (one file per domain)
+│   ├── api/                       # Supabase query functions, one file per domain
 │   │   ├── supabase.js           # Supabase client setup
 │   │   ├── auth.js               # Authentication functions
-│   │   ├── activities.js         # Activity queries (replaces sessions.js / students.js)
+│   │   ├── activities.js         # Activity CRUD
+│   │   ├── activityTerms.js      # Activity ↔ term relationships
+│   │   ├── agenda.js             # Agenda queries (student + teacher)
 │   │   ├── attendance.js         # Attendance record queries
-│   │   ├── checkins.js           # Check-in/out queries
+│   │   ├── calendars.js          # School calendar queries
 │   │   ├── enrollments.js        # Enrollment queries
+│   │   ├── feedback.js           # User feedback submissions
 │   │   ├── instances.js          # Activity instance upsert/queries
-│   │   ├── posts.js              # Posts, responses, comments
-│   │   ├── notifications.js      # Notification queries
-│   │   └── calendar.js           # Terms, school days, schedule templates
+│   │   ├── organizations.js      # Org settings queries
+│   │   ├── scheduleTemplates.js  # Schedule template queries
+│   │   ├── schoolDays.js         # School day calendar queries
+│   │   ├── terms.js              # Term queries
+│   │   └── users.js              # User profile queries
 │   │
-│   ├── components/                # Reusable components
-│   │   ├── ui/                   # Base UI components (DaisyUI wrappers/custom)
-│   │   │   ├── Button.jsx
-│   │   │   ├── Card.jsx
-│   │   │   ├── Modal.jsx
-│   │   │   └── Badge.jsx
-│   │   │
-│   │   ├── layout/               # Layout components
-│   │   │   ├── Header.jsx
-│   │   │   ├── Sidebar.jsx
-│   │   │   ├── BottomNav.jsx
-│   │   │   └── PageContainer.jsx
-│   │   │
-│   │   ├── student/              # Student-specific components
-│   │   │   ├── BlockCard.jsx
-│   │   │   ├── CheckInButton.jsx
-│   │   │   ├── PresenceWaveButton.jsx
-│   │   │   ├── FreeformTagPicker.jsx
-│   │   │   └── StatusUpdateForm.jsx
-│   │   │
-│   │   ├── teacher/              # Teacher-specific components
-│   │   │   ├── ActivityCard.jsx
-│   │   │   ├── StudentRoster.jsx
-│   │   │   ├── AttendanceRow.jsx
-│   │   │   ├── CheckInMonitor.jsx
-│   │   │   └── PostComposer.jsx
-│   │   │
-│   │   ├── admin/                # Admin-specific components
-│   │   │   ├── CalendarEditor.jsx
-│   │   │   ├── ActivityForm.jsx
-│   │   │   ├── EnrollmentManager.jsx
-│   │   │   └── UserManagement.jsx
-│   │   │
-│   │   └── shared/               # Cross-role components
-│   │       ├── Avatar.jsx
-│   │       ├── DatePicker.jsx
-│   │       ├── LoadingSpinner.jsx
-│   │       └── ErrorBoundary.jsx
+│   ├── components/
+│   │   ├── activities/           # ActivityDetailModal, ActivityTable, ActivityToolbar,
+│   │   │                         #   ActivityDetail, StaffRows, ActivitySelectionBar, BulkEditModal
+│   │   ├── agenda/               # SingleDayAgenda, StudentActivityCard, TeacherActivityCard,
+│   │   │                         #   AgendaBlockOverlay
+│   │   ├── attendance-rollup/    # AttendanceRollup, RollupBlockSection, RollupDatePicker,
+│   │   │                         #   RollupStudentRow
+│   │   ├── enrollment/           # EnrollmentPanel
+│   │   ├── feedback/             # FeedbackModal, FeedbackForm, BugReportForm,
+│   │   │                         #   ScheduleIssueForm, ScreenshotPicker
+│   │   ├── layout/               # AppLayout, AdminLayout, AuthProvider, ProtectedRoute,
+│   │   │                         #   PublicLayout, RootRedirect
+│   │   ├── panels/               # FloatingPanel
+│   │   ├── roster/               # RosterModal, StudentDetailOverlay
+│   │   ├── schedule-calendar/    # CalendarView, CalendarWeekGrid, CalendarWeekNav,
+│   │   │                         #   CalendarDayColumn, CalendarEventCard, CalendarEventPopover,
+│   │   │                         #   CalendarAggregatePopover, CalendarFilterBar, CalendarSidebar
+│   │   ├── school-calendar/      # CalendarGrid, DayPopover
+│   │   ├── student/              # ActionButton, FreeformTagSelector, StatusUpdateModal
+│   │   ├── ui/                   # Toast
+│   │   └── users/                # UserTable, UserForm, BulkUserEntry
 │   │
 │   ├── hooks/                     # Custom React hooks
-│   │   ├── useAuth.js            # Authentication hook
-│   │   ├── useStudentSchedule.js # Student schedule for a date
-│   │   ├── useTeacherRoster.js   # Teacher roster for a block/date
-│   │   ├── useActivityInstance.js # Lazy instance upsert
-│   │   ├── useCheckIn.js         # Check-in/out logic
-│   │   ├── useGeolocation.js     # Location tracking
-│   │   └── useRealtime.js        # Real-time subscription wrapper
+│   │   ├── useAuth.js
+│   │   ├── useActivities.js
+│   │   ├── useActivityTerms.js
+│   │   ├── useAttendanceRollup.js
+│   │   ├── useBulkEditActivities.js
+│   │   ├── useCalendars.js
+│   │   ├── useEnrollments.js
+│   │   ├── useOrgSettings.js
+│   │   ├── useRoster.js
+│   │   ├── useScheduleTemplate.js
+│   │   ├── useSchoolDays.js
+│   │   ├── useStreakData.js
+│   │   ├── useStudentActions.js
+│   │   ├── useStudentAgenda.js
+│   │   ├── useStudentInstanceDetail.js
+│   │   ├── useTeacherActionSummary.js
+│   │   ├── useTeacherAgenda.js
+│   │   ├── useTerms.js
+│   │   └── useUsers.js
 │   │
-│   ├── lib/                       # Utilities and helpers
-│   │   ├── utils.js              # General utilities
-│   │   ├── date.js               # Date formatting/manipulation
-│   │   ├── validation.js         # Validation functions
-│   │   ├── constants.js          # App constants
-│   │   └── business-logic/       # Business logic implementations
-│   │       ├── rotation.js       # Rotation day calculation
-│   │       ├── scheduling.js     # "Activity meets today" resolution
-│   │       ├── geofence.js       # Geofence validation
-│   │       └── streak.js         # Presence wave streak calculation
+│   ├── lib/
+│   │   ├── actionAvailability.js  # Rules for which student actions are available
+│   │   ├── constants.js           # Block labels, org constants
+│   │   ├── date.js                # Date formatting helpers
+│   │   ├── devOverrides.js        # Dev-only overrides
+│   │   ├── enrollmentValidation.js # Conflict detection logic
+│   │   ├── geofenceUtils.js       # Geofence validation
+│   │   ├── nominatimSearch.js     # Address search (Nominatim API)
+│   │   ├── scheduleUtils.js       # Pure date/schedule utilities (no external library)
+│   │   ├── streakUtils.js         # Presence wave streak calculation
+│   │   ├── utils.js               # General utilities
+│   │   └── business-logic/
+│   │       ├── rotation.js        # Rotation day calculation
+│   │       ├── scheduling.js      # "Does this activity meet today?" logic
+│   │       └── schoolDayGeneration.js
 │   │
-│   ├── pages/                     # Page components (route targets)
-│   │   ├── student/
-│   │   │   ├── TodayView.jsx
-│   │   │   ├── AttendanceHistory.jsx
-│   │   │   └── Settings.jsx
-│   │   │
-│   │   ├── teacher/
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── BlockDetail.jsx   # Roster view for a single block
-│   │   │   └── AttendanceReports.jsx
-│   │   │
-│   │   ├── admin/
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── Calendar.jsx
-│   │   │   ├── Activities.jsx    # Activity CRUD + enrollment management
-│   │   │   ├── Users.jsx
-│   │   │   └── Reports.jsx
-│   │   │
-│   │   ├── auth/
-│   │   │   ├── Login.jsx
-│   │   │   └── ResetPassword.jsx
-│   │   │
-│   │   └── NotFound.jsx
+│   ├── pages/
+│   │   ├── admin/                 # Dashboard, ActivityManagement, CalendarManagement,
+│   │   │                          #   UserManagement, OrgSettings, Reports
+│   │   ├── auth/                  # Login, ForgotPassword, ResetPassword
+│   │   ├── public/                # LandingPage, AboutPage, TrustPage
+│   │   ├── student/               # TodayView
+│   │   ├── teacher/               # Dashboard
+│   │   ├── Account.jsx
+│   │   ├── DashboardRedirect.jsx
+│   │   └── HelpPage.jsx
 │   │
-│   ├── store/                     # Zustand stores
-│   │   ├── uiStore.js            # UI state (modals, sidebar, selected date)
-│   │   ├── authStore.js          # Auth state (current user, active role)
-│   │   └── preferencesStore.js   # User preferences
-│   │
-│   ├── styles/                    # Global styles
-│   │   └── index.css             # Tailwind imports + custom CSS
+│   ├── store/
+│   │   ├── authStore.js           # Auth state (current user, active role)
+│   │   ├── calendarUiStore.js     # Calendar view state
+│   │   ├── toastStore.js          # Toast notification queue
+│   │   └── uiStore.js             # General UI state (modals, selected date)
 │   │
 │   ├── App.jsx                    # Root component with routes
-│   ├── main.jsx                   # Entry point
-│   └── router.jsx                 # Route configuration
+│   ├── index.css                  # Tailwind imports + global CSS
+│   └── main.jsx                   # Entry point
 │
-├── .env.example                   # Environment variables template
-├── .env.local                     # Local environment (gitignored)
-├── eslint.config.js               # ESLint flat config (ESLint 9+)
-├── .prettierrc                    # Prettier configuration
-├── index.html                     # HTML entry point
-├── package.json                   # Dependencies and scripts
-├── postcss.config.js              # PostCSS config (for Tailwind)
-├── tailwind.config.js             # Tailwind + DaisyUI configuration
-├── vite.config.js                 # Vite configuration
-└── README.md                      # Project overview and setup
+├── eslint.config.js
+├── index.html
+├── package.json
+├── postcss.config.js
+├── vite.config.js
+└── README.md
 ```
-
-### Key differences from V1 structure
-
-The `src/api/` directory reflects the unified activity model. There is no `sessions.js` — all activity queries go through `activities.js`. A new `instances.js` file handles the lazy `activity_instances` upsert pattern. The `posts.js` file replaces what would have been `interactions.js`, covering posts, post responses, and comments. The `calendar.js` file covers terms, school days, and schedule templates.
-
-In `src/components/`, the teacher directory has `ActivityCard` instead of `SessionCard`, and includes `PostComposer` for the new social layer. The student directory adds `FreeformTagPicker` for the freeform block tagging flow. The admin directory has `ActivityForm` (unified form for all activity types) and `EnrollmentManager` instead of separate session/student-activity forms.
-
-In `src/lib/business-logic/`, the old `conflicts.js` is replaced by `scheduling.js`, which handles the "does this activity meet today?" resolution logic using `days_of_week`, `rotation_day_type`, and the school day calendar. Scheduling overlaps are prevented at the application layer during enrollment by checking whether the new activity's block, days of week, and rotation day type overlap with any of the student's existing enrollments. There is no runtime conflict resolution — if a student's schedule has no overlaps at enrollment time, it has no overlaps at display time.
 
 ---
 
