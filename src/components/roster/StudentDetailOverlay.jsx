@@ -44,10 +44,9 @@ function StudentDetailOverlay({
     : `${student.firstName} ${student.lastName}`
 
   const activityName = activity?.name ?? student.activityName ?? ''
-  const blockLabel =
-    activity?.block != null
-      ? getBlockLabel(activity.block, blockLabels)
-      : null
+  const blockLabel = activity?.block?.length > 0
+    ? activity.block.map(b => getBlockLabel(b, blockLabels)).join(', ')
+    : null
   const subtitle = [activityName, blockLabel].filter(Boolean).join(' \u00b7 ')
 
   const hasData =

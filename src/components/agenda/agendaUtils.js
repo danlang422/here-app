@@ -79,8 +79,8 @@ export function groupActivitiesForLayout(activities, dayValue) {
 
   for (const a of activities) {
     if (!activityMeetsDay(a, dayValue)) continue
-    if (a.block != null) {
-      const key = a.block
+    if (a.block?.length > 0) {
+      const key = a.block[0]
       if (!map.has(key)) map.set(key, [])
       map.get(key).push(a)
     } else {

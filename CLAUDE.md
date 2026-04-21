@@ -113,6 +113,7 @@ V2 schema with migrations in `supabase/migrations/`. Key migrations:
 - `20260320000000` — Terms many-to-many (activities ↔ terms)
 - `20260324000000` — Feedback/reports table
 - `20260406000000` — Enrollment-level scheduling (4 nullable scheduling columns on `enrollments`: `days_of_week`, `rotation_day_type`, `recurrence_interval`, `recurrence_anchor_date`)
+- `20260421000000` — Multi-block activities (`activities.block` and `enrollments.block` converted from `INTEGER` to `INTEGER[]`; existing single-block data migrated to single-element arrays)
 
 Schema docs are in `docs/schema/` — these are the authoritative source for table structure, constraints, and RLS policies.
 

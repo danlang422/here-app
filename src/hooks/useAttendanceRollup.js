@@ -90,8 +90,9 @@ export function useAttendanceRollup(orgId, date) {
 
       if (!enrollmentMeetsToday(enrollment, activity, date, schoolDay)) continue
 
-      const block = enrollment.block ?? activity.block
-      if (block === null || block === undefined) continue
+      const blockVal = enrollment.block ?? activity.block
+      const blockArr = Array.isArray(blockVal) ? blockVal : (blockVal != null ? [blockVal] : [])
+      if (blockArr.length === 0) continue
 
       const instance = instanceMap.get(activity.id) ?? null
       const attendanceRecord = instance
@@ -106,8 +107,10 @@ export function useAttendanceRollup(orgId, date) {
         hasConflict: false, // resolved below
       }
 
-      if (!rawBlockGroups.has(block)) rawBlockGroups.set(block, [])
-      rawBlockGroups.get(block).push(row)
+      for (const block of blockArr) {
+        if (!rawBlockGroups.has(block)) rawBlockGroups.set(block, [])
+        rawBlockGroups.get(block).push(row)
+      }
     }
 
     // Flag multi-activity students within the same block

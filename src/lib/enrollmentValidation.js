@@ -172,23 +172,27 @@ function couldMeetOnSameDay(activityA, activityB) {
  * @returns {{ conflicts: boolean, reason: string|null }}
  */
 export function wouldConflictByBlock(effectiveA, effectiveB) {
-  const activityA = effectiveA
-  const activityB = effectiveB
-  // Different blocks (or either is null) — no conflict possible
-  if (activityA.block == null || activityB.block == null) {
-    return { conflicts: false, reason: null }
-  }
-  if (activityA.block !== activityB.block) {
+  const blocksA = Array.isArray(effectiveA.block) ? effectiveA.block : (effectiveA.block != null ? [effectiveA.block] : [])
+  const blocksB = Array.isArray(effectiveB.block) ? effectiveB.block : (effectiveB.block != null ? [effectiveB.block] : [])
+
+  if (blocksA.length === 0 || blocksB.length === 0) {
     return { conflicts: false, reason: null }
   }
 
-  // Same block — check day/rotation overlap
-  const { couldMeetSameDay, reason } = couldMeetOnSameDay(activityA, activityB)
+  const setB = new Set(blocksB)
+  const sharedBlocks = blocksA.filter(b => setB.has(b))
+  if (sharedBlocks.length === 0) {
+    return { conflicts: false, reason: null }
+  }
+
+  // Shared blocks found — check day/rotation overlap
+  const { couldMeetSameDay, reason } = couldMeetOnSameDay(effectiveA, effectiveB)
+  const blockNames = sharedBlocks.map(b => `Block ${b}`).join(', ')
 
   return {
     conflicts: couldMeetSameDay,
     reason: couldMeetSameDay
-      ? `Both activities are in Block ${activityA.block}: ${reason}`
+      ? `Both activities share ${blockNames}: ${reason}`
       : null,
   }
 }
@@ -281,20 +285,25 @@ export function wouldConflictByTime(activityA, activityB) {
  * @returns {{ valid: boolean, conflicts: Array<{ enrollment: Object, activity: Object, reason: string }> }}
  */
 export function validateEnrollment(newActivity, newEnrollmentSchedule, existingEnrollments) {
+  const newBlocks = Array.isArray(newActivity.block) ? newActivity.block : (newActivity.block != null ? [newActivity.block] : [])
   // Unscheduled activities (no block) can't conflict by block
-  if (newActivity.block == null) {
+  if (newBlocks.length === 0) {
     return { valid: true, conflicts: [] }
   }
 
   const newEffective = getEffectiveSchedule(newEnrollmentSchedule ?? {}, newActivity)
+  const newBlockSet = new Set(newBlocks)
   const conflicts = []
 
   for (const enrollment of existingEnrollments) {
     const existingActivity = enrollment.activity
     if (!existingActivity) continue
 
-    // Only check active enrollments against activities in the same block
-    if (existingActivity.block !== newActivity.block) continue
+    // Only check enrollments where block arrays intersect
+    const existingBlocks = Array.isArray(existingActivity.block)
+      ? existingActivity.block
+      : (existingActivity.block != null ? [existingActivity.block] : [])
+    if (!existingBlocks.some(b => newBlockSet.has(b))) continue
 
     const existingEffective = getEffectiveSchedule(enrollment, existingActivity)
     const result = wouldConflictByBlock(newEffective, existingEffective)
@@ -338,8 +347,9 @@ export function findAvailableBlocks(studentEnrollments, orgSettings) {
   for (const enrollment of studentEnrollments) {
     const activity = enrollment.activity
     if (!activity) continue
-    if (activity.block != null && blockMap.has(activity.block)) {
-      blockMap.get(activity.block).push(activity)
+    const actBlocks = Array.isArray(activity.block) ? activity.block : (activity.block != null ? [activity.block] : [])
+    for (const b of actBlocks) {
+      if (blockMap.has(b)) blockMap.get(b).push(activity)
     }
   }
 

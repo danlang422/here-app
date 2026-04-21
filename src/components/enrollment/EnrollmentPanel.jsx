@@ -443,7 +443,7 @@ function StudentRow({ student, zone, conflict, onClick, disabled }) {
             {conflict.conflicts.map((c, i) => (
               <div key={i}>
                 Conflicts with {c.activity.name}
-                {c.activity.block != null && ` — ${getBlockLabel(c.activity.block)}`}
+                {c.activity.block?.length > 0 && ` — ${c.activity.block.map(b => getBlockLabel(b)).join(', ')}`}
               </div>
             ))}
           </div>
