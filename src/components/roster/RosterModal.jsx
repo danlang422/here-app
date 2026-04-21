@@ -389,9 +389,10 @@ function buildHeader(activities, isAggregate, blockLabels, todayCount, totalCoun
     : `${totalCount} student${totalCount !== 1 ? 's' : ''}`
 
   if (isAggregate) {
-    const block = activities[0]?.block
-    const blockLabel =
-      block != null ? getBlockLabel(block, blockLabels) : 'Unassigned'
+    const allBlocks = [...new Set(activities.flatMap(a => a.block ?? []))]
+    const blockLabel = allBlocks.length > 0
+      ? allBlocks.map(b => getBlockLabel(b, blockLabels)).join(', ')
+      : 'Unassigned'
 
     const starts = activities.map((a) => a.default_start_time).filter(Boolean)
     const ends = activities.map((a) => a.default_end_time).filter(Boolean)
@@ -418,10 +419,9 @@ function buildHeader(activities, isAggregate, blockLabels, todayCount, totalCoun
     activity.default_start_time,
     activity.default_end_time
   )
-  const blockLabel =
-    activity.block != null
-      ? getBlockLabel(activity.block, blockLabels)
-      : null
+  const blockLabel = activity.block?.length > 0
+    ? activity.block.map(b => getBlockLabel(b, blockLabels)).join(', ')
+    : null
   const metaParts = [timeRange, blockLabel, activity.location].filter(Boolean)
 
   return {

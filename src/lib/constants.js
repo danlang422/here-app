@@ -19,6 +19,15 @@ export function getBlockLabels(blockCount, blockLabels) {
   return Object.fromEntries(blocks.map(b => [b, getBlockLabel(b, blockLabels)]))
 }
 
+// Format a block array (INTEGER[]) to a readable string, e.g. "Block 2, Block 3".
+// Accepts null (returns null) or a single number for backwards compatibility.
+export function formatBlockArray(block, blockLabels) {
+  if (block == null) return null
+  const arr = Array.isArray(block) ? block : [block]
+  if (arr.length === 0) return null
+  return arr.map(b => getBlockLabel(b, blockLabels)).join(', ')
+}
+
 // Days of week per EXTRACT(DOW): 0=Sun, 1=Mon, ..., 6=Sat
 export const DAYS_OF_WEEK = [
   { value: 0, label: 'Sun', short: 'Su' },

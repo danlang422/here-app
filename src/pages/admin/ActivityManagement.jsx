@@ -90,9 +90,10 @@ function ActivityManagement() {
 
     if (filters.block !== 'all') {
       if (filters.block === 'none') {
-        result = result.filter((a) => a.block == null)
+        result = result.filter((a) => !a.block?.length)
       } else {
-        result = result.filter((a) => a.block === Number(filters.block))
+        const filterBlock = Number(filters.block)
+        result = result.filter((a) => Array.isArray(a.block) && a.block.includes(filterBlock))
       }
     }
 
@@ -130,10 +131,12 @@ function ActivityManagement() {
       }
 
       if (sortField === 'block') {
-        if (a.block == null && b.block == null) return (a.name || '').localeCompare(b.name || '')
-        if (a.block == null) return 1
-        if (b.block == null) return -1
-        if (a.block !== b.block) return dir * (a.block - b.block)
+        const aMin = a.block?.length ? Math.min(...a.block) : null
+        const bMin = b.block?.length ? Math.min(...b.block) : null
+        if (aMin == null && bMin == null) return (a.name || '').localeCompare(b.name || '')
+        if (aMin == null) return 1
+        if (bMin == null) return -1
+        if (aMin !== bMin) return dir * (aMin - bMin)
         return (a.name || '').localeCompare(b.name || '')
       }
 

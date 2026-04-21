@@ -284,7 +284,7 @@ function Dashboard() {
 function groupByBlock(activities) {
   const map = new Map()
   for (const a of activities) {
-    const key = String(a.block ?? 'null')
+    const key = a.block?.length > 0 ? String(a.block[0]) : 'null'
     if (!map.has(key)) map.set(key, [])
     map.get(key).push(a)
   }

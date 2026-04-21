@@ -95,8 +95,8 @@ export default function ActivityTable({
                   <StaffDisplay activity={activity} />
                 </td>
                 <td>
-                  {activity.block != null
-                    ? getBlockLabel(activity.block, blockLabels)
+                  {activity.block?.length > 0
+                    ? activity.block.map(b => getBlockLabel(b, blockLabels)).join(', ')
                     : <span className="text-base-content/40">—</span>
                   }
                 </td>
