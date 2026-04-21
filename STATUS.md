@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** April 20, 2026 (session 34)
+**Last updated:** April 21, 2026 (session 34)
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed. Migrations through `20260406000000_enrollment_level_scheduling` (four nullable scheduling columns on `enrollments`: `days_of_week`, `rotation_day_type`, `recurrence_interval`, `recurrence_anchor_date`). Real data: City View org with admin account (Daniel Lang), staff users, and activities. **Data needs to be cleared and re-entered** using the consolidated model — current activity splits are redundant under enrollment-level scheduling (~460 → ~120–150 activities).
+**Database:** V2 schema deployed. Migrations through `20260421000000_multi_block_activities` (`activities.block` and `enrollments.block` converted from `INTEGER` to `INTEGER[]`; existing data migrated to single-element arrays). Real data: City View org with admin account (Daniel Lang), staff users, and activities. **Data needs to be cleared and re-entered** using the consolidated model — current activity splits are redundant under enrollment-level scheduling (~460 → ~120–150 activities).
 
 **Application:**
 
@@ -76,6 +76,8 @@ Ordered priority:
 4. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
 5. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
 6. **#21** — Customizable agenda start/end times
+
+**Recently completed:** #69 — Multi-block activities (`activities.block` and `enrollments.block` converted to `INTEGER[]`; conflict detection, UI selectors, display, and grouping updated throughout).
 
 **Data entry:** Schedule fully normalized. Enrollment-level scheduling is complete (including hard-delete unenrollments and advisory conflict detection) — a fresh re-entry pass using the consolidated model is the next concrete action item. Some schedule nuance (e.g., actual arrival times for students coming back from off-campus activities) may require surveying students rather than pulling from the spreadsheet.
 
