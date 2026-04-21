@@ -35,7 +35,7 @@ const BEHAVIOR_FLAGS = [
 const DEFAULT_VALUES = {
   name: '',
   description: '',
-  block: '',
+  block: [],
   days_of_week: [],
   rotation_day_type: '',
   default_start_time: '',
@@ -84,7 +84,7 @@ function buildInitialValues(activity) {
     ...DEFAULT_VALUES,
     name: activity.name || '',
     description: activity.description || '',
-    block: activity.block != null ? String(activity.block) : '',
+    block: activity.block ?? [],
     days_of_week: activity.days_of_week || [],
     rotation_day_type: activity.rotation_day_type || '',
     default_start_time: activity.default_start_time || '',
@@ -253,11 +253,11 @@ export default function ActivityDetail({
     setPendingTerms((prev) => prev.filter((pt) => pt.termId !== termId))
   }
 
-  // Block → time auto-fill from default template
+  // Block → time auto-fill from default template (uses first selected block)
   const watchedBlock = watch('block')
   useEffect(() => {
-    if (mode !== 'edit' || !defaultTemplate?.block_definitions || watchedBlock === '') return
-    const blockNum = parseInt(watchedBlock, 10)
+    if (mode !== 'edit' || !defaultTemplate?.block_definitions || !watchedBlock?.length) return
+    const blockNum = watchedBlock[0]
     const def = defaultTemplate.block_definitions.find((d) => d.block === blockNum)
     if (!def) return
     const currentStart = getValues('default_start_time')
@@ -275,13 +275,21 @@ export default function ActivityDetail({
     }
   }, [watchedBlock]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  function handleBlockToggle(blockNum) {
+    const current = getValues('block') ?? []
+    const next = current.includes(blockNum)
+      ? current.filter((b) => b !== blockNum)
+      : [...current, blockNum].sort((a, b) => a - b)
+    setValue('block', next)
+  }
+
   function onFormSubmit(formValues) {
     const staffFlat = staffRowsToFlat(staffRows)
     const data = {
       name: formValues.name.trim(),
       description: formValues.description?.trim() || null,
       ...staffFlat,
-      block: formValues.block !== '' ? parseInt(formValues.block, 10) : null,
+      block: formValues.block?.length > 0 ? formValues.block : null,
       days_of_week: formValues.days_of_week?.length > 0 ? formValues.days_of_week : null,
       rotation_day_type: formValues.rotation_day_type || null,
       default_start_time: formValues.default_start_time || null,
@@ -511,6 +519,8 @@ export default function ActivityDetail({
               watchedStartTime={watch('default_start_time')}
               watchedEndTime={watch('default_end_time')}
               watchedRecurrenceInterval={watchedRecurrenceInterval}
+              watchedBlock={watchedBlock}
+              onBlockToggle={handleBlockToggle}
             />
           )}
         </div>
@@ -786,7 +796,9 @@ function SchedulingView({ activity, blockLabels }) {
   }
 
   const parts = []
-  if (activity?.block != null) parts.push(getBlockLabel(activity.block, blockLabels))
+  if (activity?.block?.length > 0) {
+    parts.push(activity.block.map(b => getBlockLabel(b, blockLabels)).join(', '))
+  }
 
   const timeParts = []
   if (activity?.default_start_time) timeParts.push(formatTime(activity.default_start_time))
@@ -831,6 +843,7 @@ function SchedulingEdit({
   onDayToggle, onRotationChange,
   watchedStartTime, watchedEndTime,
   watchedRecurrenceInterval,
+  watchedBlock, onBlockToggle,
 }) {
   const hasTimesSet = !!(watchedStartTime && watchedEndTime)
   const computedDuration = hasTimesSet
@@ -849,12 +862,22 @@ function SchedulingEdit({
         <div>
           <label className="label-text text-xs text-base-content/50 mb-1 block">Block</label>
           {blocks.length > 0 ? (
-            <select className="select select-bordered select-sm w-full" {...register('block')} disabled={disabled}>
-              <option value="">—</option>
-              {blocks.map((b) => (
-                <option key={b} value={b}>{getBlockLabel(b, blockLabels)}</option>
-              ))}
-            </select>
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {blocks.map((b) => {
+                const selected = watchedBlock?.includes(b)
+                return (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => onBlockToggle(b)}
+                    disabled={disabled}
+                    className={`btn btn-xs ${selected ? 'btn-primary' : 'btn-ghost border border-base-300'}`}
+                  >
+                    {getBlockLabel(b, blockLabels)}
+                  </button>
+                )
+              })}
+            </div>
           ) : (
             <span className="text-xs text-base-content/40 italic">Not defined</span>
           )}
@@ -1479,7 +1502,7 @@ function EnrollmentStudentRow({
           {zone === 'enrolled' && conflict?.hasConflict && (
             <div className="text-xs text-warning mt-0.5">
               {conflict.conflicts.map((c, i) => (
-                <div key={i}>Conflicts with {c.activity.name}{c.activity.block != null && ` — ${getBlockLabel(c.activity.block)}`}</div>
+                <div key={i}>Conflicts with {c.activity.name}{c.activity.block?.length > 0 && ` — ${c.activity.block.map(b => getBlockLabel(b)).join(', ')}`}</div>
               ))}
             </div>
           )}

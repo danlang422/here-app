@@ -331,8 +331,8 @@ function TodayView() {
   const renderCard = (activity) => {
     const staffName = resolveStaffName(activity)
     const label =
-      activity.block != null
-        ? getBlockLabel(activity.block, blockLabels)
+      activity.block?.length > 0
+        ? activity.block.map(b => getBlockLabel(b, blockLabels)).join(', ')
         : null
 
     return (
