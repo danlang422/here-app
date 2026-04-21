@@ -48,7 +48,7 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
   const [calendarEnabled, setCalendarEnabled] = useState(false)
 
   // Field values
-  const [block, setBlock] = useState('')
+  const [block, setBlock] = useState([])
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [selectedTermIds, setSelectedTermIds] = useState([])
@@ -88,7 +88,7 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
     const changes = {}
 
     if (blockEnabled) {
-      changes.block = block === '' ? null : Number(block)
+      changes.block = block.length > 0 ? block : null
     }
     if (timeEnabled) {
       changes.time = { start: startTime, end: endTime }
@@ -135,19 +135,28 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
             onToggle={() => setBlockEnabled((v) => !v)}
             label="Block"
           >
-            <select
-              className="select select-sm w-full max-w-xs"
-              value={block}
-              onChange={(e) => setBlock(e.target.value)}
-              disabled={!blockEnabled}
-            >
-              <option value="">No block</option>
-              {getBlocks(blockCount).map((b) => (
-                <option key={b} value={b}>
-                  {getBlockLabel(b, blockLabels)}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-wrap gap-1">
+              {getBlocks(blockCount).length === 0 ? (
+                <span className="text-sm text-base-content/50">No blocks defined.</span>
+              ) : (
+                getBlocks(blockCount).map((b) => {
+                  const selected = block.includes(b)
+                  return (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => setBlock((prev) =>
+                        prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b].sort((a, c) => a - c)
+                      )}
+                      disabled={!blockEnabled}
+                      className={`btn btn-xs ${selected ? 'btn-primary' : 'btn-ghost border border-base-300'}`}
+                    >
+                      {getBlockLabel(b, blockLabels)}
+                    </button>
+                  )
+                })
+              )}
+            </div>
           </Section>
 
           {/* Time */}
