@@ -1,179 +1,14 @@
 # Realtime & Notifications
 
+**Last updated:** April 2026 (session 35)
+
 ## Supabase Realtime
 
-Supabase Realtime uses WebSocket channels to push database changes to subscribed clients. The app subscribes to `postgres_changes` events filtered by table, event type, and row-level filters.
-
-### Use Cases
-
-**Enable real-time for:**
-- Teacher roster views — see check-ins and attendance updates as they happen
-- Student notification feed — instant delivery of teacher comments and post alerts
-- Admin dashboard stats — live counts during school hours
-
-**Don't use real-time for:**
-- Historical data (attendance reports, past dates)
-- Calendar views (changes are infrequent, manual refresh is fine)
-- User profile data
-
-### Subscription Pattern
-
-All real-time subscriptions go through a `useRealtime` hook that manages channel lifecycle (subscribe on mount, unsubscribe on unmount) and invalidates React Query caches when changes arrive.
-
-```jsx
-// src/hooks/useRealtime.js
-import { useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../api/supabase'
-
-export function useRealtimeTable(table, filter, queryKeysToInvalidate) {
-  const queryClient = useQueryClient()
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(`${table}-realtime`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table, filter },
-        () => {
-          queryKeysToInvalidate.forEach(key => {
-            queryClient.invalidateQueries({ queryKey: key })
-          })
-        }
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [table, filter, queryClient])
-}
-```
-
-### Example: Teacher Monitoring Check-Ins
-
-```jsx
-function BlockRoster({ teacherId, block, date }) {
-  const { data: roster } = useTeacherRoster(teacherId, block, date)
-
-  // Subscribe to check-in changes for today
-  useRealtimeTable(
-    'check_ins',
-    `activity_instance_id=in.(${instanceIds.join(',')})`,
-    [['teacher-roster', teacherId, block, date], ['check-ins', date]]
-  )
-
-  return (
-    <div>
-      {roster?.map(student => (
-        <StudentRow key={student.id} student={student} />
-      ))}
-    </div>
-  )
-}
-```
-
-### Performance Guidelines
-
-- Limit subscriptions to active views only — unsubscribe when the component unmounts
-- Use channel multiplexing when multiple components watch the same table
-- Throttle rapid updates by debouncing query invalidation (e.g., during bulk attendance marking)
-- Filter subscriptions as narrowly as possible to reduce noise
-
----
+Realtime subscriptions are **not yet implemented**. The plan (tracked in [#80](https://github.com/danlang422/here-app/issues/80)) is to use Supabase's `postgres_changes` WebSocket channels to push live updates to teacher roster views. There is no `useRealtimeTable` hook and no realtime channel setup in the current codebase. All data is fetched via TanStack Query with manual refetch or query invalidation on mutations.
 
 ## Notification System
 
-### Architecture
-
-Notifications are **in-app only** for MVP. No email, push, or SMS (email is used only for Supabase Auth flows like password reset). Notifications are stored in the `notifications` table and delivered to clients via Supabase Realtime subscriptions.
-
-### Notification Types
-
-| Type | Trigger | Recipient |
-|------|---------|-----------|
-| `teacher_comment` | Teacher comments on a student's status update or post response | Student |
-| `post_created` | Teacher creates a post on an activity instance | All enrolled students |
-| `response_required` | Teacher creates a post with `requires_response = true` | All enrolled students |
-| `checkin_reminder` | Student has an open check-in (no check-out) at midnight | Student |
-| `schedule_change` | Admin modifies the school day calendar | Affected users (deferred) |
-
-### Trigger Implementation
-
-Notifications are created in **application logic** (JavaScript), not database triggers. This keeps all business logic in one language, makes conditional rules easy to add, and is simpler to debug.
-
-```jsx
-// Example: Creating a notification when a teacher comments on a status update
-async function createCommentWithNotification(commentData) {
-  // 1. Create the comment
-  const { data: comment, error } = await supabase
-    .from('comments')
-    .insert({
-      author_id: commentData.authorId,
-      status_update_id: commentData.statusUpdateId,
-      content: commentData.content
-    })
-    .select()
-    .single()
-
-  if (error) throw error
-
-  // 2. Look up the student who wrote the status update
-  const { data: statusUpdate } = await supabase
-    .from('status_updates')
-    .select('student_id')
-    .eq('id', commentData.statusUpdateId)
-    .single()
-
-  // 3. Create notification for the student
-  await supabase
-    .from('notifications')
-    .insert({
-      user_id: statusUpdate.student_id,
-      type: 'teacher_comment',
-      status_update_id: commentData.statusUpdateId,
-      message: `${teacherName} commented on your update`
-    })
-
-  return comment
-}
-```
-
-The `notifications` table uses nullable FK columns (`post_id`, `post_response_id`, `status_update_id`, `check_in_id`) with an `at_most_one_related` constraint — at most one can be set per notification. This gives real foreign keys with cascading deletes while avoiding the polymorphic `related_type`/`related_id` pattern.
-
-### Realtime Delivery
-
-Students subscribe to the `notifications` table filtered by their user ID. New notifications appear instantly without polling:
-
-```jsx
-function NotificationCenter({ userId }) {
-  const { data: notifications } = useQuery({
-    queryKey: ['notifications', userId],
-    queryFn: () => getUnreadNotifications(userId),
-  })
-
-  // Real-time: new notifications appear instantly
-  useRealtimeTable(
-    'notifications',
-    `user_id=eq.${userId}`,
-    [['notifications', userId]]
-  )
-
-  return (
-    <div>
-      {notifications?.map(n => (
-        <NotificationItem key={n.id} notification={n} />
-      ))}
-    </div>
-  )
-}
-```
-
-### Deferred Notification Features
-
-These are not in MVP scope but the schema supports them without changes:
-- Schedule change notifications (admin modifies calendar → affected users notified)
-- Streak milestone celebrations (presence wave streaks hitting thresholds)
-- Attendance marked notifications (student notified when attendance is recorded)
-- Missed check-out reminders (requires a scheduled job or Supabase cron)
+A notification system is **not implemented**. There is no `notifications` table in the schema and no in-app notification UI. User feedback is handled via the Help page (`HelpPage.jsx`), which submits reports directly to GitHub Issues through a Supabase Edge Function.
 
 ---
 
@@ -198,12 +33,12 @@ All `TIME` values are displayed as-is with no timezone conversion. "Block 1 star
 
 ### Implementation
 
-```jsx
-import { formatInTimeZone } from 'date-fns-tz'
+Date utilities live in `src/lib/scheduleUtils.js`. The project has no external date library (no `date-fns`, no `date-fns-tz`). Timezone-aware "today" lookup uses the `Intl.DateTimeFormat` API directly.
 
+```js
 // Getting "today" in the org's timezone (for school day lookup)
 function getSchoolDate(orgTimezone) {
-  return formatInTimeZone(new Date(), orgTimezone, 'yyyy-MM-dd')
+  return new Intl.DateTimeFormat('en-CA', { timeZone: orgTimezone }).format(new Date())
 }
 
 // Displaying a TIMESTAMPTZ — browser handles conversion automatically

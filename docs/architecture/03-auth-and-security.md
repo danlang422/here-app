@@ -1,170 +1,144 @@
 # Auth & Security
 
+**Last updated:** April 2026 (session 34)
+
 ## Supabase Auth
 
-Authentication is handled entirely by Supabase Auth. The app uses email/password authentication for MVP. Supabase manages sessions, JWT tokens, and password reset flows.
+Authentication is handled entirely by Supabase Auth using email/password. Supabase manages sessions, JWT tokens, and password reset flows.
 
-### Auth Functions
+### Auth initialization
 
-```jsx
-// src/api/auth.js
-import { supabase } from './supabase'
+Auth state is managed in Zustand (not TanStack Query) because it's global session state, not server data. The `useAuthListener` hook in `src/hooks/useAuth.js` initializes once at app startup via `AuthProvider`, calls `supabase.auth.getSession()` on mount, and subscribes to `onAuthStateChange` for subsequent login/logout/token-refresh events.
 
-export async function signIn(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) throw error
-  return data
+A notable quirk: `fetchProfile` uses raw `fetch` instead of the Supabase client because calling Supabase client methods inside `onAuthStateChange` callbacks causes a deadlock in supabase-js v2.95 (#9). This is intentional — don't change it until supabase-js is upgraded.
+
+```js
+// src/hooks/useAuth.js (simplified)
+export function useAuthListener() {
+  const { setSession, setProfile, setLoading, clearAuth } = useAuthStore()
+
+  useEffect(() => {
+    // 1. Check for existing session on mount (handles page refresh)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session)
+      if (session?.user) {
+        const profile = await fetchProfile(session.user.id, session.access_token)
+        setProfile(profile)
+      }
+      setLoading(false)
+    })
+
+    // 2. Subscribe to auth state changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'INITIAL_SESSION') return // handled above
+        setSession(session)
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id, session.access_token)
+          setProfile(profile)
+        } else {
+          queryClient.clear()
+          clearAuth()
+        }
+        setLoading(false)
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [])
 }
 
-export async function signOut() {
-  const { error } = await supabase.auth.signOut()
-  if (error) throw error
-}
-
-export async function getCurrentUser() {
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
-}
-
-export async function getCurrentUserProfile() {
-  const user = await getCurrentUser()
-  if (!user) return null
-
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  if (error) throw error
-  return data
-}
-```
-
-### Auth Hook
-
-The `useAuth` hook wraps profile loading in React Query and exposes the current user, their profile (including `roles`), and loading state:
-
-```jsx
-// src/hooks/useAuth.js
+// Convenience hook for components
 export function useAuth() {
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ['user-profile'],
-    queryFn: getCurrentUserProfile,
-    staleTime: Infinity, // Profile rarely changes mid-session
-  })
-
-  return { user: profile, isLoading }
+  return useAuthStore()
 }
 ```
+
+### Auth API functions (`src/api/auth.js`)
+
+- `signIn(email, password)` — wraps `supabase.auth.signInWithPassword`
+- `signOut()` — wraps `supabase.auth.signOut`
+- `requestPasswordReset(email)` — sends reset email with redirect to `/reset-password`
+- `updatePassword(newPassword)` — updates current user's password
+- `getCurrentUser()` / `getCurrentUserProfile()` — utility functions
 
 ---
 
 ## Role System
 
-Roles are stored as a `TEXT[]` array on `user_profiles.roles`. Possible values are `'student'`, `'teacher'`, and `'admin'`. A user can hold multiple roles — the most common combination is `['teacher', 'admin']`.
+Roles are stored as a `TEXT[]` array on `user_profiles.roles`. Valid values: `'student'`, `'teacher'`, `'admin'`. A user can hold multiple roles — the most common combination is `['teacher', 'admin']`.
 
-### Role Switching
+The `substitute` role is planned (#77) but not yet implemented. When added, it will be treated identically to `teacher` for routing and RLS purposes initially.
 
-Multi-role users select which role they're currently operating as. This drives which routes, views, and data they see. The active role is persisted in Zustand with localStorage so it survives page reloads.
+### Auth store (`src/store/authStore.js`)
 
-```jsx
-// src/store/authStore.js
-export const useAuthStore = create(
+```js
+const useAuthStore = create(
   persist(
-    (set) => ({
-      currentRole: null,
-      availableRoles: [],
-      setCurrentRole: (role) => set({ currentRole: role }),
-      setAvailableRoles: (roles) => set({ availableRoles: roles }),
+    (set, get) => ({
+      // Session state (ephemeral)
+      user: null,       // Supabase auth user object
+      profile: null,    // user_profiles row
+      session: null,    // Supabase session
+      loading: true,
+
+      // Role state
+      currentRole: null,     // active role for this session
+      availableRoles: [],    // from user_profiles.roles
+
+      setProfile: (profile) => {
+        const roles = profile?.roles ?? []
+        // Restore persisted role if still valid, else pick first
+        let selectedRole = get().currentRole
+        if (!selectedRole || !roles.includes(selectedRole)) {
+          selectedRole = roles[0] ?? null
+        }
+        set({ profile, availableRoles: roles, currentRole: selectedRole })
+      },
+      // ... setSession, setCurrentRole, setLoading, clearAuth
     }),
-    { name: 'auth-storage' }
+    {
+      name: 'here-auth',
+      partialize: (state) => ({ currentRole: state.currentRole }), // only persist role
+    }
   )
 )
 ```
 
-On login, `availableRoles` is populated from `user_profiles.roles`. If only one role exists, `currentRole` is set automatically. If multiple roles exist, the user is prompted to choose (or the last-used role is restored from localStorage).
-
-```jsx
-function RoleSwitcher() {
-  const { currentRole, availableRoles, setCurrentRole } = useAuthStore()
-
-  if (availableRoles.length <= 1) return null
-
-  return (
-    <select
-      value={currentRole}
-      onChange={(e) => setCurrentRole(e.target.value)}
-      className="select select-bordered"
-    >
-      {availableRoles.map(role => (
-        <option key={role} value={role}>
-          {role.charAt(0).toUpperCase() + role.slice(1)}
-        </option>
-      ))}
-    </select>
-  )
-}
-```
-
-Role switching does **not** change the Supabase session or JWT. The user's full set of roles is always available to RLS policies via the `user_profiles` table. Switching roles only changes which UI views are rendered.
+Only `currentRole` is persisted to localStorage — session state is always restored fresh from Supabase on page load.
 
 ---
 
 ## Protected Routes
 
-Route protection checks both authentication (is the user logged in?) and authorization (does the user have the required role?).
+`ProtectedRoute` in `src/components/layout/ProtectedRoute.jsx` reads directly from the Zustand auth store (no loading spinner needed since the store initializes synchronously from localStorage).
 
 ```jsx
-// src/components/ProtectedRoute.jsx
-import { Navigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
-import { useAuthStore } from '../store/authStore'
+function ProtectedRoute({ children, requiredRole }) {
+  const { user, currentRole } = useAuthStore()
+  const location = useLocation()
 
-export function ProtectedRoute({ children, requiredRole }) {
-  const { user, isLoading } = useAuth()
-  const { currentRole } = useAuthStore()
-
-  if (isLoading) return <LoadingSpinner />
-
-  if (!user) return <Navigate to="/login" replace />
-
-  if (requiredRole && currentRole !== requiredRole) {
-    return <Navigate to="/unauthorized" replace />
-  }
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />
+  if (requiredRole && currentRole !== requiredRole) return <Navigate to="/dashboard" replace />
 
   return children
 }
 ```
 
-Usage in the router:
-
-```jsx
-<Route
-  path="/admin/*"
-  element={
-    <ProtectedRoute requiredRole="admin">
-      <AdminDashboard />
-    </ProtectedRoute>
-  }
-/>
-```
+Routes without `requiredRole` are accessible to any authenticated user (e.g. `/account`, `/help`). Routes with `requiredRole` redirect to `/dashboard` on role mismatch — which then redirects to the correct role-appropriate view via `DashboardRedirect`.
 
 ---
 
 ## Row Level Security (RLS)
 
-All data access is enforced at the database level through Supabase RLS policies. The frontend does not need to implement its own authorization checks beyond role-based UI routing — even if a student somehow navigated to a teacher URL, the API calls would return empty results because RLS would block the data.
+All data access is enforced at the database level through Supabase RLS policies. The frontend role-based routing is a UX layer only — even if a student navigated to a teacher URL, API calls would return empty results because RLS would block the data.
 
-### Policy Strategy
+RLS policies are documented in `docs/schema/10-rls-policies.md`. Key principles:
 
-RLS policies are defined in the [schema documentation](../schema/10-rls-policies.md). Key principles:
+- **Organization scoping:** All queries are implicitly scoped to the user's organization.
+- **Role-based access:** Policies check `user_profiles.roles` via helper functions (`is_role()`, `is_staff_of()`) rather than checking columns directly.
+- **Ownership checks:** Students can only create/read their own check-ins, waves, and status updates (`student_id = auth.uid()`).
+- **Teacher scope:** Currently `teacher_id = me OR monitor_id = me` on activities — this will move to a junction table query when #70 lands.
+- **Admin:** Full read/write on all org data.
 
-- **Organization scoping**: All queries are implicitly scoped to the user's organization. A user can never see data from another organization.
-- **Role-based access**: Policies check `user_profiles.roles` using `ANY(roles)` to determine read/write permissions. Teachers can read all activities in their org; students can only read activities they're enrolled in.
-- **Ownership checks**: Students can only create/read their own check-ins, status updates, and presence waves. The `student_id = auth.uid()` pattern enforces this.
-- **Teacher scope**: Teachers see activities where `teacher_id = me OR monitor_id = me`. Admin role grants full read/write to all org data.
-
-### Performance Note
-
-RLS policies that join to `user_profiles` to check roles are evaluated on every query. For frequently-hit tables like `activity_instances` and `attendance_records`, the `organization_id` column is denormalized from the parent `activities` table so RLS can check org membership without an additional join. This is why `activity_instances` carries its own `organization_id` even though it could be derived from `activities.organization_id`.
+Performance note: `organization_id` is denormalized onto several tables (including `activity_instances`) so RLS can check org membership without additional joins on high-traffic queries.
