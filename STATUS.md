@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** May 13, 2026 (session 36)
+**Last updated:** May 13, 2026 (session 37)
 
 ---
 
@@ -35,7 +35,7 @@
 | Today view / agenda | Built | `student-agenda-today-view-build-spec.md` |
 | Check-in flows | Built | `student-actions-build-spec.md` |
 | **Teacher** | | |
-| Dashboard / agenda | Built; layout rewrite planned | `teacher-agenda-build-spec.md`; epic #84, #86 |
+| Dashboard / agenda | Built; layout rewrite specced | `teacher-agenda-build-spec.md`, `teacher-agenda-design-direction.md`; epic #84, #86 |
 | Attendance marking | Built | `teacher-agenda-build-spec.md` |
 | Student action visibility | Built | `teacher-roster-student-actions-build-spec.md` |
 | Attendance indicator on agenda cards | Built | Session 32, #74 |
@@ -76,18 +76,20 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 Ordered priority:
 
-1. **Data re-entry** — Clear existing activities/enrollments and re-enter using the consolidated model (~120–150 activities instead of ~460). Branch `feat/enrollment-level-scheduling` merged to main (commit `026179d`). Expected to run alongside #85 (concepting needs real scheduling scenarios to stress-test mockups against).
-2. **#85 — Teacher UI concepting** (pre-phase 1 of epic #84) — HTML mockups of several agenda design directions, teacher feedback sessions, design direction doc. Unblocks #86 and informs #79.
-3. **#87** — Per-enrollment arrival time override (small, independent; the Iowa BIG late-arriver case)
+1. **Data re-entry** — Clear existing activities/enrollments and re-enter using the consolidated model (~120–150 activities instead of ~460). Branch `feat/enrollment-level-scheduling` merged to main (commit `026179d`).
+2. **#86 — Phase 1 teacher agenda layout rewrite** — write the build spec against the new design direction doc, then implement. Spec needs to translate layout rules into changes to `Dashboard.jsx`, `SingleDayAgenda`, `agendaUtils.js`, the roster modal, and a new popover component. Resolves the layout side of #88 in the same pass.
+3. **#87** — Per-enrollment arrival time override (small, independent; the Iowa BIG late-arriver case). UI side described in the design direction doc.
 4. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
 5. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
 6. **#21** — Customizable agenda start/end times
 
-**Recently completed:** Session 36 — Supabase Security Advisor audit. 30 RLS errors resolved (user_metadata → user_profiles); function security hardened; explicit GRANT opt-in applied.
+**Recently completed:**
+- Session 37 — Teacher UI concepting (#85) completed. Design direction doc + v2 demo committed; #85 closed. Concretely landed: time-axis-primary layout with role-ordered row-fill, aggregation by `(start_time, end_time, role)`, popover from cluster cards, no compact/expanded toggle, late-arrivers as in-card chip + roster section.
+- Session 36 — Supabase Security Advisor audit. 30 RLS errors resolved (user_metadata → user_profiles); function security hardened; explicit GRANT opt-in applied.
 
 **Data entry:** Schedule fully normalized. Enrollment-level scheduling is complete (including hard-delete unenrollments and advisory conflict detection) — a fresh re-entry pass using the consolidated model is the next concrete action item. Some schedule nuance (e.g., actual arrival times for students coming back from off-campus activities) may require surveying students rather than pulling from the spreadsheet.
 
-**Teacher UI & staff model redesign (epic #84):** Umbrella issue covering the set of changes surfaced in the April 2026 staff conversation. Phases: pre-phase 1 concepting (#85), Phase 1 agenda layout rewrite (#86), Phase 2 staff model (#70, #77, #78), Phase 3 teacher visibility UI (#79), downstream (#80, #81). Phase 2 can run parallel to Phase 1. See session 34 notes for decisions and context.
+**Teacher UI & staff model redesign (epic #84):** Umbrella issue covering the set of changes surfaced in the April 2026 staff conversation. Phases: pre-phase 1 concepting (#85, **complete**), Phase 1 agenda layout rewrite (#86, ready for spec), Phase 2 staff model (#70, #77, #78), Phase 3 teacher visibility UI (#79), downstream (#80, #81). Phase 2 can run parallel to Phase 1. Design direction for Phases 1 and 3 is now captured in `teacher-agenda-design-direction.md`. See session 34 notes for the original decisions and context; session 37 for the design direction output.
 
 ---
 
@@ -134,3 +136,4 @@ Ordered priority:
 | `dev-override-implementation-guide.md` | **Implemented** | Dev date/time override for demo — `getDevNow()`, `getDevToday()`, constant toggle. Built session 29. |
 | `attendance-rollup-design-doc.md` | **Implemented** | Admin attendance rollup view — block groups, status sorting, exception/full toggle, conflict detection. Built session 31. |
 | `public-facing-site-build-spec.md` | **Implemented** | Public landing page, trust/privacy page, about page, public layout, auth-aware root routing. Built session 33. |
+| `teacher-agenda-design-direction.md` | **Current** | Input to #86. Layout rules (time-axis, role-ordered row-fill, aggregation by time+role, cluster popover), late-arrival treatment, sidebar logic, open questions. Reference artifact: `teacher-agenda-demo-v2.html`. Session 37. |
