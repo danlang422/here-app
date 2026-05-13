@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** April 21, 2026 (session 35)
+**Last updated:** May 13, 2026 (session 36)
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed. Migrations through `20260421000000_multi_block_activities` (`activities.block` and `enrollments.block` converted from `INTEGER` to `INTEGER[]`; existing data migrated to single-element arrays). Real data: City View org with admin account (Daniel Lang), staff users, and activities. **Data needs to be cleared and re-entered** using the consolidated model — current activity splits are redundant under enrollment-level scheduling (~460 → ~120–150 activities).
+**Database:** V2 schema deployed. Migrations through `20260513000006_opt_out_default_grants` (Supabase security audit + explicit GRANT opt-in). Real data: City View org with admin account (Daniel Lang), staff users, and activities. **Data needs to be cleared and re-entered** using the consolidated model — current activity splits are redundant under enrollment-level scheduling (~460 → ~120–150 activities).
 
 **Application:**
 
@@ -46,7 +46,7 @@
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI, calendar UI) | Built | — |
 | Enrollment validation (block-based + time-based, recurrence-aware, enrollment-effective schedules) | Built | #52 resolved; `enrollment-level-scheduling-design-doc.md` |
-| RLS policies | Comprehensive — all tables, all roles | `20260313000000_comprehensive_rls_policies.sql`, `10-rls-policies.md` |
+| RLS policies | Overhauled May 2026 — all `user_metadata` references replaced with `user_profiles` subqueries + SECURITY DEFINER helpers | Session 36; `docs/schema/10-rls-policies.md` |
 | Edge Functions (`submit-feedback`, `create-user`) | Deployed with `--no-verify-jwt`; config in `supabase/config.toml`. `submit-feedback` posts to GitHub Issues. | Session 16, 19 |
 | Bulk password reset (Edge Function, user_metadata flag) | Built | Session 29 |
 | Dev date/time override | Built | Session 29, #67 |
@@ -64,6 +64,12 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 **Notable open architectural item:** `fetchProfile` in `useAuthListener` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 inside `onAuthStateChange` (#9). Don't change this until supabase-js is upgraded.
 
+### Platform deferred items
+
+**`feedback-screenshots` public bucket** — Intentionally public so screenshots embed inline in GitHub Issues (no public API exists for uploading GitHub issue images programmatically). Low risk for internal app; paths are UUID-scoped. Revisit if app scales or GitHub adds an image upload API. See session 36 notes for full options analysis.
+
+**Leaked password protection (HaveIBeenPwned check)** — Supabase Auth feature that checks passwords against known breached credential lists. Requires Pro plan. Enable when upgrading from Free tier.
+
 ## Next Steps
 
 **Iteration 4 goal: get to real user testing.**
@@ -77,7 +83,7 @@ Ordered priority:
 5. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
 6. **#21** — Customizable agenda start/end times
 
-**Recently completed:** #69 — Multi-block activities (`activities.block` and `enrollments.block` converted to `INTEGER[]`; conflict detection, UI selectors, display, and grouping updated throughout).
+**Recently completed:** Session 36 — Supabase Security Advisor audit. 30 RLS errors resolved (user_metadata → user_profiles); function security hardened; explicit GRANT opt-in applied.
 
 **Data entry:** Schedule fully normalized. Enrollment-level scheduling is complete (including hard-delete unenrollments and advisory conflict detection) — a fresh re-entry pass using the consolidated model is the next concrete action item. Some schedule nuance (e.g., actual arrival times for students coming back from off-campus activities) may require surveying students rather than pulling from the spreadsheet.
 
