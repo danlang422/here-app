@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Here — Teacher Agenda Demo</title>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #faf9f7;
+    --surface: #ffffff;
+    --surface-2: #f3f2ef;
+    --border: rgba(0,0,0,0.1);
+    --border-med: rgba(0,0,0,0.18);
+    --text: #1a1916;
+    --text-2: #6b6a66;
+    --text-3: #9e9d99;
+    --blue-bg: #e8f0fb; --blue-border: #b3caf4; --blue-text: #1a3f7a; --blue-sub: #2d5fa8;
+    --purple-bg: #eeedf9; --purple-border: #cbc8f0; --purple-text: #322d8a; --purple-sub: #4e49b0;
+    --amber-bg: #fef3dc; --amber-border: #f5d68a; --amber-text: #6b3f08; --amber-sub: #9a5c12;
+    --gray-bg: #f0efe9; --gray-border: #cccbb f; --gray-text: #3a3a37; --gray-sub: #5e5e5a;
+    --green-bg: #eaf3de; --green-border: #b8d990; --green-text: #2a5010; --green-sub: #3d7018;
+    --teal-bg: #e2f4ee; --teal-border: #9cdec5; --teal-text: #084035; --teal-sub: #0f6050;
+    --radius: 8px; --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .app-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  .topbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .topbar-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .topbar-day { font-size: 13px; color: var(--text-2); }
+  .topbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .toggle-group {
+    display: flex; border: 1px solid var(--border-med); border-radius: var(--radius); overflow: hidden;
+  }
+  .toggle-btn {
+    padding: 5px 14px; font-size: 12px; font-weight: 500; cursor: pointer;
+    background: var(--surface); color: var(--text-2); border: none;
+    border-right: 1px solid var(--border); transition: background 0.12s, color 0.12s;
+  }
+  .toggle-btn:last-child { border-right: none; }
+  .toggle-btn.active { background: var(--surface-2); color: var(--text); }
+
+  .content-area { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Agenda column ── */
+  .agenda-wrap { flex: 1; overflow-y: auto; padding: 20px 20px 40px; }
+  .time-grid { position: relative; }
+  .time-track { display: grid; grid-template-columns: 48px 1fr; gap: 0; }
+
+  /* time slots */
+  .slot-row { display: contents; }
+  .slot-time {
+    font-size: 11px; color: var(--text-3); padding-top: 2px;
+    grid-column: 1; height: 60px; display: flex; align-items: flex-start;
+  }
+  .slot-lane {
+    grid-column: 2; height: 60px;
+    border-top: 1px solid var(--border);
+    position: relative;
+  }
+
+  /* block label markers */
+  .block-marker {
+    position: absolute; left: 0; top: 2px;
+    font-size: 10px; font-weight: 600; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    pointer-events: none;
+  }
+
+  /* activity cards positioned absolutely within the lane area */
+  .cards-layer {
+    position: absolute; left: 0; right: 0; top: 0;
+    pointer-events: none;
+  }
+  .act-card {
+    position: absolute;
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    cursor: pointer;
+    pointer-events: all;
+    transition: box-shadow 0.12s, border-color 0.12s;
+    overflow: hidden;
+    border: 1px solid transparent;
+  }
+  .act-card:hover { box-shadow: var(--shadow); }
+  .act-card .card-role-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600;
+    padding: 1px 7px; border-radius: 20px; margin-bottom: 4px;
+  }
+  .act-card .card-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
+  .act-card .card-meta { font-size: 11px; margin-top: 2px; line-height: 1.4; }
+  .act-card .card-count { font-size: 11px; margin-top: 3px; }
+
+  /* card color themes */
+  .theme-teacher { background: var(--blue-bg); border-color: var(--blue-border); }
+  .theme-teacher .card-title { color: var(--blue-text); }
+  .theme-teacher .card-meta, .theme-teacher .card-count { color: var(--blue-sub); }
+  .theme-teacher .card-role-badge { background: var(--blue-border); color: var(--blue-text); }
+
+  .theme-monitor { background: var(--purple-bg); border-color: var(--purple-border); }
+  .theme-monitor .card-title { color: var(--purple-text); }
+  .theme-monitor .card-meta, .theme-monitor .card-count { color: var(--purple-sub); }
+  .theme-monitor .card-role-badge { background: var(--purple-border); color: var(--purple-text); }
+
+  .theme-prep { background: var(--gray-bg); border-color: #cccbbc; }
+  .theme-prep .card-title { color: var(--gray-text); }
+  .theme-prep .card-meta { color: var(--gray-sub); }
+
+  .theme-aggregate { background: var(--teal-bg); border-color: var(--teal-border); }
+  .theme-aggregate .card-title { color: var(--teal-text); }
+  .theme-aggregate .card-meta, .theme-aggregate .card-count { color: var(--teal-sub); }
+  .theme-aggregate .card-role-badge { background: var(--teal-border); color: var(--teal-text); }
+
+  .late-chip {
+    display: inline-block; font-size: 10px; padding: 1px 7px;
+    border-radius: 20px; background: var(--amber-bg); border: 1px solid var(--amber-border);
+    color: var(--amber-text);
+  }
+
+  /* ── Side panel ── */
+  .side-panel {
+    width: 216px; flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    padding: 16px 14px;
+  }
+  .panel-section { margin-bottom: 20px; }
+  .panel-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--text-3); margin-bottom: 8px;
+  }
+  .panel-item {
+    padding: 9px 10px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface-2);
+    margin-bottom: 6px; cursor: pointer;
+    transition: border-color 0.12s;
+  }
+  .panel-item:hover { border-color: var(--border-med); }
+  .panel-item-title { font-size: 12px; font-weight: 600; color: var(--text); }
+  .panel-item-sub { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+  .panel-item.vis-all { border-left: 3px solid var(--purple-border); }
+  .panel-empty { font-size: 12px; color: var(--text-3); font-style: italic; }
+
+  /* ── Block attendance row ── */
+  .block-attendance-row {
+    margin-top: 24px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .block-att-label { font-size: 11px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .block-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .block-btn {
+    padding: 5px 14px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border-med); border-radius: var(--radius);
+    background: var(--surface); color: var(--text-2); cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+  }
+  .block-btn:hover { background: var(--surface-2); color: var(--text); }
+
+  /* ── Modal ── */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; padding: 20px;
+  }
+  .modal-box {
+    background: var(--surface); border-radius: var(--radius-lg);
+    border: 1px solid var(--border-med);
+    width: 400px; max-width: 100%; max-height: 80vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+  .modal-head {
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .modal-head-row { display: flex; align-items: flex-start; justify-content: space-between; }
+  .modal-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .modal-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+  .modal-close {
+    background: none; border: none; font-size: 20px; cursor: pointer;
+    color: var(--text-2); line-height: 1; padding: 0 2px; margin-left: 12px;
+  }
+  .modal-body { overflow-y: auto; padding: 4px 0 12px; flex: 1; }
+
+  .roster-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--text-3); padding: 10px 20px 4px;
+  }
+  .student-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 20px; border-bottom: 1px solid var(--border);
+  }
+  .student-row:last-child { border-bottom: none; }
+  .student-name { flex: 1; font-size: 13px; color: var(--text); }
+  .att-group { display: flex; gap: 3px; }
+  .att-btn {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid var(--border-med); background: var(--surface);
+    font-size: 11px; font-weight: 700; cursor: pointer; color: var(--text-2);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+  }
+  .att-btn:hover { background: var(--surface-2); }
+  .att-btn.p-active { background: var(--green-bg); border-color: var(--green-border); color: var(--green-text); }
+  .att-btn.a-active { background: #fce8e8; border-color: #f5a0a0; color: #6b1c1c; }
+  .att-btn.e-active { background: var(--blue-bg); border-color: var(--blue-border); color: var(--blue-text); }
+  .att-btn.t-active { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber-text); }
+
+  .multiblock-note {
+    margin: 10px 20px 2px;
+    padding: 8px 12px;
+    background: var(--amber-bg); border: 1px solid var(--amber-border);
+    border-radius: var(--radius); font-size: 12px; color: var(--amber-text);
+  }
+  .checkin-status {
+    font-size: 11px; color: var(--text-3); margin-top: 2px;
+  }
+  .checkin-status .present { color: var(--green-text); }
+  .checkin-status .pending { color: var(--amber-text); }
+
+  .enrolled-note {
+    font-size: 11px; color: var(--text-3); padding: 6px 20px 2px;
+    font-style: italic;
+  }
+
+  /* invisible scrollbar for cleaner look */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<script>
+// ============================================================
+// DEMO DATA — edit this section before sharing with teacher
+// ============================================================
+
+const TEACHER_NAME = "Kali";
+const DAY_LABEL = "Wednesday";
+
+// AGENDA_START_HOUR: what time the grid starts (24h). 8 = 8:00 AM
+const AGENDA_START_HOUR = 8;
+// AGENDA_END_HOUR: what time the grid ends
+const AGENDA_END_HOUR = 15;
+
+// SCHEDULE: array of activities for this teacher's day.
+// Fields:
+//   id: unique string
+//   title: display name
+//   blocks: array of block numbers this activity is tagged to (for "take attendance by block")
+//   startTime: "H:MM" or "HH:MM" (24h or 12h with AM/PM -- see parseTime below)
+//   endTime: same format
+//   role: "teacher" | "monitor" | "prep"
+//   visibleToAll: true if this activity is marked visible-to-all in the app
+//   location: string or null
+//   students: array of student objects (see format below)
+//     { name: "First Last", lateArrival: "9:20" or null, lateReason: "Iowa BIG" or null }
+//   enrolledTotal: if set, shows "X of Y today" indicator (for advisory etc.)
+//   multiBlock: if true, shows the linked-blocks attendance note in the roster
+//   checkInEnabled: true if students are expected to check in
+//   geoEnabled: true if geolocation is tracked
+//   isFreeform: true for Independent Study / open monitoring blocks
+//   aggregateWith: id of another activity to group with in compact view (same time slot)
+//   note: optional string shown in the roster header
+
+const SCHEDULE = [
+  {
+    id: "advisory",
+    title: "Advisory — Kali's Hub",
+    blocks: [0],
+    startTime: "8:30",
+    endTime: "9:00",
+    role: "teacher",
+    visibleToAll: false,
+    location: null,
+    enrolledTotal: 13,
+    students: [
+      { name: "Lya Antin", lateArrival: null },
+      { name: "Finn Chase", lateArrival: null },
+      { name: "Mae Glessner", lateArrival: null },
+      { name: "Maeder Maeder", lateArrival: null },
+      { name: "Brayden Moore", lateArrival: null },
+      { name: "Jack Stillmunkes", lateArrival: null },
+      { name: "Eva Uglow", lateArrival: null },
+      // 6 students not attending today (other activities) — not listed here
+    ],
+    note: "13 enrolled · 7 expected today (6 have other activities this block)",
+  },
+  {
+    id: "remote-study",
+    title: "Remote Study",
+    blocks: [0],
+    startTime: "8:30",
+    endTime: "9:00",
+    role: "monitor",
+    visibleToAll: false,
+    checkInEnabled: true,
+    geoEnabled: false,
+    students: [
+      { name: "Marie Cambridge", lateArrival: null },
+    ],
+    note: "Check-in enabled · no geolocation",
+  },
+  {
+    id: "internship-milex",
+    title: "Internship @ Milex",
+    blocks: [0, 1, 2],
+    startTime: "8:30",
+    endTime: "10:40",
+    role: "monitor",
+    visibleToAll: false,
+    checkInEnabled: true,
+    geoEnabled: true,
+    multiBlock: true,
+    students: [
+      { name: "Kiaya Fortner", lateArrival: null },
+    ],
+    note: "Blocks 0, 1, 2 · attendance linked across all blocks · mark at end of activity",
+  },
+  {
+    id: "biology2",
+    title: "Biology 2",
+    blocks: [1],
+    startTime: "9:05",
+    endTime: "9:50",
+    role: "teacher",
+    location: "Room 208",
+    students: [
+      { name: "Tyler Blackwell", lateArrival: null },
+      { name: "Finn Chase", lateArrival: null },
+      { name: "Trae Fields", lateArrival: null },
+      { name: "Devin Freeman", lateArrival: null },
+      { name: "Mae Glessner", lateArrival: null },
+      { name: "Jaydyn Haferbecker", lateArrival: null },
+      { name: "Maeder Maeder", lateArrival: null },
+      { name: "Max McCleary", lateArrival: null },
+      { name: "Brayden Moore", lateArrival: null },
+      { name: "Zaan Quackenbush", lateArrival: null },
+      { name: "Adara Smith", lateArrival: null },
+      { name: "Jayna Snodgrass", lateArrival: null },
+      { name: "Eva Uglow", lateArrival: null },
+    ],
+  },
+  {
+    id: "prep",
+    title: "Prep",
+    blocks: [2],
+    startTime: "9:55",
+    endTime: "10:40",
+    role: "prep",
+    students: [],
+  },
+  {
+    id: "indep-study-b3",
+    title: "Independent Study",
+    blocks: [3],
+    startTime: "10:45",
+    endTime: "11:30",
+    role: "monitor",
+    visibleToAll: true,
+    isFreeform: true,
+    aggregateWith: "chem-lead",
+    students: [
+      { name: "Devin Freeman", lateArrival: null },
+      { name: "Lily Karau", lateArrival: null },
+      { name: "Roy Lathrop", lateArrival: null },
+      { name: "Liam Marshall", lateArrival: null },
+      { name: "Angie Troh", lateArrival: null },
+      { name: "Kayla Wakeham", lateArrival: null },
+    ],
+    note: "Freeform · visible to all staff · students self-directing",
+  },
+  {
+    id: "chem-lead",
+    title: "Chemistry Lead Teacher",
+    blocks: [3],
+    startTime: "10:45",
+    endTime: "11:30",
+    role: "monitor",
+    visibleToAll: false,
+    aggregateWith: "indep-study-b3",
+    students: [
+      { name: "Gabi Pedroso", lateArrival: null },
+      { name: "Tashi Fields", lateArrival: null },
+    ],
+    note: "Students working on Chemistry during open block",
+  },
+  {
+    id: "indep-study-b4",
+    title: "Independent Study",
+    blocks: [4],
+    startTime: "12:15",
+    endTime: "13:15",
+    role: "monitor",
+    visibleToAll: true,
+    isFreeform: true,
+    students: [
+      { name: "Sebastian Coleson", lateArrival: null },
+      { name: "Ethan Klostermann", lateArrival: null },
+      { name: "Roy Lathrop", lateArrival: null },
+      { name: "Max McCleary", lateArrival: null },
+      { name: "Evan Riley", lateArrival: null },
+      { name: "Jaydin Searl", lateArrival: null },
+      { name: "Jonny Swyers", lateArrival: null },
+      { name: "Kayla Wakeham", lateArrival: null },
+    ],
+    note: "Freeform · visible to all staff · students self-directing",
+  },
+  {
+    id: "indep-study-b5",
+    title: "Independent Study",
+    blocks: [5],
+    startTime: "13:20",
+    endTime: "14:20",
+    role: "monitor",
+    visibleToAll: true,
+    isFreeform: true,
+    students: [
+      { name: "Lya Antin", lateArrival: null },
+      { name: "Bridgith Charles", lateArrival: null },
+      { name: "Finn Chase", lateArrival: null },
+      { name: "Sebastian Coleson", lateArrival: null },
+      { name: "Kiaya Fortner", lateArrival: null },
+      { name: "Allison Klostermann", lateArrival: null },
+      { name: "Ethan Klostermann", lateArrival: null },
+      { name: "Tristan MacDougall", lateArrival: null },
+      { name: "Val Malone", lateArrival: null },
+      { name: "Zan Ronnenberg", lateArrival: null },
+      { name: "Jaydin Searl", lateArrival: null },
+      { name: "Jonny Swyers", lateArrival: null },
+    ],
+    note: "Freeform · visible to all staff · students self-directing",
+  },
+];
+
+// ============================================================
+// END OF DEMO DATA
+// ============================================================
+</script>
+
+<div class="app-shell">
+  <div class="topbar">
+    <div>
+      <span class="topbar-name" id="header-name"></span>
+      <span class="topbar-day" id="header-day"></span>
+    </div>
+    <div class="topbar-right">
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="btn-compact" onclick="setZoom('compact')">Compact</button>
+        <button class="toggle-btn" id="btn-expanded" onclick="setZoom('expanded')">Expanded</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-area">
+    <div class="agenda-wrap" id="agenda-wrap">
+      <div class="time-grid" id="time-grid"></div>
+      <div class="block-attendance-row">
+        <div class="block-att-label">Take attendance by block</div>
+        <div class="block-btns" id="block-btns"></div>
+      </div>
+    </div>
+    <div class="side-panel" id="side-panel"></div>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+
+<script>
+  // ── Utilities ──────────────────────────────────────────────
+
+  function parseTime(t) {
+    // accepts "8:30", "9:05", "10:40", "13:45"
+    var parts = t.split(':');
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  }
+
+  function fmt12(t) {
+    var h = Math.floor(t / 60), m = t % 60;
+    var ampm = h >= 12 ? 'pm' : 'am';
+    var h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+  }
+
+  var GRID_START = AGENDA_START_HOUR * 60;
+  var GRID_END = AGENDA_END_HOUR * 60;
+  var GRID_TOTAL = GRID_END - GRID_START;
+  var PX_PER_MIN = 1.6; // pixels per minute
+
+  function minToY(min) {
+    return (min - GRID_START) * PX_PER_MIN;
+  }
+
+  function durationPx(start, end) {
+    return (end - start) * PX_PER_MIN;
+  }
+
+  // ── State ──────────────────────────────────────────────────
+  var zoom = 'compact';
+  var attState = {}; // key → 'P'|'A'|'E'|'T'
+
+  // ── BLOCK NUMBERS ─────────────────────────────────────────
+  // Map known block numbers to labels
+  var BLOCK_LABELS = { 0: 'Block 0', 1: 'Block 1', 2: 'Block 2', 3: 'Block 3', 4: 'Block 4', 5: 'Block 5' };
+
+  // ── Build aggregation map ──────────────────────────────────
+  function buildAggMap() {
+    var map = {}; // id → group id (the one with the lower index)
+    SCHEDULE.forEach(function(act) {
+      if (act.aggregateWith) {
+        var partner = act.aggregateWith;
+        // canonical group key = alphabetically first of the two
+        var key = [act.id, partner].sort().join('__');
+        map[act.id] = key;
+        map[partner] = key;
+      }
+    });
+    return map;
+  }
+
+  // ── Render ─────────────────────────────────────────────────
+  function render() {
+    document.getElementById('header-name').textContent = TEACHER_NAME + ' ·';
+    document.getElementById('header-day').textContent = ' ' + DAY_LABEL;
+
+    renderGrid();
+    renderPanel();
+    renderBlockBtns();
+  }
+
+  function renderGrid() {
+    var grid = document.getElementById('time-grid');
+    grid.innerHTML = '';
+    var totalPx = GRID_TOTAL * PX_PER_MIN;
+    var wrapW = document.getElementById('agenda-wrap').offsetWidth || 900;
+    var LEFT_EDGE = 52;
+    var RIGHT_EDGE = wrapW - 8;
+    var FULL_W = RIGHT_EDGE - LEFT_EDGE;
+    var RIGHT_LANE_RATIO = 0.28; // monitor lane gets 28% of track width
+    var GAP = 6;
+
+    var slotsDiv = document.createElement('div');
+    slotsDiv.style.cssText = 'position:relative; height:' + totalPx + 'px;';
+
+    // Background lines
+    for (var t = GRID_START; t <= GRID_END; t += 15) {
+      var y = minToY(t);
+      var lbl = document.createElement('div');
+      lbl.style.cssText = 'position:absolute;left:0;width:44px;top:' + (y-6) + 'px;font-size:11px;color:var(--text-3);text-align:right;padding-right:8px;';
+      if (t % 60 === 0) lbl.textContent = fmt12(t);
+      slotsDiv.appendChild(lbl);
+      var rule = document.createElement('div');
+      rule.style.cssText = 'position:absolute;left:44px;right:0;top:' + y + 'px;border-top:1px solid var(--border' + (t % 60 === 0 ? '-med' : '') + ');';
+      slotsDiv.appendChild(rule);
+    }
+
+    var aggMap = buildAggMap();
+    var rendered = {};
+
+    // ── Layout model ──────────────────────────────────────────
+    // Teacher activities → main (left) column
+    // Monitor activities → right lane IF a teacher activity overlaps them in time
+    //                    → full width if no concurrent teacher activity
+    // Prep → always full width, no lane logic
+    //
+    // "Concurrent" means time ranges overlap (not just same start time).
+
+    function hasOverlappingTeacher(act) {
+      var s = parseTime(act.startTime), e = parseTime(act.endTime);
+      return SCHEDULE.some(function(a) {
+        if (a.id === act.id || a.role !== 'teacher') return false;
+        var as = parseTime(a.startTime), ae = parseTime(a.endTime);
+        return as < e && ae > s;
+      });
+    }
+
+    // Pre-compute right-lane stacking for monitor activities.
+    // Group monitor activities that overlap each other in time into stacks.
+    // Within a stack, split the right lane vertically (side by side).
+    // We only need this for monitors that ARE going into the right lane.
+    function getRightLaneGroup(act) {
+      // Find all monitor activities that overlap this one AND share right-lane status
+      var s = parseTime(act.startTime), e = parseTime(act.endTime);
+      var peers = SCHEDULE.filter(function(a) {
+        if (a.id === act.id || a.role !== 'monitor') return false;
+        if (!hasOverlappingTeacher(a)) return false;
+        var as = parseTime(a.startTime), ae = parseTime(a.endTime);
+        return as < e && ae > s;
+      });
+      if (peers.length === 0) return { col: 0, total: 1 };
+      var group = [act].concat(peers).sort(function(a,b){ return a.id < b.id ? -1 : 1; });
+      var col = group.findIndex(function(a){ return a.id === act.id; });
+      return { col: col, total: group.length };
+    }
+
+    // ── Render each activity ──────────────────────────────────
+    SCHEDULE.forEach(function(act) {
+      var startMin = parseTime(act.startTime);
+      var endMin = parseTime(act.endTime);
+      var y = minToY(startMin);
+      var h = durationPx(startMin, endMin);
+      var aggKey = aggMap[act.id];
+
+      // ── Aggregate (compact mode) ──────────────────────────
+      if (zoom === 'compact' && aggKey) {
+        if (rendered[aggKey]) return;
+        rendered[aggKey] = true;
+        var partners = SCHEDULE.filter(function(a) { return aggMap[a.id] === aggKey; });
+        // Aggregate is always monitor role — check if any partner overlaps a teacher
+        var goesRight = partners.some(function(p) { return hasOverlappingTeacher(p); });
+        var left, right;
+        if (goesRight) {
+          var monitorW = Math.floor(FULL_W * RIGHT_LANE_RATIO);
+          left = LEFT_EDGE + (FULL_W - monitorW);
+          right = 8;
+        } else {
+          left = LEFT_EDGE;
+          right = 8;
+        }
+        var card = document.createElement('div');
+        card.className = 'act-card theme-aggregate';
+        card.style.cssText = 'position:absolute;top:' + y + 'px;left:' + left + 'px;right:' + right + 'px;height:' + h + 'px;';
+        var totalStudents = partners.reduce(function(sum,p){ return sum + p.students.length; }, 0);
+        var titles = partners.map(function(p){ return p.title; }).join(' + ');
+        card.innerHTML =
+          '<div class="card-role-badge">monitor</div>' +
+          '<div class="card-title">' + titles + '</div>' +
+          '<div class="card-meta">' + fmt12(startMin) + ' – ' + fmt12(endMin) + '</div>' +
+          '<div class="card-count">' + totalStudents + ' students · tap to expand</div>';
+        card.onclick = (function(p){ return function(){ openAggregateRoster(p); }; })(partners);
+        slotsDiv.appendChild(card);
+        return;
+      }
+
+      // ── Prep ─────────────────────────────────────────────
+      if (act.role === 'prep') {
+        // Check if a monitor activity is in the right lane during this time
+        var monitorRunning = SCHEDULE.some(function(a) {
+          if (a.role !== 'monitor') return false;
+          var as = parseTime(a.startTime), ae = parseTime(a.endTime);
+          return as < endMin && ae > startMin && hasOverlappingTeacher(a);
+        });
+        var monitorW = Math.floor(FULL_W * RIGHT_LANE_RATIO);
+        var prepRight = monitorRunning ? (8 + monitorW + GAP) : 8;
+        var card = document.createElement('div');
+        card.className = 'act-card theme-prep';
+        card.style.cssText = 'position:absolute;top:' + y + 'px;left:' + LEFT_EDGE + 'px;right:' + prepRight + 'px;height:' + h + 'px;';
+        card.innerHTML = '<div class="card-title">' + act.title + '</div><div class="card-meta">' + fmt12(startMin) + ' – ' + fmt12(endMin) + '</div>';
+        slotsDiv.appendChild(card);
+        return;
+      }
+
+      // ── Teacher activities → main column ──────────────────
+      if (act.role === 'teacher') {
+        // Check if any monitor is in the right lane during this time
+        var monitorRunning = SCHEDULE.some(function(a) {
+          if (a.role !== 'monitor') return false;
+          var as = parseTime(a.startTime), ae = parseTime(a.endTime);
+          return as < endMin && ae > startMin && hasOverlappingTeacher(a);
+        });
+        var monitorW = Math.floor(FULL_W * RIGHT_LANE_RATIO);
+        var teacherRight = monitorRunning ? (8 + monitorW + GAP) : 8;
+        var card = document.createElement('div');
+        card.className = 'act-card theme-teacher';
+        card.style.cssText = 'position:absolute;top:' + y + 'px;left:' + LEFT_EDGE + 'px;right:' + teacherRight + 'px;height:' + h + 'px;';
+        var badgeHtml = '<div class="card-role-badge">● teacher</div>';
+        var metaParts = [];
+        if (act.location) metaParts.push(act.location);
+        metaParts.push(fmt12(startMin) + ' – ' + fmt12(endMin));
+        var countStr = act.students.length + ' student' + (act.students.length !== 1 ? 's' : '');
+        if (act.enrolledTotal) countStr = act.students.length + ' of ' + act.enrolledTotal + ' today';
+        card.innerHTML = badgeHtml +
+          '<div class="card-title">' + act.title + '</div>' +
+          '<div class="card-meta">' + metaParts.join(' · ') + '</div>' +
+          '<div class="card-count">' + countStr + '</div>';
+        (function(a){ card.onclick = function(){ openRoster(a); }; })(act);
+        slotsDiv.appendChild(card);
+        return;
+      }
+
+      // ── Monitor activities ────────────────────────────────
+      if (act.role === 'monitor') {
+        var goesRight = hasOverlappingTeacher(act);
+        var left, right, cardW;
+        if (goesRight) {
+          // Right lane — split if multiple monitors overlap here
+          var laneGroup = getRightLaneGroup(act);
+          var monitorW = Math.floor(FULL_W * RIGHT_LANE_RATIO);
+          var subW = Math.floor((monitorW - (laneGroup.total - 1) * GAP) / laneGroup.total);
+          var laneLeft = LEFT_EDGE + (FULL_W - monitorW);
+          left = laneLeft + laneGroup.col * (subW + GAP);
+          right = RIGHT_EDGE - (left + subW);
+        } else {
+          // No concurrent teacher — full width
+          left = LEFT_EDGE;
+          right = 8;
+        }
+
+        // In expanded mode, aggregate partners split within the right lane
+        if (zoom === 'expanded' && aggKey) {
+          var partners2 = SCHEDULE.filter(function(a){ return aggMap[a.id] === aggKey; });
+          var pIdx = partners2.findIndex(function(a){ return a.id === act.id; });
+          var pTotal = partners2.length;
+          if (goesRight) {
+            var monitorW2 = Math.floor(FULL_W * RIGHT_LANE_RATIO);
+            var laneLeft2 = LEFT_EDGE + (FULL_W - monitorW2);
+            var laneW = RIGHT_EDGE - laneLeft2 - 8;
+            var subW2 = Math.floor((laneW - (pTotal-1)*GAP) / pTotal);
+            left = laneLeft2 + pIdx * (subW2 + GAP);
+            right = RIGHT_EDGE - (left + subW2);
+          } else {
+            var laneW2 = FULL_W;
+            var subW3 = Math.floor((laneW2 - (pTotal-1)*GAP) / pTotal);
+            left = LEFT_EDGE + pIdx * (subW3 + GAP);
+            right = RIGHT_EDGE - (left + subW3);
+          }
+        }
+
+        var card = document.createElement('div');
+        card.className = 'act-card theme-monitor';
+        card.style.cssText = 'position:absolute;top:' + y + 'px;left:' + left + 'px;right:' + Math.max(right,4) + 'px;height:' + h + 'px;min-height:28px;';
+        var badge = '<div class="card-role-badge">◎ monitor' + (act.visibleToAll ? ' · visible to all' : '') + '</div>';
+        var metaParts2 = [fmt12(startMin) + ' – ' + fmt12(endMin)];
+        if (act.multiBlock) metaParts2.push('Blocks ' + act.blocks.join(', '));
+        var countStr2 = act.students.length + ' student' + (act.students.length !== 1 ? 's' : '');
+        if (act.isFreeform) countStr2 += ' · freeform';
+        card.innerHTML = badge +
+          '<div class="card-title">' + act.title + '</div>' +
+          '<div class="card-meta">' + metaParts2.join(' · ') + '</div>' +
+          '<div class="card-count">' + countStr2 + '</div>';
+        (function(a){ card.onclick = function(){ openRoster(a); }; })(act);
+        slotsDiv.appendChild(card);
+        return;
+      }
+    });
+
+    grid.appendChild(slotsDiv);
+  }
+
+  function renderPanel() {
+    var panel = document.getElementById('side-panel');
+    panel.innerHTML = '<div class="panel-label">Also visible to you</div>';
+
+    // Visible-to-all activities that the teacher doesn't own
+    // (In this demo, Kali IS the monitor on indep-study, so it shows in agenda.
+    //  The panel would show vis-to-all activities from OTHER teachers.)
+    // For demo purposes, show a placeholder entry.
+    var visItems = SCHEDULE.filter(function(a) { return a.visibleToAll && a.role === 'monitor'; });
+
+    if (visItems.length === 0) {
+      panel.innerHTML += '<div class="panel-empty">No shared activities visible today.</div>';
+    } else {
+      visItems.forEach(function(act) {
+        var item = document.createElement('div');
+        item.className = 'panel-item vis-all';
+        var startMin = parseTime(act.startTime);
+        var endMin = parseTime(act.endTime);
+        item.innerHTML =
+          '<div class="panel-item-title">' + act.title + '</div>' +
+          '<div class="panel-item-sub">' + fmt12(startMin) + ' – ' + fmt12(endMin) + '</div>' +
+          '<div class="panel-item-sub" style="color:var(--text-3); margin-top:2px;">Visible to all staff · you are assigned monitor</div>';
+        item.onclick = function() { openRoster(act); };
+        panel.appendChild(item);
+      });
+    }
+
+    // Note about sidebar behavior
+    var note = document.createElement('div');
+    note.style.cssText = 'font-size: 11px; color: var(--text-3); margin-top: 16px; line-height: 1.5;';
+    note.textContent = 'Activities other staff are monitoring that are marked visible to all would appear here for them — even if you\'re not assigned.';
+    panel.appendChild(note);
+  }
+
+  function renderBlockBtns() {
+    var container = document.getElementById('block-btns');
+    container.innerHTML = '';
+    var blocks = [];
+    SCHEDULE.forEach(function(act) {
+      act.blocks.forEach(function(b) {
+        if (blocks.indexOf(b) === -1) blocks.push(b);
+      });
+    });
+    blocks.sort(function(a,b){return a-b;});
+    blocks.forEach(function(b) {
+      var btn = document.createElement('button');
+      btn.className = 'block-btn';
+      btn.textContent = BLOCK_LABELS[b] || ('Block ' + b);
+      btn.onclick = function() { openBlockRoster(b); };
+      container.appendChild(btn);
+    });
+  }
+
+  // ── Roster modals ──────────────────────────────────────────
+
+  function openRoster(act) {
+    var startMin = parseTime(act.startTime);
+    var endMin = parseTime(act.endTime);
+    var subLine = fmt12(startMin) + ' – ' + fmt12(endMin);
+    if (act.location) subLine = act.location + ' · ' + subLine;
+
+    var bodyHtml = '';
+
+    if (act.note) {
+      bodyHtml += '<div class="enrolled-note">' + act.note + '</div>';
+    }
+
+    if (act.multiBlock) {
+      bodyHtml += '<div class="multiblock-note">Attendance spans blocks ' + act.blocks.join(', ') + ' — one mark covers all. Consider marking at the end of the activity.</div>';
+    }
+
+    var regular = act.students.filter(function(s) { return !s.lateArrival; });
+    var late = act.students.filter(function(s) { return s.lateArrival; });
+
+    if (regular.length > 0) {
+      if (late.length > 0) bodyHtml += '<div class="roster-section-label">Present from start</div>';
+      regular.forEach(function(s) { bodyHtml += studentRowHtml(act.id, s); });
+    }
+
+    if (late.length > 0) {
+      bodyHtml += '<div class="roster-section-label">Arriving later</div>';
+      late.forEach(function(s) { bodyHtml += studentRowHtml(act.id, s); });
+    }
+
+    if (act.checkInEnabled || act.geoEnabled) {
+      bodyHtml += '<div class="roster-section-label">Check-in status</div>';
+      act.students.forEach(function(s) {
+        bodyHtml += '<div class="student-row"><span class="student-name">' + s.name + '</span>' +
+          '<span class="checkin-status"><span class="present">✓ checked in</span> · <span class="pending">no check-out yet</span></span></div>';
+      });
+    }
+
+    showModal(act.title, subLine, bodyHtml);
+  }
+
+  function openAggregateRoster(partners) {
+    var act0 = partners[0];
+    var startMin = parseTime(act0.startTime);
+    var endMin = parseTime(act0.endTime);
+    var titles = partners.map(function(p){ return p.title; }).join(' + ');
+    var subLine = fmt12(startMin) + ' – ' + fmt12(endMin) + ' · tap a section to take attendance separately';
+
+    var bodyHtml = '';
+    partners.forEach(function(act) {
+      bodyHtml += '<div class="roster-section-label">' + act.title + ' (' + act.students.length + ')</div>';
+      if (act.note) bodyHtml += '<div class="enrolled-note">' + act.note + '</div>';
+      act.students.forEach(function(s) { bodyHtml += studentRowHtml(act.id, s); });
+    });
+
+    showModal(titles, subLine, bodyHtml);
+  }
+
+  function openBlockRoster(blockNum) {
+    var label = BLOCK_LABELS[blockNum] || ('Block ' + blockNum);
+    var acts = SCHEDULE.filter(function(a) { return a.blocks.indexOf(blockNum) !== -1 && a.role !== 'prep'; });
+
+    var bodyHtml = '';
+    var hasMultiBlock = acts.some(function(a){ return a.multiBlock; });
+
+    if (hasMultiBlock) {
+      bodyHtml += '<div class="multiblock-note">Some activities below span multiple blocks. Attendance is linked — one mark covers all associated blocks.</div>';
+    }
+
+    acts.forEach(function(act) {
+      var startMin = parseTime(act.startTime);
+      bodyHtml += '<div class="roster-section-label">' + act.title + ' · ' + fmt12(startMin) + (act.multiBlock ? ' · multi-block' : '') + '</div>';
+      act.students.forEach(function(s) { bodyHtml += studentRowHtml(act.id, s); });
+    });
+
+    showModal(label + ' — Combined Roster', 'All activities tagged ' + label, bodyHtml);
+  }
+
+  function studentRowHtml(actId, s) {
+    var key = actId + '__' + s.name;
+    var state = attState[key] || '';
+    return '<div class="student-row" id="row-' + key.replace(/[^a-z0-9]/gi,'_') + '">' +
+      '<span class="student-name">' + s.name +
+        (s.lateArrival ? ' <span class="late-chip">~' + s.lateArrival + (s.lateReason ? ' · ' + s.lateReason : '') + '</span>' : '') +
+      '</span>' +
+      '<div class="att-group">' +
+        attBtnHtml(key, 'P', state) +
+        attBtnHtml(key, 'A', state) +
+        attBtnHtml(key, 'E', state) +
+        attBtnHtml(key, 'T', state) +
+      '</div></div>';
+  }
+
+  function attBtnHtml(key, val, state) {
+    var cls = 'att-btn';
+    if (state === val) cls += ' ' + val.toLowerCase() + '-active';
+    var safeKey = key.replace(/'/g, "\\'");
+    return '<button class="' + cls + '" onclick="markAtt(\'' + safeKey + '\',\'' + val + '\')">' + val + '</button>';
+  }
+
+  function markAtt(key, val) {
+    attState[key] = attState[key] === val ? '' : val;
+    // Re-render the row in place
+    var rowId = 'row-' + key.replace(/[^a-z0-9]/gi,'_');
+    var row = document.getElementById(rowId);
+    if (row) {
+      var actId = key.split('__')[0];
+      var studentName = key.split('__').slice(1).join('__');
+      var act = SCHEDULE.find(function(a){ return a.id === actId; });
+      var s = act ? act.students.find(function(s){ return s.name === studentName; }) : null;
+      if (s) {
+        row.outerHTML = studentRowHtml(actId, s);
+      }
+    }
+  }
+
+  function showModal(title, sub, bodyHtml) {
+    document.getElementById('modal-root').innerHTML =
+      '<div class="modal-backdrop" id="backdrop" onclick="closeOnBackdrop(event)">' +
+        '<div class="modal-box">' +
+          '<div class="modal-head">' +
+            '<div class="modal-head-row">' +
+              '<div><div class="modal-title">' + title + '</div><div class="modal-sub">' + sub + '</div></div>' +
+              '<button class="modal-close" onclick="closeModal()">×</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="modal-body">' + bodyHtml + '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function closeOnBackdrop(e) { if (e.target.id === 'backdrop') closeModal(); }
+  function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+
+  function setZoom(z) {
+    zoom = z;
+    document.getElementById('btn-compact').classList.toggle('active', z === 'compact');
+    document.getElementById('btn-expanded').classList.toggle('active', z === 'expanded');
+    renderGrid();
+  }
+
+  // ── Init ───────────────────────────────────────────────────
+  render();
+</script>
+
+</body>
+</html>

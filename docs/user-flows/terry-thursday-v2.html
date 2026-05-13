@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Here — Teacher Agenda Demo v2</title>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #faf9f7;
+    --surface: #ffffff;
+    --surface-2: #f3f2ef;
+    --border: rgba(0,0,0,0.1);
+    --border-med: rgba(0,0,0,0.18);
+    --text: #1a1916;
+    --text-2: #6b6a66;
+    --text-3: #9e9d99;
+
+    /* Teacher = blue (here, you're with them) */
+    --blue-bg: #e8f0fb; --blue-border: #b3caf4; --blue-text: #1a3f7a; --blue-sub: #2d5fa8;
+    /* Monitor = purple (elsewhere) — distinct enough to read at a glance */
+    --purple-bg: #eeedf9; --purple-border: #cbc8f0; --purple-text: #322d8a; --purple-sub: #4e49b0;
+    /* Amber for late-arrival accents */
+    --amber-bg: #fef3dc; --amber-border: #f5d68a; --amber-text: #6b3f08; --amber-sub: #9a5c12;
+    /* Gray for prep */
+    --gray-bg: #f0efe9; --gray-border: #cccbbf; --gray-text: #3a3a37; --gray-sub: #5e5e5a;
+    --green-bg: #eaf3de; --green-border: #b8d990; --green-text: #2a5010; --green-sub: #3d7018;
+    --teal-bg: #e2f4ee; --teal-border: #9cdec5; --teal-text: #084035; --teal-sub: #0f6050;
+
+    --radius: 8px; --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-pop: 0 12px 32px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .app-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  .topbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .topbar-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .topbar-day { font-size: 13px; color: var(--text-2); }
+  .topbar-note { margin-left: auto; font-size: 11px; color: var(--text-3); font-style: italic; }
+
+  .content-area { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Agenda column ── */
+  .agenda-wrap { flex: 1; overflow-y: auto; padding: 20px 20px 40px; position: relative; }
+  .time-grid { position: relative; }
+
+  /* activity cards positioned absolutely within the lane area */
+  .act-card {
+    position: absolute;
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: box-shadow 0.12s, border-color 0.12s, transform 0.08s;
+    overflow: hidden;
+    border: 1px solid transparent;
+  }
+  .act-card:hover { box-shadow: var(--shadow); }
+  .act-card:active { transform: scale(0.998); }
+  .act-card .card-role-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600;
+    padding: 1px 7px; border-radius: 20px; margin-bottom: 4px;
+  }
+  .act-card .card-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
+  .act-card .card-meta { font-size: 11px; margin-top: 2px; line-height: 1.4; }
+  .act-card .card-count { font-size: 11px; margin-top: 3px; }
+
+  /* card color themes */
+  .theme-teacher { background: var(--blue-bg); border-color: var(--blue-border); }
+  .theme-teacher .card-title { color: var(--blue-text); }
+  .theme-teacher .card-meta, .theme-teacher .card-count { color: var(--blue-sub); }
+  .theme-teacher .card-role-badge { background: var(--blue-border); color: var(--blue-text); }
+
+  .theme-monitor { background: var(--purple-bg); border-color: var(--purple-border); }
+  .theme-monitor .card-title { color: var(--purple-text); }
+  .theme-monitor .card-meta, .theme-monitor .card-count { color: var(--purple-sub); }
+  .theme-monitor .card-role-badge { background: var(--purple-border); color: var(--purple-text); }
+
+  .theme-prep { background: var(--gray-bg); border-color: #cccbbc; }
+  .theme-prep .card-title { color: var(--gray-text); }
+  .theme-prep .card-meta { color: var(--gray-sub); }
+
+  /* Late-arriver inline chip — sits beside the role badge, top of card */
+  .late-chip-inline {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 7px;
+    background: var(--amber-bg);
+    border: 1px solid var(--amber-border);
+    border-radius: 20px;
+    font-size: 10px; font-weight: 600;
+    color: var(--amber-text);
+    margin-bottom: 4px;
+    margin-left: 2px;
+    vertical-align: 1px;
+  }
+
+  /* Late-arriver in-card indicator strip (kept for reference, unused) */
+  .late-strip {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      rgba(245, 214, 138, 0.22) 0px,
+      rgba(245, 214, 138, 0.22) 6px,
+      rgba(245, 214, 138, 0.36) 6px,
+      rgba(245, 214, 138, 0.36) 12px
+    );
+    border-top: 1px solid var(--amber-border);
+    padding: 4px 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .late-strip .late-text {
+    font-size: 11px; color: var(--amber-text); font-weight: 600;
+  }
+  .late-strip .late-icon { font-size: 11px; }
+
+  /* ── Side panel ── */
+  .side-panel {
+    width: 232px; flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    padding: 16px 14px;
+  }
+  .panel-section { margin-bottom: 22px; }
+  .panel-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--text-3); margin-bottom: 8px;
+  }
+  .panel-item {
+    padding: 10px 11px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface-2);
+    margin-bottom: 6px; cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+    position: relative;
+  }
+  .panel-item:hover { border-color: var(--border-med); background: var(--surface); }
+  .panel-item-title { font-size: 12px; font-weight: 600; color: var(--text); }
+  .panel-item-sub { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+  .panel-item.is-mine {
+    background: var(--purple-bg);
+    border-color: var(--purple-border);
+  }
+  .panel-item.is-mine .panel-item-title { color: var(--purple-text); }
+  .panel-item.is-mine .panel-item-sub { color: var(--purple-sub); }
+  .panel-item .mine-badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 1px 6px; border-radius: 10px;
+    background: var(--purple-border); color: var(--purple-text);
+    margin-left: 6px; vertical-align: 2px;
+  }
+
+  /* ── Block attendance row ── */
+  .block-attendance-row {
+    margin-top: 24px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .block-att-label { font-size: 11px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .block-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .block-btn {
+    padding: 5px 14px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border-med); border-radius: var(--radius);
+    background: var(--surface); color: var(--text-2); cursor: pointer;
+  }
+  .block-btn:hover { background: var(--surface-2); color: var(--text); }
+
+  /* ── Popover (from cluster card) ── */
+  .popover-backdrop {
+    position: fixed; inset: 0; background: transparent;
+    z-index: 90;
+  }
+  .popover {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--border-med);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-pop);
+    padding: 14px 14px 12px;
+    z-index: 100;
+    min-width: 560px;
+    max-width: 720px;
+  }
+  .popover-arrow {
+    position: absolute;
+    width: 14px; height: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-med);
+    transform: rotate(45deg);
+  }
+  .popover-arrow.below {
+    bottom: -8px;
+    border-top: none; border-left: none;
+  }
+  .popover-arrow.above {
+    top: -8px;
+    border-bottom: none; border-right: none;
+  }
+  .popover-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .popover-title {
+    font-size: 13px; font-weight: 700; color: var(--purple-text);
+  }
+  .popover-sub {
+    font-size: 11px; color: var(--text-2);
+  }
+  .popover-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .popover-card {
+    background: var(--purple-bg);
+    border: 1px solid var(--purple-border);
+    border-radius: var(--radius);
+    padding: 9px 10px;
+    cursor: pointer;
+    transition: border-color 0.12s;
+  }
+  .popover-card:hover { border-color: var(--purple-sub); }
+  .popover-card .pc-badge {
+    display: inline-block; font-size: 9px; font-weight: 600;
+    background: var(--purple-border); color: var(--purple-text);
+    padding: 1px 6px; border-radius: 10px; margin-bottom: 4px;
+  }
+  .popover-card .pc-title {
+    font-size: 12px; font-weight: 600; color: var(--purple-text); line-height: 1.25;
+  }
+  .popover-card .pc-meta {
+    font-size: 10px; color: var(--purple-sub); margin-top: 3px;
+  }
+  .popover-foot {
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--text-3);
+    text-align: center;
+  }
+
+  /* ── Modal (roster) ── */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; padding: 20px;
+  }
+  .modal-box {
+    background: var(--surface); border-radius: var(--radius-lg);
+    border: 1px solid var(--border-med);
+    width: 440px; max-width: 100%; max-height: 80vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+  .modal-head {
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .modal-head-row { display: flex; align-items: flex-start; justify-content: space-between; }
+  .modal-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .modal-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+  .modal-close {
+    background: none; border: none; font-size: 20px; cursor: pointer;
+    color: var(--text-2); line-height: 1; padding: 0 2px; margin-left: 12px;
+  }
+  .modal-body { overflow-y: auto; padding: 4px 0 12px; flex: 1; }
+
+  .roster-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--text-3); padding: 12px 20px 4px;
+  }
+  .roster-section-label.amber { color: var(--amber-text); }
+  .student-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 20px; border-bottom: 1px solid var(--border);
+  }
+  .student-row.late-row {
+    background: rgba(245, 214, 138, 0.08);
+  }
+  .student-row:last-child { border-bottom: none; }
+  .student-name { flex: 1; font-size: 13px; color: var(--text); }
+  .student-meta { font-size: 11px; color: var(--amber-text); font-weight: 600; }
+  .att-group { display: flex; gap: 3px; }
+  .att-btn {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid var(--border-med); background: var(--surface);
+    font-size: 11px; font-weight: 700; cursor: pointer; color: var(--text-2);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .att-btn:hover { background: var(--surface-2); }
+  .att-btn.p-active { background: var(--green-bg); border-color: var(--green-border); color: var(--green-text); }
+  .att-btn.a-active { background: #fce8e8; border-color: #f5a0a0; color: #6b1c1c; }
+  .att-btn.e-active { background: var(--blue-bg); border-color: var(--blue-border); color: var(--blue-text); }
+  .att-btn.t-active { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber-text); }
+
+  .enrolled-note {
+    font-size: 11px; color: var(--text-3); padding: 6px 20px 2px;
+    font-style: italic;
+  }
+
+  /* invisible scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 3px; }
+
+  /* Demo note banner */
+  .demo-note {
+    margin: 0 20px 12px;
+    padding: 8px 12px;
+    background: var(--amber-bg);
+    border: 1px solid var(--amber-border);
+    border-radius: var(--radius);
+    font-size: 11px;
+    color: var(--amber-text);
+  }
+  .demo-note strong { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<script>
+// ============================================================
+// DEMO DATA — v2
+// Adapted from Terry's Thursday with two added scenarios:
+// 1. Two late arrivers in Algebra 2 (coming from Iowa BIG)
+// 2. A one-block internship in Block 4 that shares times with
+//    Independent Study Block 4 but should NOT aggregate with it
+//    (different role) AND should NOT aggregate with the multi-block
+//    internships (different end time).
+// ============================================================
+
+const TEACHER_NAME = "Terry";
+const DAY_LABEL = "Thursday";
+
+const AGENDA_START_HOUR = 8;
+const AGENDA_END_HOUR = 15;
+
+const SCHEDULE = [
+  // ── Block 0: Advisory ──────────────────────────────────────
+  {
+    id: "advisory",
+    title: "Advisory — Terry's Hub",
+    blocks: [0],
+    startTime: "8:30",
+    endTime: "9:00",
+    role: "teacher",
+    visibleToAll: false,
+    students: [
+      { name: "Tyler Blackwell" }, { name: "Sebastian Coleson" },
+      { name: "Devin Freeman" }, { name: "Jasper Garcia" },
+      { name: "Max Johnson" }, { name: "Roy Lathrop" },
+      { name: "Liam Marshall" }, { name: "Max McCleary" },
+      { name: "Adara Smith" }, { name: "Sophie Strempke" },
+      { name: "Shaiya Stucker" },
+    ],
+    enrolledTotal: 14,
+  },
+
+  // ── Block 1: Prep ──────────────────────────────────────────
+  {
+    id: "prep-b1",
+    title: "Prep",
+    blocks: [1],
+    startTime: "9:05",
+    endTime: "9:50",
+    role: "prep",
+    students: [],
+  },
+
+  // ── Block 2: Independent Study ─────────────────────────────
+  {
+    id: "indep-study-b2",
+    title: "Independent Study",
+    blocks: [2],
+    startTime: "9:55",
+    endTime: "10:40",
+    role: "teacher",
+    visibleToAll: true,    // ← marked visible-to-all so it appears in sidebar too
+    students: new Array(28).fill(null).map(function(_, i){ return { name: "Student " + (i+1) }; }),
+    note: "Open independent work",
+  },
+
+  // ── Block 3: Algebra 2 (with 2 late arrivers from Iowa BIG) ─
+  {
+    id: "algebra2",
+    title: "Algebra 2",
+    blocks: [3],
+    startTime: "10:45",
+    endTime: "11:30",
+    role: "teacher",
+    visibleToAll: false,
+    students: [
+      { name: "Lya Antin" }, { name: "Tyler Blackwell" },
+      { name: "Bridgith Charles" }, { name: "Tashi Fields" },
+      { name: "Aliyah Gingner" }, { name: "Max Johnson" },
+      { name: "Ethan Klostermann" }, { name: "Maddox Liechty" },
+      { name: "Tristan MacDougall" }, { name: "Liam Marshall" },
+      { name: "Noah McNary" }, { name: "Meaghan Mead" },
+      { name: "Gabi Pedroso" }, { name: "Zaan Quackenbush" },
+      { name: "Morgan Rosa" }, { name: "Caleb Searl" },
+      { name: "Jaydin Searl" }, { name: "Adara Smith" },
+      { name: "Isaac Sparboe" }, { name: "Jack Stillmunkes" },
+      { name: "Sophie Strempke" }, { name: "Shaiya Stucker" },
+      // Two late arrivers from Iowa BIG, expected ~11:00
+      { name: "Ava Szymanowski", lateArrival: "11:00" },
+      { name: "Angie Troh", lateArrival: "11:00" },
+    ],
+  },
+
+  // ── Block 4: Independent Study (teacher) ────────────────────
+  {
+    id: "indep-study-b4",
+    title: "Independent Study",
+    blocks: [4],
+    startTime: "12:15",
+    endTime: "13:15",
+    role: "teacher",
+    visibleToAll: true,
+    students: new Array(11).fill(null).map(function(_, i){ return { name: "Student " + (i+1) }; }),
+    note: "Open independent work",
+  },
+
+  // ── Block 4 only: One-block internship (NEW for v2) ────────
+  // Tests: same time as IS-b4 but different role (don't aggregate)
+  //         same role as the cluster below but different end time (don't aggregate)
+  //         should render as its OWN monitor card alongside IS-b4
+  {
+    id: "intern-shortterm",
+    title: "Internship @ Goodwill",
+    blocks: [4],
+    startTime: "12:15",
+    endTime: "13:15",
+    role: "monitor",
+    visibleToAll: false,
+    checkInEnabled: true,
+    geoEnabled: true,
+    students: [{ name: "Brayden Moore" }],
+    note: "Block 4 only · check-in + geolocation",
+  },
+
+  // ── Block 5: Independent Study (teacher) ────────────────────
+  {
+    id: "indep-study-b5",
+    title: "Independent Study",
+    blocks: [5],
+    startTime: "13:20",
+    endTime: "14:20",
+    role: "teacher",
+    visibleToAll: true,
+    students: new Array(11).fill(null).map(function(_, i){ return { name: "Student " + (i+1) }; }),
+    note: "Open independent work",
+  },
+
+  // ── Blocks 4–5: 5 internships, all monitor, same time window
+  //                 → these aggregate into one cluster card.
+  //                 Marked visibleToAll so sidebar shows them in "Your visible-to-all"
+  {
+    id: "intern-fluid-power",
+    title: "Internship @ Iowa Fluid Power",
+    blocks: [4, 5],
+    startTime: "12:15",
+    endTime: "14:20",
+    role: "monitor",
+    visibleToAll: true,
+    checkInEnabled: true,
+    geoEnabled: true,
+    students: [{ name: "Jasper Garcia" }],
+  },
+  {
+    id: "intern-johnson",
+    title: "Internship @ Johnson STEAM Academy",
+    blocks: [4, 5],
+    startTime: "12:15",
+    endTime: "14:20",
+    role: "monitor",
+    visibleToAll: true,
+    checkInEnabled: true,
+    geoEnabled: true,
+    students: [{ name: "Roy Lathrop" }],
+  },
+  {
+    id: "intern-metro-1",
+    title: "Internship @ Metro High School",
+    blocks: [4, 5],
+    startTime: "12:15",
+    endTime: "14:20",
+    role: "monitor",
+    visibleToAll: true,
+    checkInEnabled: true,
+    geoEnabled: true,
+    students: [{ name: "Maeder M." }],
+  },
+  {
+    id: "intern-metro-2",
+    title: "Internship @ Metro High School",
+    blocks: [4, 5],
+    startTime: "12:15",
+    endTime: "14:20",
+    role: "monitor",
+    visibleToAll: true,
+    checkInEnabled: true,
+    geoEnabled: true,
+    students: [{ name: "Adara Smith" }],
+  },
+  {
+    id: "intern-kenwood",
+    title: "Internship @ Kenwood Elementary",
+    blocks: [4, 5],
+    startTime: "12:15",
+    endTime: "14:20",
+    role: "monitor",
+    visibleToAll: true,
+    checkInEnabled: true,
+    geoEnabled: true,
+    students: [{ name: "Max McCleary" }],
+  },
+];
+
+// ── Visible-to-all activities owned by OTHER staff ──────────
+// Same time window as Terry's monitor cluster — these would
+// aggregate together in the sidebar under "Others' visible-to-all"
+const VIS_ALL_OTHERS = [
+  { title: "Internship @ City of Cedar Rapids",            startTime: "12:15", endTime: "14:20" },
+  { title: "Internship @ Elementary School",               startTime: "12:15", endTime: "14:20" },
+  { title: "Internship @ Boyson Heights Assisted Living",  startTime: "12:15", endTime: "14:20" },
+  { title: "Internship @ Habitat for Humanity",            startTime: "12:15", endTime: "14:20" },
+  { title: "Internship @ Czech Museum",                    startTime: "12:15", endTime: "14:20" },
+];
+</script>
+
+<div class="app-shell">
+  <div class="topbar">
+    <div>
+      <span class="topbar-name" id="header-name"></span>
+      <span class="topbar-day" id="header-day"></span>
+    </div>
+    <div class="topbar-note">Mockup v2 · no compact/expanded toggle · click cluster cards & sidebar items</div>
+  </div>
+
+  <div class="demo-note">
+    <strong>Scenarios in this mockup:</strong>
+    Algebra 2 has 2 late arrivers from Iowa BIG (in-card amber strip · separate roster section);
+    Block 4 has a one-block "Internship @ Goodwill" that shares time with Independent Study but stays separate (different role) and stays separate from the multi-block cluster (different end time);
+    The 5 multi-block internships aggregate into one cluster card → click to popover.
+  </div>
+
+  <div class="content-area">
+    <div class="agenda-wrap" id="agenda-wrap">
+      <div class="time-grid" id="time-grid"></div>
+      <div class="block-attendance-row">
+        <div class="block-att-label">Take attendance by block</div>
+        <div class="block-btns" id="block-btns"></div>
+      </div>
+    </div>
+    <div class="side-panel" id="side-panel"></div>
+  </div>
+</div>
+
+<div id="popover-root"></div>
+<div id="modal-root"></div>
+
+<script>
+  // ── Utilities ──────────────────────────────────────────────
+  function parseTime(t) {
+    var parts = t.split(':');
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  }
+  function fmt12(t) {
+    var h = Math.floor(t / 60), m = t % 60;
+    var ampm = h >= 12 ? 'pm' : 'am';
+    var h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+  }
+  function fmtRange(s, e) { return fmt12(s) + ' – ' + fmt12(e); }
+
+  var GRID_START = AGENDA_START_HOUR * 60;
+  var GRID_END = AGENDA_END_HOUR * 60;
+  var GRID_TOTAL = GRID_END - GRID_START;
+  var PX_PER_MIN = 1.6;
+
+  function minToY(min) { return (min - GRID_START) * PX_PER_MIN; }
+  function durationPx(start, end) { return (end - start) * PX_PER_MIN; }
+
+  var attState = {};
+
+  // ── Clustering: group by (startTime, endTime, role) ────────
+  // Two activities aggregate iff they have identical start, end, AND role.
+  // This is THE key rule: time-match alone is not enough.
+  function buildClusters() {
+    var clusters = {};
+    SCHEDULE.forEach(function(act) {
+      // Only monitor activities cluster when 2+ exist with same time+role.
+      // Teacher activities don't aggregate with each other in this model
+      // (no real-world case where Terry teaches 2 things in the same time slot).
+      // Prep never aggregates.
+      var key = act.startTime + '|' + act.endTime + '|' + act.role;
+      if (!clusters[key]) clusters[key] = [];
+      clusters[key].push(act);
+    });
+    // Filter to actual clusters (2+ members of same role)
+    // Single-member clusters render as standalone cards.
+    return clusters;
+  }
+
+  // ── Row-fill layout: for each cluster of concurrent activities,
+  //    determine which activities OVERLAP in time (any shared minute),
+  //    then split that horizontal row between them in role order
+  //    (teacher → monitor → prep), with each distinct "card unit"
+  //    (= cluster or solo activity) taking equal share.
+  // ── Algorithm:
+  //    1. Build the cluster map (above).
+  //    2. Represent each cluster as a single "renderable unit" with
+  //       its time span = min(start) to max(end) across members.
+  //       For our (start,end,role) clustering, all members share times,
+  //       so the cluster's time = any member's time.
+  //    3. For each renderable unit, find all OTHER renderable units
+  //       whose time window overlaps it. Group them into a "concurrency
+  //       group" via union-find on overlap.
+  //    4. Within each concurrency group, sort by role order, then
+  //       allocate equal column width across distinct cards.
+  //       NB: cards in a concurrency group may not all be exactly
+  //       coincident — partial overlaps split their *overlapping
+  //       portion* with peers. But per Daniel's directive, we want
+  //       *no* visual overlap, so the whole card width is sized to
+  //       reflect the maximum concurrency it ever sees.
+  //
+  // This is a simplification of the general overlap-resolution problem.
+  // For the activities in this mockup it produces the desired layout.
+
+  function getRenderableUnits() {
+    var clusters = buildClusters();
+    var units = [];
+    Object.keys(clusters).forEach(function(key) {
+      var members = clusters[key];
+      if (members.length === 1) {
+        var m = members[0];
+        units.push({
+          kind: 'solo',
+          id: m.id,
+          activity: m,
+          start: parseTime(m.startTime),
+          end: parseTime(m.endTime),
+          role: m.role,
+        });
+      } else {
+        // Cluster: 2+ activities with identical (start,end,role)
+        var first = members[0];
+        units.push({
+          kind: 'cluster',
+          id: 'cluster-' + key,
+          members: members,
+          start: parseTime(first.startTime),
+          end: parseTime(first.endTime),
+          role: first.role,
+        });
+      }
+    });
+    return units;
+  }
+
+  function roleOrder(r) {
+    if (r === 'teacher') return 0;
+    if (r === 'prep') return 1;
+    if (r === 'monitor') return 2;
+    return 3;
+  }
+
+  // Union-find on overlapping time windows.
+  function buildConcurrencyGroups(units) {
+    var n = units.length;
+    var parent = units.map(function(_, i){ return i; });
+    function find(i){ while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+    function union(a, b){ var ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+    for (var i = 0; i < n; i++) {
+      for (var j = i+1; j < n; j++) {
+        var a = units[i], b = units[j];
+        // Overlap (strict, since adjacent end==start is fine)
+        if (a.start < b.end && b.start < a.end) {
+          union(i, j);
+        }
+      }
+    }
+    var groupsMap = {};
+    for (var k = 0; k < n; k++) {
+      var r = find(k);
+      if (!groupsMap[r]) groupsMap[r] = [];
+      groupsMap[r].push(units[k]);
+    }
+    return Object.keys(groupsMap).map(function(k){
+      var g = groupsMap[k];
+      g.sort(function(a, b){
+        // Sort by role first, then by start time, then by id
+        var d = roleOrder(a.role) - roleOrder(b.role);
+        if (d !== 0) return d;
+        d = a.start - b.start;
+        if (d !== 0) return d;
+        return a.id.localeCompare(b.id);
+      });
+      return g;
+    });
+  }
+
+  // ── Render ─────────────────────────────────────────────────
+  function render() {
+    document.getElementById('header-name').textContent = TEACHER_NAME + ' ·';
+    document.getElementById('header-day').textContent = ' ' + DAY_LABEL;
+    renderGrid();
+    renderPanel();
+    renderBlockBtns();
+  }
+
+  function renderGrid() {
+    var grid = document.getElementById('time-grid');
+    grid.innerHTML = '';
+    var totalPx = GRID_TOTAL * PX_PER_MIN;
+    var wrapW = document.getElementById('agenda-wrap').offsetWidth || 900;
+    var LEFT_EDGE = 52;
+    var RIGHT_EDGE = wrapW - 28; // account for agenda-wrap padding (20) + a touch more
+    var FULL_W = RIGHT_EDGE - LEFT_EDGE;
+    var GAP = 8;
+
+    var slotsDiv = document.createElement('div');
+    slotsDiv.style.cssText = 'position:relative; height:' + totalPx + 'px;';
+
+    // Background time lines
+    for (var t = GRID_START; t <= GRID_END; t += 15) {
+      var y = minToY(t);
+      var lbl = document.createElement('div');
+      lbl.style.cssText = 'position:absolute;left:0;width:44px;top:' + (y-6) + 'px;font-size:11px;color:var(--text-3);text-align:right;padding-right:8px;';
+      if (t % 60 === 0) lbl.textContent = fmt12(t);
+      slotsDiv.appendChild(lbl);
+      var rule = document.createElement('div');
+      rule.style.cssText = 'position:absolute;left:44px;right:0;top:' + y + 'px;border-top:1px solid var(--border' + (t % 60 === 0 ? '-med' : '') + ');';
+      slotsDiv.appendChild(rule);
+    }
+
+    var units = getRenderableUnits();
+    var groups = buildConcurrencyGroups(units);
+
+    groups.forEach(function(group) {
+      // ── Interval-graph coloring with role-ordered priority ──
+      // Goal: assign each unit to a column index such that two units
+      // share a column only if they DON'T overlap in time. Minimize
+      // the number of columns used per concurrency group.
+      //
+      // Strategy: sort units by (role priority, start time, end time).
+      // Walk through; for each unit, give it the lowest-indexed column
+      // whose previous occupant has end <= unit.start. That's the
+      // standard interval-coloring sweep.
+      var sorted = group.slice().sort(function(a, b){
+        var d = roleOrder(a.role) - roleOrder(b.role);
+        if (d !== 0) return d;
+        d = a.start - b.start;
+        if (d !== 0) return d;
+        d = a.end - b.end;
+        if (d !== 0) return d;
+        return a.id.localeCompare(b.id);
+      });
+
+      var columnLastEnd = []; // columnLastEnd[i] = end time of last unit placed in column i
+      var assignment = {}; // unit.id -> column index
+      sorted.forEach(function(unit) {
+        var placed = false;
+        for (var ci = 0; ci < columnLastEnd.length; ci++) {
+          if (columnLastEnd[ci] <= unit.start) {
+            assignment[unit.id] = ci;
+            columnLastEnd[ci] = unit.end;
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          assignment[unit.id] = columnLastEnd.length;
+          columnLastEnd.push(unit.end);
+        }
+      });
+
+      var nCols = columnLastEnd.length;
+      var totalGap = (nCols - 1) * GAP;
+      var perCard = Math.floor((FULL_W - totalGap) / nCols);
+
+      sorted.forEach(function(unit) {
+        var ci = assignment[unit.id];
+        var left = LEFT_EDGE + ci * (perCard + GAP);
+        var width = perCard;
+        var y = minToY(unit.start);
+        var h = durationPx(unit.start, unit.end);
+
+        if (unit.kind === 'cluster') {
+          renderClusterCard(slotsDiv, unit, left, y, width, h);
+        } else if (unit.role === 'prep') {
+          renderPrepCard(slotsDiv, unit, left, y, width, h);
+        } else if (unit.role === 'teacher') {
+          renderTeacherCard(slotsDiv, unit, left, y, width, h);
+        } else if (unit.role === 'monitor') {
+          renderSoloMonitorCard(slotsDiv, unit, left, y, width, h);
+        }
+      });
+    });
+
+    grid.appendChild(slotsDiv);
+  }
+
+  function renderTeacherCard(parent, unit, left, y, w, h) {
+    var act = unit.activity;
+    var card = document.createElement('div');
+    card.className = 'act-card theme-teacher';
+    card.style.cssText = 'top:' + y + 'px;left:' + left + 'px;width:' + w + 'px;height:' + h + 'px;';
+
+    var lateStudents = (act.students || []).filter(function(s){ return s.lateArrival; });
+
+    var meta = [];
+    meta.push(fmtRange(unit.start, unit.end));
+    var countStr = (act.students || []).length + ' student' + ((act.students || []).length !== 1 ? 's' : '');
+    if (act.enrolledTotal) countStr = (act.students || []).length + ' of ' + act.enrolledTotal + ' today';
+
+    var badgesHtml = '<div class="card-role-badge">● teacher</div>';
+    if (lateStudents.length > 0) {
+      badgesHtml += ' <span class="late-chip-inline" title="' + lateStudents.length + ' arriving ' +
+        fmt12(parseTime(lateStudents[0].lateArrival)) + '">↩ ' + lateStudents.length +
+        ' arr ' + fmt12(parseTime(lateStudents[0].lateArrival)) + '</span>';
+    }
+
+    card.innerHTML =
+      badgesHtml +
+      '<div class="card-title">' + act.title + '</div>' +
+      '<div class="card-meta">' + meta.join(' · ') + '</div>' +
+      '<div class="card-count">' + countStr + '</div>';
+
+    card.onclick = function(){ openRoster(act); };
+    parent.appendChild(card);
+  }
+
+  function renderPrepCard(parent, unit, left, y, w, h) {
+    var act = unit.activity;
+    var card = document.createElement('div');
+    card.className = 'act-card theme-prep';
+    card.style.cssText = 'top:' + y + 'px;left:' + left + 'px;width:' + w + 'px;height:' + h + 'px;';
+    card.innerHTML =
+      '<div class="card-title">' + act.title + '</div>' +
+      '<div class="card-meta">' + fmtRange(unit.start, unit.end) + '</div>';
+    parent.appendChild(card);
+  }
+
+  function renderSoloMonitorCard(parent, unit, left, y, w, h) {
+    var act = unit.activity;
+    var card = document.createElement('div');
+    card.className = 'act-card theme-monitor';
+    card.style.cssText = 'top:' + y + 'px;left:' + left + 'px;width:' + w + 'px;height:' + h + 'px;';
+
+    var siteName = act.title.replace('Internship @ ', '');
+    card.innerHTML =
+      '<div class="card-role-badge">◎ monitor</div>' +
+      '<div class="card-title">' + act.title + '</div>' +
+      '<div class="card-meta">' + fmtRange(unit.start, unit.end) + '</div>' +
+      '<div class="card-count">' + act.students.length + ' student' + (act.students.length !== 1 ? 's' : '') + ' · check-in + geo</div>';
+
+    card.onclick = function(){ openRoster(act); };
+    parent.appendChild(card);
+  }
+
+  function renderClusterCard(parent, unit, left, y, w, h) {
+    var members = unit.members;
+    var card = document.createElement('div');
+    card.className = 'act-card theme-monitor';
+    card.id = 'cluster-card';
+    card.style.cssText = 'top:' + y + 'px;left:' + left + 'px;width:' + w + 'px;height:' + h + 'px;';
+
+    var totalStudents = members.reduce(function(s, m){ return s + m.students.length; }, 0);
+
+    // Show first 3 site names as a peek, then "+ N more"
+    var siteNames = members.map(function(m){ return m.title.replace('Internship @ ', ''); });
+    var peek = siteNames.slice(0, 3).join(', ');
+    if (siteNames.length > 3) peek += ', +' + (siteNames.length - 3) + ' more';
+
+    card.innerHTML =
+      '<div class="card-role-badge">◎ monitor · cluster</div>' +
+      '<div class="card-title">' + members.length + ' Internships</div>' +
+      '<div class="card-meta">' + fmtRange(unit.start, unit.end) + '</div>' +
+      '<div class="card-count" style="margin-top:5px; opacity:0.85;">' + peek + '</div>' +
+      '<div class="card-count" style="margin-top:2px;">' + totalStudents + ' students · check-in + geo · tap to expand</div>';
+
+    card.onclick = function(e){
+      e.stopPropagation();
+      openClusterPopover(card, unit);
+    };
+    parent.appendChild(card);
+  }
+
+  // ── Popover from cluster card ──────────────────────────────
+  function openClusterPopover(anchorEl, unit) {
+    closePopover();
+    var members = unit.members;
+    var anchorRect = anchorEl.getBoundingClientRect();
+    var viewportH = window.innerHeight;
+
+    // Decide whether popover goes above or below the anchor.
+    // Prefer above (consistent with cluster card being "deeper" into the day)
+    // but flip below if there's not enough room above.
+    var POPOVER_VMARGIN = 12;
+    var ESTIMATED_POP_H = 220; // rough; popover sizes to content but we use this to pick side
+    var spaceAbove = anchorRect.top - 16;
+    var goesAbove = spaceAbove >= ESTIMATED_POP_H;
+
+    // Backdrop (click-outside dismiss)
+    var backdrop = document.createElement('div');
+    backdrop.className = 'popover-backdrop';
+    backdrop.onclick = closePopover;
+    document.getElementById('popover-root').appendChild(backdrop);
+
+    // Popover
+    var pop = document.createElement('div');
+    pop.className = 'popover';
+    pop.id = 'active-popover';
+
+    var grid = document.createElement('div');
+    grid.className = 'popover-grid';
+    // Show all members side-by-side, equal columns
+    grid.style.gridTemplateColumns = 'repeat(' + members.length + ', 1fr)';
+
+    members.forEach(function(m) {
+      var pc = document.createElement('div');
+      pc.className = 'popover-card';
+      var siteName = m.title.replace('Internship @ ', '');
+      pc.innerHTML =
+        '<div class="pc-badge">◎ monitor</div>' +
+        '<div class="pc-title">' + siteName + '</div>' +
+        '<div class="pc-meta">' + m.students.length + ' · geo</div>';
+      pc.onclick = function(e){
+        e.stopPropagation();
+        closePopover();
+        openRoster(m);
+      };
+      grid.appendChild(pc);
+    });
+
+    pop.innerHTML =
+      '<div class="popover-head">' +
+        '<div class="popover-title">' + members.length + ' Internships</div>' +
+        '<div class="popover-sub">' + fmtRange(unit.start, unit.end) + ' · click a site to open its roster</div>' +
+      '</div>';
+    pop.appendChild(grid);
+
+    var foot = document.createElement('div');
+    foot.className = 'popover-foot';
+    foot.textContent = members.length + ' Internships · ' +
+      members.reduce(function(s, m){ return s + m.students.length; }, 0) + ' students';
+    pop.appendChild(foot);
+
+    // Arrow
+    var arrow = document.createElement('div');
+    arrow.className = 'popover-arrow ' + (goesAbove ? 'below' : 'above');
+    pop.appendChild(arrow);
+
+    document.getElementById('popover-root').appendChild(pop);
+
+    // Position
+    var popRect = pop.getBoundingClientRect();
+    var popW = popRect.width;
+    var popH = popRect.height;
+
+    var anchorCenterX = anchorRect.left + anchorRect.width / 2;
+    var popLeft = anchorCenterX - popW / 2;
+    // Clamp horizontally to viewport
+    popLeft = Math.max(12, Math.min(window.innerWidth - popW - 12, popLeft));
+    var popTop;
+    if (goesAbove) {
+      popTop = anchorRect.top - popH - POPOVER_VMARGIN;
+    } else {
+      popTop = anchorRect.bottom + POPOVER_VMARGIN;
+    }
+    pop.style.position = 'fixed';
+    pop.style.left = popLeft + 'px';
+    pop.style.top = popTop + 'px';
+
+    // Arrow horizontal position — center on anchor card, clamped within popover
+    var arrowLeft = anchorCenterX - popLeft - 7; // 7 = half arrow width
+    arrowLeft = Math.max(16, Math.min(popW - 30, arrowLeft));
+    arrow.style.left = arrowLeft + 'px';
+  }
+
+  function closePopover() {
+    var root = document.getElementById('popover-root');
+    while (root.firstChild) root.removeChild(root.firstChild);
+  }
+
+  // ── Roster modal ───────────────────────────────────────────
+  function openRoster(act) {
+    var root = document.getElementById('modal-root');
+    root.innerHTML = '';
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.onclick = function(e){ if (e.target === backdrop) closeModal(); };
+
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+
+    var head = document.createElement('div');
+    head.className = 'modal-head';
+    head.innerHTML =
+      '<div class="modal-head-row">' +
+        '<div>' +
+          '<div class="modal-title">' + act.title + '</div>' +
+          '<div class="modal-sub">' + fmtRange(parseTime(act.startTime), parseTime(act.endTime)) +
+            ' · Block ' + (act.blocks || []).join(', ') +
+            (act.role === 'monitor' ? ' · monitor (elsewhere)' : '') +
+          '</div>' +
+        '</div>' +
+        '<button class="modal-close" onclick="closeModal()">×</button>' +
+      '</div>';
+    box.appendChild(head);
+
+    var body = document.createElement('div');
+    body.className = 'modal-body';
+
+    var students = act.students || [];
+    var onTime = students.filter(function(s){ return !s.lateArrival; });
+    var late = students.filter(function(s){ return s.lateArrival; });
+
+    if (act.enrolledTotal && act.enrolledTotal > students.length) {
+      var en = document.createElement('div');
+      en.className = 'enrolled-note';
+      en.textContent = act.enrolledTotal + ' enrolled · ' + students.length + ' expected today';
+      body.appendChild(en);
+    }
+
+    if (onTime.length > 0) {
+      var l1 = document.createElement('div');
+      l1.className = 'roster-section-label';
+      l1.textContent = late.length > 0 ? 'Expected at start' : 'Roster';
+      body.appendChild(l1);
+      onTime.forEach(function(s){ body.appendChild(renderStudentRow(act.id, s, false)); });
+    }
+
+    if (late.length > 0) {
+      var l2 = document.createElement('div');
+      l2.className = 'roster-section-label amber';
+      l2.innerHTML = 'Arriving later · from off-campus';
+      body.appendChild(l2);
+      late.forEach(function(s){ body.appendChild(renderStudentRow(act.id, s, true)); });
+    }
+
+    box.appendChild(body);
+    backdrop.appendChild(box);
+    root.appendChild(backdrop);
+  }
+
+  function renderStudentRow(actId, student, isLate) {
+    var row = document.createElement('div');
+    row.className = 'student-row' + (isLate ? ' late-row' : '');
+
+    var nameWrap = document.createElement('div');
+    nameWrap.className = 'student-name';
+    nameWrap.textContent = student.name;
+    if (isLate) {
+      var meta = document.createElement('div');
+      meta.className = 'student-meta';
+      meta.textContent = 'arrives ' + fmt12(parseTime(student.lateArrival));
+      nameWrap.appendChild(document.createElement('br'));
+      nameWrap.appendChild(meta);
+    }
+    row.appendChild(nameWrap);
+
+    var grp = document.createElement('div');
+    grp.className = 'att-group';
+    ['P','A','E','T'].forEach(function(code){
+      var b = document.createElement('button');
+      b.className = 'att-btn';
+      b.textContent = code;
+      var key = actId + '|' + student.name;
+      if (attState[key] === code) b.classList.add(code.toLowerCase() + '-active');
+      b.onclick = function(){
+        attState[key] = (attState[key] === code) ? null : code;
+        ['P','A','E','T'].forEach(function(c){ b.parentElement.children[['P','A','E','T'].indexOf(c)].className = 'att-btn'; });
+        if (attState[key]) {
+          var idx = ['P','A','E','T'].indexOf(attState[key]);
+          b.parentElement.children[idx].className = 'att-btn ' + attState[key].toLowerCase() + '-active';
+        }
+      };
+      grp.appendChild(b);
+    });
+    row.appendChild(grp);
+    return row;
+  }
+
+  function closeModal() {
+    document.getElementById('modal-root').innerHTML = '';
+  }
+
+  // ── Side panel ─────────────────────────────────────────────
+  function renderPanel() {
+    var panel = document.getElementById('side-panel');
+    panel.innerHTML = '';
+
+    // Section 1: Your visible-to-all activities (aggregated)
+    var mineVisAll = SCHEDULE.filter(function(a){ return a.visibleToAll; });
+    var othersVisAll = VIS_ALL_OTHERS;
+
+    var section = document.createElement('div');
+    section.className = 'panel-section';
+    section.innerHTML = '<div class="panel-label">Visible to all · you\u2019re assigned</div>';
+
+    // Aggregate by time window: cluster overlapping ones into a single panel item
+    // For this mockup the 5 monitor internships all share (12:15–14:20), and the
+    // 3 Independent Study activities each have their own time. So we'll get
+    // either separate items per time window, or aggregated when 2+ share one.
+    var mineAgg = aggregatePanelItems(mineVisAll.map(function(a){
+      return {
+        title: a.title, role: a.role,
+        start: parseTime(a.startTime), end: parseTime(a.endTime),
+      };
+    }));
+
+    if (mineAgg.length === 0) {
+      var emp = document.createElement('div');
+      emp.style.cssText = 'font-size:11px;color:var(--text-3);font-style:italic;';
+      emp.textContent = 'Nothing else';
+      section.appendChild(emp);
+    } else {
+      mineAgg.forEach(function(g){ section.appendChild(renderPanelItem(g, true)); });
+    }
+    panel.appendChild(section);
+
+    // Section 2: Visible-to-all activities owned by others
+    var section2 = document.createElement('div');
+    section2.className = 'panel-section';
+    section2.innerHTML = '<div class="panel-label">Visible to all · others\u2019</div>';
+
+    var othersAgg = aggregatePanelItems(othersVisAll.map(function(a){
+      return {
+        title: a.title, role: 'monitor',
+        start: parseTime(a.startTime), end: parseTime(a.endTime),
+      };
+    }));
+
+    if (othersAgg.length === 0) {
+      var emp2 = document.createElement('div');
+      emp2.style.cssText = 'font-size:11px;color:var(--text-3);font-style:italic;';
+      emp2.textContent = 'Nothing else';
+      section2.appendChild(emp2);
+    } else {
+      othersAgg.forEach(function(g){ section2.appendChild(renderPanelItem(g, false)); });
+    }
+    panel.appendChild(section2);
+  }
+
+  // Sidebar aggregation: group by (role, start_time, end_time).
+  // Same-title-but-different-time items do NOT aggregate. The sidebar
+  // prefers showing structure over over-compressing — three Independent
+  // Study slots at different times render as three rows.
+  function aggregatePanelItems(items) {
+    var bins = {};
+    items.forEach(function(it) {
+      var key = it.role + '|' + it.start + '|' + it.end;
+      if (!bins[key]) bins[key] = [];
+      bins[key].push(it);
+    });
+    var groups = Object.keys(bins).map(function(k){
+      var g = bins[k];
+      return g.length > 1
+        ? { kind: 'time-cluster', items: g }
+        : { kind: 'solo', items: g };
+    });
+    groups.sort(function(a, b){ return a.items[0].start - b.items[0].start; });
+    return groups;
+  }
+
+  function renderPanelItem(group, isMine) {
+    var item = document.createElement('div');
+    item.className = 'panel-item' + (isMine ? ' is-mine' : '');
+    var items = group.items;
+    var titleText, subText;
+    if (group.kind === 'solo') {
+      titleText = items[0].title;
+      subText = fmtRange(items[0].start, items[0].end);
+    } else { // 'time-cluster'
+      titleText = items.length + ' activities';
+      subText = fmtRange(items[0].start, items[0].end);
+    }
+    item.innerHTML =
+      '<div class="panel-item-title">' + titleText +
+        (isMine ? '<span class="mine-badge">yours</span>' : '') +
+      '</div>' +
+      '<div class="panel-item-sub">' + subText + '</div>';
+    return item;
+  }
+
+  // ── Block attendance buttons ───────────────────────────────
+  function renderBlockBtns() {
+    var holder = document.getElementById('block-btns');
+    holder.innerHTML = '';
+    [0,1,2,3,4,5].forEach(function(b){
+      var btn = document.createElement('button');
+      btn.className = 'block-btn';
+      btn.textContent = 'Block ' + b;
+      holder.appendChild(btn);
+    });
+  }
+
+  // ── Init ───────────────────────────────────────────────────
+  window.addEventListener('load', render);
+  window.addEventListener('resize', render);
+</script>
+</body>
+</html>
