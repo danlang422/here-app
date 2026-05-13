@@ -114,6 +114,19 @@ V2 schema with migrations in `supabase/migrations/`. Key migrations:
 - `20260324000000` — Feedback/reports table
 - `20260406000000` — Enrollment-level scheduling (4 nullable scheduling columns on `enrollments`: `days_of_week`, `rotation_day_type`, `recurrence_interval`, `recurrence_anchor_date`)
 - `20260421000000` — Multi-block activities (`activities.block` and `enrollments.block` converted from `INTEGER` to `INTEGER[]`; existing single-block data migrated to single-element arrays)
+- `20260513000001` — RLS overhaul: all `user_metadata` references replaced with `user_profiles` subqueries
+- `20260513000002` — Function security: replaced `user_metadata` in functions, added `search_path`, fixed `handle_new_auth_user`
+- `20260513000003` — Revoke anon execute (attempt via `REVOKE FROM anon` — superseded by 000004)
+- `20260513000004` — Revoke public execute: `REVOKE FROM PUBLIC` + `GRANT TO authenticated` for all SECURITY DEFINER functions
+- `20260513000005` — Fix `user_profiles` recursion: introduced `get_my_organization_id()` SECURITY DEFINER helper
+- `20260513000006` — Opt out of Supabase default grants (explicit GRANTs now required for new tables)
+
+**Important — new tables require explicit GRANTs:** As of May 2026 we opted into Supabase's new behavior where tables in `public` are not auto-exposed to the Data API. Every new table must include:
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.your_table TO authenticated;
+GRANT ALL ON public.your_table TO service_role;
+ALTER TABLE public.your_table ENABLE ROW LEVEL SECURITY;
+```
 
 Schema docs are in `docs/schema/` — these are the authoritative source for table structure, constraints, and RLS policies.
 

@@ -31,6 +31,26 @@
 
 ---
 
+## Ongoing Migration Conventions
+
+**Explicit GRANTs required for new tables (as of May 2026):** We opted into Supabase's new default-grant behavior. Every new table added to `public` must include explicit GRANT statements before it will be accessible via the Data API:
+
+```sql
+-- Required for every new table
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.your_table TO authenticated;
+GRANT ALL ON public.your_table TO service_role;
+-- Add anon grant only if the table needs to be publicly readable:
+-- GRANT SELECT ON public.your_table TO anon;
+ALTER TABLE public.your_table ENABLE ROW LEVEL SECURITY;
+-- Then add RLS policies
+```
+
+The platform enforces this for all existing projects on October 30, 2026.
+
+**RLS org-scoping pattern:** Use `public.get_my_organization_id()` (SECURITY DEFINER) when a policy needs the caller's org, rather than an inline `user_profiles` subquery. This avoids recursion on `user_profiles` and is consistent with the established pattern. See `docs/schema/10-rls-policies.md`.
+
+---
+
 ## Future Considerations
 
 ### Not in MVP
