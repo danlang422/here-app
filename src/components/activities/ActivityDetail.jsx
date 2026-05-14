@@ -4,7 +4,7 @@ import {
   PencilSimple, Check, X,
   ClipboardText, HandWaving, ListChecks,
   MapPin, DoorOpen, CalendarX, Student,
-  Trash, CheckCircle, Gps, GpsFix,
+  Trash, CheckCircle, Gps, GpsFix, UsersThree,
 } from '@phosphor-icons/react'
 import { searchAddress } from '@/lib/nominatimSearch'
 import { getBlocks, getBlockLabel, DAYS_OF_WEEK, WEEKDAYS } from '@/lib/constants'
@@ -28,6 +28,7 @@ const BEHAVIOR_FLAGS = [
   { field: 'requires_geofence',    icon: MapPin,        tooltip: 'Requires geofence' },
   { field: 'is_release',           icon: DoorOpen,      tooltip: 'Release (no attendance)' },
   { field: 'is_not_scheduled',     icon: CalendarX,     tooltip: 'Not scheduled' },
+  { field: 'visible_to_all_staff', icon: UsersThree,    tooltip: 'Visible to all staff' },
 ]
 
 // ─── Form value helpers ────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ const DEFAULT_VALUES = {
   requires_geofence: false,
   is_release: false,
   is_not_scheduled: false,
+  visible_to_all_staff: false,
   calendar_id: null,
   recurrence_interval: 1,
   starting_week: 1,
@@ -103,6 +105,7 @@ function buildInitialValues(activity) {
     requires_geofence: activity.requires_geofence ?? false,
     is_release: activity.is_release ?? false,
     is_not_scheduled: activity.is_not_scheduled ?? false,
+    visible_to_all_staff: activity.visible_to_all_staff ?? false,
     calendar_id: activity.calendar_id ?? null,
     recurrence_interval: activity.recurrence_interval ?? 1,
     starting_week: deriveStartingWeek(activity.recurrence_anchor_date, activity.start_date),
@@ -312,6 +315,7 @@ export default function ActivityDetail({
       requires_geofence: formValues.requires_geofence,
       is_release: formValues.is_release,
       is_not_scheduled: formValues.is_not_scheduled,
+      visible_to_all_staff: formValues.visible_to_all_staff,
       calendar_id: formValues.calendar_id || null,
       recurrence_interval: formValues.recurrence_interval,
       recurrence_anchor_date: computeAnchorDate(formValues.start_date, formValues.starting_week, formValues.recurrence_interval),
