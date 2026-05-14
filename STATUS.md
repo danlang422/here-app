@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** May 13, 2026 (session 37)
+**Last updated:** May 14, 2026 (session 38)
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed. Migrations through `20260513000006_opt_out_default_grants` (Supabase security audit + explicit GRANT opt-in). Real data: City View org with admin account (Daniel Lang), staff users, and activities. **Data needs to be cleared and re-entered** using the consolidated model — current activity splits are redundant under enrollment-level scheduling (~460 → ~120–150 activities).
+**Database:** V2 schema deployed. Migrations through `20260513000006_opt_out_default_grants` (Supabase security audit + explicit GRANT opt-in). Real data: City View org with admin account (Daniel Lang), staff users, and activities. Consolidation pass is complete; remaining data work is **time-accuracy** — adjusting individual activity start/end times to match real-world arrival/departure patterns, gathered incrementally from City View staff and students. Not a blocker for #86 work.
 
 **Application:**
 
@@ -76,18 +76,23 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 Ordered priority:
 
-1. **Data re-entry** — Clear existing activities/enrollments and re-enter using the consolidated model (~120–150 activities instead of ~460). Branch `feat/enrollment-level-scheduling` merged to main (commit `026179d`).
-2. **#86 — Phase 1 teacher agenda layout rewrite** — write the build spec against the new design direction doc, then implement. Spec needs to translate layout rules into changes to `Dashboard.jsx`, `SingleDayAgenda`, `agendaUtils.js`, the roster modal, and a new popover component. Resolves the layout side of #88 in the same pass.
-3. **#87** — Per-enrollment arrival time override (small, independent; the Iowa BIG late-arriver case). UI side described in the design direction doc.
-4. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
-5. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
-6. **#21** — Customizable agenda start/end times
+1. **Three prep specs for #86** — ready for Claude Code, can build in parallel. None changes user-visible behavior; all are dormant data/utility plumbing that #86 consumes.
+   - `role-derivation-helper-build-spec.md` — `src/lib/staffRoles.js` with `getViewerRole(activity, viewerId)`. Pre-#70 reads `teacher_id`/`monitor_id`; post-#70 reads `activity_staff`. Single-file seam.
+   - `visible-to-all-staff-flag-build-spec.md` — `visible_to_all_staff BOOLEAN` on `activities`, new entry in `ActivityDetail`'s `BEHAVIOR_FLAGS` row using `UsersThree` icon. No RLS change here (existing policies cover the column read/write); sidebar-enabling RLS is in #86.
+   - `enrollment-time-overrides-build-spec.md` — `start_time_override`/`end_time_override` (both nullable `TIME`) on `enrollments`, extended `EnrollmentScheduleEditor`, extended summary text. Data layer for #87; UI payoff in #86.
+2. **#86 — Phase 1 teacher agenda layout rewrite** — write the build spec against the new design direction doc, then implement. Spec needs to translate layout rules into changes to `Dashboard.jsx`, `SingleDayAgenda`, `agendaUtils.js`, the roster modal, and a new popover component. Resolves the layout side of #88 in the same pass. Includes the sidebar (driven by the prep spec #2 flag) and its required RLS extension.
+3. **#87** — Per-enrollment arrival time override UI side (in-card chip, "Arriving later" roster section). Data layer ships via prep spec #3; full #87 closes when #86 consumes it.
+4. **Time-accuracy data pass** — ongoing fieldwork. Update activity start/end times as Daniel gathers real arrival/departure information from City View. Not gated on or by #86.
+5. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
+6. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
+7. **#21** — Customizable agenda start/end times
 
 **Recently completed:**
+- Session 38 — Three prep build specs for #86 written: role derivation helper, `visible_to_all_staff` flag, enrollment time overrides. Plus #86 structural decisions settled (sidebar in scope, layout layers split, prep computed, role derived, block-attendance affordance shape, gut existing block-aggregation logic).
 - Session 37 — Teacher UI concepting (#85) completed. Design direction doc + v2 demo committed; #85 closed. Concretely landed: time-axis-primary layout with role-ordered row-fill, aggregation by `(start_time, end_time, role)`, popover from cluster cards, no compact/expanded toggle, late-arrivers as in-card chip + roster section.
 - Session 36 — Supabase Security Advisor audit. 30 RLS errors resolved (user_metadata → user_profiles); function security hardened; explicit GRANT opt-in applied.
 
-**Data entry:** Schedule fully normalized. Enrollment-level scheduling is complete (including hard-delete unenrollments and advisory conflict detection) — a fresh re-entry pass using the consolidated model is the next concrete action item. Some schedule nuance (e.g., actual arrival times for students coming back from off-campus activities) may require surveying students rather than pulling from the spreadsheet.
+**Data entry:** Consolidation complete. Schedule fully normalized. Enrollment-level scheduling complete (including hard-delete unenrollments and advisory conflict detection). Remaining is time-accuracy — gathered incrementally as available.
 
 **Teacher UI & staff model redesign (epic #84):** Umbrella issue covering the set of changes surfaced in the April 2026 staff conversation. Phases: pre-phase 1 concepting (#85, **complete**), Phase 1 agenda layout rewrite (#86, ready for spec), Phase 2 staff model (#70, #77, #78), Phase 3 teacher visibility UI (#79), downstream (#80, #81). Phase 2 can run parallel to Phase 1. Design direction for Phases 1 and 3 is now captured in `teacher-agenda-design-direction.md`. See session 34 notes for the original decisions and context; session 37 for the design direction output.
 
@@ -137,3 +142,6 @@ Ordered priority:
 | `attendance-rollup-design-doc.md` | **Implemented** | Admin attendance rollup view — block groups, status sorting, exception/full toggle, conflict detection. Built session 31. |
 | `public-facing-site-build-spec.md` | **Implemented** | Public landing page, trust/privacy page, about page, public layout, auth-aware root routing. Built session 33. |
 | `teacher-agenda-design-direction.md` | **Current** | Input to #86. Layout rules (time-axis, role-ordered row-fill, aggregation by time+role, cluster popover), late-arrival treatment, sidebar logic, open questions. Reference artifact: `teacher-agenda-demo-v2.html`. Session 37. |
+| `role-derivation-helper-build-spec.md` | **Ready to build** | Prep for #86. `src/lib/staffRoles.js` with `getViewerRole(activity, viewerId)`. Single-file seam for the post-#70 swap from `teacher_id`/`monitor_id` to `activity_staff`. Session 38. |
+| `visible-to-all-staff-flag-build-spec.md` | **Ready to build** | Prep for #86. `visible_to_all_staff BOOLEAN` on `activities`, plus a new entry in `ActivityDetail`'s `BEHAVIOR_FLAGS` row (`UsersThree` icon). Flag is dormant at the agenda layer until #86 consumes it. Session 38. |
+| `enrollment-time-overrides-build-spec.md` | **Ready to build** | Prep for #86 / data layer of #87. `start_time_override` / `end_time_override` (nullable `TIME`) on `enrollments`, extended `EnrollmentScheduleEditor` and summary text. No teacher-agenda visual change here. Session 38. |
