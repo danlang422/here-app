@@ -78,6 +78,7 @@ export async function getOrgEnrollments(organizationId) {
     .select(`
       id, student_id, activity_id, block, is_active,
       days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date,
+      start_time_override, end_time_override,
       activity:activities!inner(
         id, name, block, days_of_week, rotation_day_type,
         default_start_time, default_end_time,

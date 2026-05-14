@@ -127,7 +127,7 @@ export async function getTeacherActivitiesForDate(teacherId, orgId) {
 export async function getRosterForActivities(activityIds) {
   const { data, error } = await supabase
     .from('enrollments')
-    .select('id, activity_id, student_id, block, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date, student:student_id(id, first_name, last_name, preferred_name, grade_level)')
+    .select('id, activity_id, student_id, block, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date, start_time_override, end_time_override, student:student_id(id, first_name, last_name, preferred_name, grade_level)')
     .in('activity_id', activityIds)
     .eq('is_active', true)
 
