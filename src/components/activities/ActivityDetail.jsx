@@ -1468,7 +1468,7 @@ function EnrollmentStudentRow({
   onToggleExpand, onScheduleChange, onScheduleSave, onScheduleCancel,
 }) {
   const isPendingUnenroll = student.pendingUnenroll
-  const canEdit = zone === 'enrolled' && !student.isNewlyStaged && !isPendingUnenroll && enrollment && activity?.days_of_week?.length > 0
+  const canEdit = zone === 'enrolled' && !student.isNewlyStaged && !isPendingUnenroll && enrollment
 
   // Compute collapsed schedule summary from current enrollment fields (or local draft)
   const effectiveEnrollment = localSchedule
@@ -1555,8 +1555,10 @@ function getEnrollmentScheduleSummary(enrollment, activity) {
   const hasDays = enrollment.days_of_week != null
   const hasRotation = enrollment.rotation_day_type != null
   const hasRecurrence = enrollment.recurrence_interval != null && enrollment.recurrence_interval > 1
+  const hasStartOverride = enrollment.start_time_override != null
+  const hasEndOverride = enrollment.end_time_override != null
 
-  if (!hasDays && !hasRotation && !hasRecurrence) return null
+  if (!hasDays && !hasRotation && !hasRecurrence && !hasStartOverride && !hasEndOverride) return null
 
   const parts = []
   if (hasRecurrence) parts.push(`Every ${enrollment.recurrence_interval} wks`)
@@ -1567,6 +1569,8 @@ function getEnrollmentScheduleSummary(enrollment, activity) {
       .join(' ')
     parts.push(labels)
   }
+  if (hasStartOverride) parts.push(`arr ${formatTime(enrollment.start_time_override)}`)
+  if (hasEndOverride) parts.push(`leaves ${formatTime(enrollment.end_time_override)}`)
   return parts.join(' · ') || null
 }
 
@@ -1712,6 +1716,61 @@ function EnrollmentScheduleEditor({ enrollment, activity, orgSettings, localSche
           )}
         </div>
       </div>
+
+      {/* Arrival / departure overrides */}
+      {(activity?.default_start_time || activity?.default_end_time) && (
+        <div className="border-l-2 border-warning/40 pl-2">
+          <div className="text-warning/70 mb-1">Arrival / departure overrides</div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-base-content/50 w-12 shrink-0">Arrives</span>
+              <input
+                type="time"
+                className="input input-xs input-bordered w-28"
+                value={localSchedule.start_time_override ?? (enrollment.start_time_override ?? '')}
+                onChange={(e) => onChange('start_time_override', e.target.value || null)}
+              />
+              {activity?.default_start_time && (
+                <span className="text-base-content/30 text-xs">(default: {formatTime(activity.default_start_time)})</span>
+              )}
+              {(localSchedule.start_time_override !== undefined
+                ? localSchedule.start_time_override
+                : enrollment.start_time_override) != null && (
+                <button
+                  type="button"
+                  className="btn btn-xs btn-ghost text-base-content/40"
+                  onClick={() => onChange('start_time_override', null)}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-base-content/50 w-12 shrink-0">Leaves</span>
+              <input
+                type="time"
+                className="input input-xs input-bordered w-28"
+                value={localSchedule.end_time_override ?? (enrollment.end_time_override ?? '')}
+                onChange={(e) => onChange('end_time_override', e.target.value || null)}
+              />
+              {activity?.default_end_time && (
+                <span className="text-base-content/30 text-xs">(default: {formatTime(activity.default_end_time)})</span>
+              )}
+              {(localSchedule.end_time_override !== undefined
+                ? localSchedule.end_time_override
+                : enrollment.end_time_override) != null && (
+                <button
+                  type="button"
+                  className="btn btn-xs btn-ghost text-base-content/40"
+                  onClick={() => onChange('end_time_override', null)}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Save / Cancel */}
       <div className="flex gap-2 pt-1">
