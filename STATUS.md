@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** May 14, 2026 (session 39)
+**Last updated:** May 17, 2026 (session 40)
 
 ---
 
@@ -76,14 +76,20 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 Ordered priority:
 
-1. **#86 — Phase 1 teacher agenda layout rewrite** — all three prep specs are now shipped. Write the build spec against the new design direction doc, then implement. Spec needs to translate layout rules into changes to `Dashboard.jsx`, `SingleDayAgenda`, `agendaUtils.js`, the roster modal, and a new popover component. Resolves the layout side of #88 in the same pass. Includes the sidebar (driven by `visible_to_all_staff`) and its required RLS extension.
-2. **#87** — Per-enrollment arrival time override UI side (in-card chip, "Arriving later" roster section). Data layer is shipped (`start_time_override`/`end_time_override` on enrollments, #92); full #87 closes when #86 consumes it.
-4. **Time-accuracy data pass** — ongoing fieldwork. Update activity start/end times as Daniel gathers real arrival/departure information from City View. Not gated on or by #86.
-5. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
-6. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
-7. **#21** — Customizable agenda start/end times
+1. **#86 — Phase 1 teacher agenda layout rewrite** — five sub-area design docs done (session 40). Hand off to Claude Code one at a time for build-spec writing. Dependency order: **86.1 → 86.2 → (86.3, 86.4, 86.5 in any order)**. Sub-areas:
+   - **86.1** — `SingleDayAgenda` overlap resolution (also closes #88). Layout primitive everything else builds on.
+   - **86.2** — Dashboard rewrite, cluster cards, cluster popover. Core of #86.
+   - **86.3** — Late-arrival UI (amber chip + roster section). Consumes session 39's enrollment time overrides; closes the UI side of #87.
+   - **86.4** — Block-attendance affordance + combined roster. Restores per-block attendance as an explicit affordance.
+   - **86.5** — Sidebar + RLS extension. Path A on write access pending explicit confirmation at build-spec time.
+2. **#87** — closes when 86.3 ships (the data layer is already shipped via session 39).
+3. **Time-accuracy data pass** — ongoing fieldwork. Update activity start/end times as Daniel gathers real arrival/departure information from City View. Not gated on or by #86.
+4. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
+5. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
+6. **#21** — Customizable agenda start/end times
 
 **Recently completed:**
+- Session 40 — Five sub-area design docs for #86 written (86.1 overlap resolution, 86.2 Dashboard rewrite + clustering, 86.3 late-arrival UI, 86.4 block-attendance + combined roster, 86.5 sidebar + RLS extension). Two design-direction open questions resolved (cluster title rule, cluster peek text dropped). Path A on sidebar write access recommended pending build-spec confirmation. "Mark all P" scoped per-section, default-attendance-mode parked as a future feature.
 - Session 39 — Three prep specs built and merged (#90, #91, #92): `getViewerRole` helper (`src/lib/staffRoles.js`), `visible_to_all_staff` flag on activities (migration + `ActivityDetail` behavior flags row), enrollment time overrides (`start_time_override`/`end_time_override` on enrollments, extended `EnrollmentScheduleEditor` and summary, `canEdit` gate relaxed). All dormant until #86 consumes them. Bug caught: `getOrgEnrollments` and `getRosterForActivities` use explicit column lists — new enrollment columns must be added to both.
 - Session 38 — Three prep build specs for #86 written: role derivation helper, `visible_to_all_staff` flag, enrollment time overrides. Plus #86 structural decisions settled (sidebar in scope, layout layers split, prep computed, role derived, block-attendance affordance shape, gut existing block-aggregation logic).
 - Session 37 — Teacher UI concepting (#85) completed. Design direction doc + v2 demo committed; #85 closed. Concretely landed: time-axis-primary layout with role-ordered row-fill, aggregation by `(start_time, end_time, role)`, popover from cluster cards, no compact/expanded toggle, late-arrivers as in-card chip + roster section.
@@ -142,3 +148,8 @@ Ordered priority:
 | `role-derivation-helper-build-spec.md` | **Implemented** | `src/lib/staffRoles.js` with `getViewerRole(activity, viewerId)`. Merged as #90, session 39. |
 | `visible-to-all-staff-flag-build-spec.md` | **Implemented** | `visible_to_all_staff BOOLEAN` on `activities` + `ActivityDetail` behavior flags row. Flag dormant until #86 consumes it. Merged as #91, session 39. |
 | `enrollment-time-overrides-build-spec.md` | **Implemented** | `start_time_override` / `end_time_override` on `enrollments`, extended `EnrollmentScheduleEditor` and summary text, `canEdit` gate relaxed. Data layer for #87. Merged as #92, session 39. |
+| `teacher-agenda-86.1-overlap-resolution-design.md` | **Design ready** | Sub-area design for #86. `SingleDayAgenda` becomes content-agnostic overlap-resolving primitive via interval-graph greedy coloring. Closes #88. Awaiting Claude Code build spec. Session 40. |
+| `teacher-agenda-86.2-dashboard-and-clustering-design.md` | **Design ready** | Sub-area design for #86. Core rewrite: role-aware time clustering replaces block-aggregation in `Dashboard.jsx`. Designs cluster card, cluster popover, transformation pipeline. Resolves open questions on cluster titles and peek text. Session 40. |
+| `teacher-agenda-86.3-late-arrival-ui-design.md` | **Design ready** | Sub-area design for #86. Amber chip on cards/clusters, "Arriving later" roster section. Consumes session 39's enrollment time overrides. Closes UI side of #87. Session 40. |
+| `teacher-agenda-86.4-block-attendance-and-combined-roster-design.md` | **Design ready** | Sub-area design for #86. Block-attendance button row + combined roster modal. "Mark all P" stays per-section (interim, pending future default-attendance-mode feature). Session 40. |
+| `teacher-agenda-86.5-sidebar-and-rls-extension-design.md` | **Design ready** | Sub-area design for #86. Sidebar surfaces visible-to-all activities (yours / others' sections). Designs RLS extension on `enrollments`/`activity_instances`/`attendance_records`. Path A (widen write access) recommended pending build-spec confirmation. Session 40. |
