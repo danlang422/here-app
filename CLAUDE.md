@@ -92,6 +92,8 @@ src/
 
 **Enrollment is a workflow, not a page.** The enrollment UI is built from composable pieces (StudentSelector, ActivitySelector, EnrollmentFlow) that can be initiated from multiple contexts — activity management, schedule overview, etc. The two-panel flow is: select students → pick activity target → validate → enroll.
 
+**Explicit column lists in enrollment queries.** Two functions use explicit `select()` column lists instead of `select('*')`: `getOrgEnrollments` in `src/api/enrollments.js` and `getRosterForActivities` in `src/api/agenda.js`. Any new column added to the `enrollments` table must also be added to both of these lists, or the values will save to the DB but be silently missing from the React Query cache. This was discovered in session 39 when `start_time_override`/`end_time_override` were missing from the UI after save.
+
 **Raw fetch in useAuthListener.** `fetchProfile` uses raw `fetch` instead of the Supabase client due to a deadlock in supabase-js v2.95 inside `onAuthStateChange`. Don't change this pattern until supabase-js is upgraded.
 
 **DaisyUI v5 CSS variable format.** DaisyUI v5 stores theme color variables as full color values (e.g. `--color-primary: oklch(62.31% 0.1881 259.82)`), not as raw channel values. Use `var(--color-primary)` directly in CSS — never `oklch(var(--color-primary))`, which double-wraps the value and produces invalid CSS. This differs from DaisyUI v4 behavior.
@@ -120,6 +122,8 @@ V2 schema with migrations in `supabase/migrations/`. Key migrations:
 - `20260513000004` — Revoke public execute: `REVOKE FROM PUBLIC` + `GRANT TO authenticated` for all SECURITY DEFINER functions
 - `20260513000005` — Fix `user_profiles` recursion: introduced `get_my_organization_id()` SECURITY DEFINER helper
 - `20260513000006` — Opt out of Supabase default grants (explicit GRANTs now required for new tables)
+- `20260514000001` — Add `visible_to_all_staff BOOLEAN NOT NULL DEFAULT false` to `activities`
+- `20260514000002` — Add `start_time_override TIME` and `end_time_override TIME` (both nullable) to `enrollments`
 
 **Important — new tables require explicit GRANTs:** As of May 2026 we opted into Supabase's new behavior where tables in `public` are not auto-exposed to the Data API. Every new table must include:
 ```sql
