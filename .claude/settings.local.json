@@ -39,7 +39,26 @@
       "Bash(trivy --version)",
       "Bash(npm audit:*)",
       "Bash(node \"C:/Users/dansl/.claude/plugins/cache/variant-systems-skills/code-audit/2.1.0/code-audit/scripts/audit.mjs\" .)",
-      "Bash(supabase migration *)"
+      "Bash(supabase migration *)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(npx playwright *)",
+      "Bash(cat)",
+      "Bash(node /tmp/verify-86-1.mjs)",
+      "Bash(node /tmp/verify-86-1.cjs)",
+      "Bash(npm list *)",
+      "Bash(npm init *)",
+      "Bash(node /tmp/pw-test/verify.cjs)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(npx playwright@latest test --reporter=list)",
+      "Bash(node -e ' *)",
+      "Bash(kill %1)",
+      "Bash(gh issue *)",
+      "Bash(brew list *)",
+      "Read(//Users/daniellang/bin/**)",
+      "Read(//Users/daniellang/.local/bin/**)",
+      "Bash(command -v gh)"
     ]
   }
 }

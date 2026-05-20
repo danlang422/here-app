@@ -39,5 +39,21 @@
     "supabase": "^2.84.5",
     "tailwindcss": "^4.1.18",
     "vite": "^7.3.1"
-  }
+  },
+  "description": "Attendance tracking and student engagement for City View Community High School.",
+  "main": "eslint.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danlang422/here-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/danlang422/here-app/issues"
+  },
+  "homepage": "https://github.com/danlang422/here-app#readme"
 }
