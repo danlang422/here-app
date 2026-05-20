@@ -9,6 +9,7 @@ import { ensureActivityInstances } from '@/api/agenda'
 import { formatDateISO, addDays, subDays, isSameDay } from '@/lib/scheduleUtils'
 import SingleDayAgenda from '@/components/agenda/SingleDayAgenda'
 import TeacherActivityCard from '@/components/agenda/TeacherActivityCard'
+import ClusterPopover from '@/components/agenda/ClusterPopover'
 import RosterModal from '@/components/roster/RosterModal'
 import {
   timeToMinutes,
@@ -16,11 +17,13 @@ import {
   ceilToHour,
   DEFAULT_GRID_START,
   DEFAULT_GRID_END,
+  buildTeacherRenderables,
 } from '@/components/agenda/agendaUtils'
 
 function Dashboard() {
   const [date, setDate] = useState(getDevToday()) // DEV OVERRIDE
   const [rosterTarget, setRosterTarget] = useState(null)
+  const [clusterPopover, setClusterPopover] = useState(null) // { renderable, anchorRect }
   const profile = useAuthStore((s) => s.profile)
   const orgId = profile?.organization_id
   const teacherId = profile?.id
@@ -63,64 +66,21 @@ function Dashboard() {
 
   const blockLabels = orgSettings?.block_labels ?? []
 
-  // Block grouping with simplified two-tier density
-  const displayItems = useMemo(() => {
-    const blockGroups = groupByBlock(activities)
-    const items = []
-
-    for (const [blockKey, groupActivities] of blockGroups) {
-      if (groupActivities.length === 1) {
-        const activity = groupActivities[0]
-        items.push({
-          ...activity,
-          isAggregate: false,
-          enrollmentCount: enrollmentCounts.get(activity.id) ?? 0,
-        })
-      } else {
-        const starts = groupActivities
-          .map((a) => a.default_start_time)
-          .filter(Boolean)
-        const ends = groupActivities
-          .map((a) => a.default_end_time)
-          .filter(Boolean)
-        const earliestStart = starts.reduce((a, b) => (a < b ? a : b))
-        const latestEnd = ends.reduce((a, b) => (a > b ? a : b))
-        const totalEnrollment = groupActivities.reduce(
-          (sum, a) => sum + (enrollmentCounts.get(a.id) ?? 0),
-          0
-        )
-
-        items.push({
-          id: `agg-${blockKey}`,
-          isAggregate: true,
-          block: blockKey === 'null' ? null : Number(blockKey),
-          activities: groupActivities.map((a) => ({
-            ...a,
-            enrollmentCount: enrollmentCounts.get(a.id) ?? 0,
-          })),
-          activityCount: groupActivities.length,
-          totalEnrollment,
-          default_start_time: earliestStart,
-          default_end_time: latestEnd,
-        })
-      }
-    }
-
-    return items.sort((a, b) => {
-      if (!a.default_start_time || !b.default_start_time) return 0
-      return a.default_start_time.localeCompare(b.default_start_time)
-    })
-  }, [activities, enrollmentCounts])
+  // Role-aware time clustering — replaces block aggregation
+  const renderables = useMemo(
+    () => buildTeacherRenderables(activities, enrollmentCounts, teacherId),
+    [activities, enrollmentCounts, teacherId]
+  )
 
   // Grid bounds
   const gridBounds = useMemo(() => {
-    if (displayItems.length === 0) {
+    if (renderables.length === 0) {
       return { start: DEFAULT_GRID_START, end: DEFAULT_GRID_END }
     }
-    const starts = displayItems
+    const starts = renderables
       .map((a) => a.default_start_time)
       .filter(Boolean)
-    const ends = displayItems
+    const ends = renderables
       .map((a) => a.default_end_time)
       .filter(Boolean)
     if (starts.length === 0) {
@@ -136,7 +96,7 @@ function Dashboard() {
       end:
         maxEnd > DEFAULT_GRID_END ? ceilToHour(maxEnd) : DEFAULT_GRID_END,
     }
-  }, [displayItems])
+  }, [renderables])
 
   const gridStartMinutes = timeToMinutes(gridBounds.start)
   const gridEndMinutes = timeToMinutes(gridBounds.end)
@@ -150,16 +110,12 @@ function Dashboard() {
         day: 'numeric',
       })
 
-  // Render card function with wave counts and attendance indicator
   const renderCard = (item) => {
-    const waveCount = item.isAggregate
-      ? item.activities.reduce(
-          (sum, a) => sum + (actionSummary?.waveCounts?.get(a.id) ?? 0),
-          0
-        )
+    const waveCount = item.isCluster
+      ? item.activities.reduce((sum, a) => sum + (actionSummary?.waveCounts?.get(a.id) ?? 0), 0)
       : (actionSummary?.waveCounts?.get(item.id) ?? 0)
 
-    const hasAttendanceRecords = item.isAggregate
+    const hasAttendanceRecords = item.isCluster
       ? item.activities.some((a) => actionSummary?.hasAttendanceRecords?.get(a.id))
       : (actionSummary?.hasAttendanceRecords?.get(item.id) ?? false)
 
@@ -169,16 +125,17 @@ function Dashboard() {
         blockLabels={blockLabels}
         waveCount={waveCount}
         hasAttendanceRecords={hasAttendanceRecords}
-        onClick={() => handleCardClick(item)}
+        onClick={(e) => handleCardClick(item, e)}
       />
     )
   }
 
-  function handleCardClick(item) {
-    if (item.isAggregate) {
-      setRosterTarget({ activities: item.activities, isAggregate: true })
+  function handleCardClick(item, e) {
+    if (item.isCluster) {
+      const anchorRect = e.currentTarget.getBoundingClientRect()
+      setClusterPopover({ renderable: item, anchorRect })
     } else {
-      setRosterTarget({ activities: [item], isAggregate: false })
+      setRosterTarget(item.activity)
     }
   }
 
@@ -191,7 +148,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       {/* Date navigation header */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -240,9 +197,9 @@ function Dashboard() {
       )}
 
       {/* Content */}
-      {!isLoading && displayItems.length > 0 && (
+      {!isLoading && renderables.length > 0 && (
         <SingleDayAgenda
-          activities={displayItems}
+          activities={renderables}
           gridStartMinutes={gridStartMinutes}
           gridEndMinutes={gridEndMinutes}
           renderCard={renderCard}
@@ -250,7 +207,7 @@ function Dashboard() {
       )}
 
       {/* Empty state */}
-      {!isLoading && displayItems.length === 0 && (
+      {!isLoading && renderables.length === 0 && (
         <div className="card bg-base-100 shadow-sm border border-base-300">
           <div className="card-body items-center text-center py-16">
             <CalendarBlank size={40} weight="thin" className="text-base-content/30 mb-2" />
@@ -261,11 +218,25 @@ function Dashboard() {
         </div>
       )}
 
+      {/* Cluster popover */}
+      {clusterPopover && (
+        <ClusterPopover
+          renderable={clusterPopover.renderable}
+          anchorRect={clusterPopover.anchorRect}
+          blockLabels={blockLabels}
+          onMemberClick={(activity) => {
+            setClusterPopover(null)
+            setRosterTarget(activity)
+          }}
+          onClose={() => setClusterPopover(null)}
+        />
+      )}
+
       {/* Roster modal */}
       {rosterTarget && (
         <RosterModal
-          activities={rosterTarget.activities}
-          isAggregate={rosterTarget.isAggregate}
+          activities={[rosterTarget]}
+          isAggregate={false}
           date={date}
           orgId={orgId}
           teacherId={teacherId}
@@ -277,18 +248,6 @@ function Dashboard() {
       )}
     </div>
   )
-}
-
-// Simple group-by-block — activityMeetsToday has already filtered,
-// so no need to re-check days_of_week like groupActivitiesByBlock does.
-function groupByBlock(activities) {
-  const map = new Map()
-  for (const a of activities) {
-    const key = a.block?.length > 0 ? String(a.block[0]) : 'null'
-    if (!map.has(key)) map.set(key, [])
-    map.get(key).push(a)
-  }
-  return map
 }
 
 export default Dashboard
