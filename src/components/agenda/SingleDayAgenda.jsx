@@ -4,6 +4,10 @@ import {
   activityHeight,
   TIME_COL_WIDTH,
   GRID_PAD_Y,
+  computeOverlapLayout,
+  CARD_PAD_LEFT,
+  CARD_PAD_RIGHT,
+  CARD_OVERLAP_GAP,
 } from './agendaUtils'
 
 function SingleDayAgenda({
@@ -62,21 +66,39 @@ function SingleDayAgenda({
         })}
 
         {/* Positioned activity cards */}
-        {activities.map((activity, idx) => (
-          <div
-            key={activity.id}
-            className="absolute left-2 right-5"
-            style={{
-              top: `${activityTop(activity, gridStartMinutes) + GRID_PAD_Y}px`,
-              height: `${activityHeight(activity)}px`,
-              zIndex: 10,
-              animation: 'fade-up 0.3s ease both',
-              animationDelay: `${idx * 80}ms`,
-            }}
-          >
-            {renderCard(activity)}
-          </div>
-        ))}
+        {computeOverlapLayout(activities).map(({ activity, columnIndex, nColumns }, idx) => {
+          const top = activityTop(activity, gridStartMinutes) + GRID_PAD_Y
+          const height = activityHeight(activity)
+
+          let posStyle
+          if (nColumns === 1) {
+            posStyle = { left: CARD_PAD_LEFT, right: CARD_PAD_RIGHT, top, height }
+          } else {
+            const reserved = CARD_PAD_LEFT + CARD_PAD_RIGHT
+            const gaps = (nColumns - 1) * CARD_OVERLAP_GAP
+            const widthCalc = `calc((100% - ${reserved + gaps}px) / ${nColumns})`
+            const leftCalc =
+              columnIndex === 0
+                ? `${CARD_PAD_LEFT}px`
+                : `calc(${CARD_PAD_LEFT}px + ${columnIndex} * ((100% - ${reserved + gaps}px) / ${nColumns} + ${CARD_OVERLAP_GAP}px))`
+            posStyle = { left: leftCalc, width: widthCalc, top, height }
+          }
+
+          return (
+            <div
+              key={activity.id}
+              className="absolute"
+              style={{
+                ...posStyle,
+                zIndex: 10,
+                animation: 'fade-up 0.3s ease both',
+                animationDelay: `${idx * 80}ms`,
+              }}
+            >
+              {renderCard(activity)}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
