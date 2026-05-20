@@ -247,6 +247,71 @@ export function buildTeacherRenderables(activities, enrollmentCounts, viewerId, 
   return renderables
 }
 
+// Like buildTeacherRenderables but for activities where the viewer has no role.
+// Groups by (start_time, end_time) only — no role derivation or role filter.
+export function buildOthersRenderables(activities, enrollmentCounts, lateArrivals) {
+  if (!activities?.length) return []
+
+  const groups = new Map()
+  for (const activity of activities) {
+    const key = `${activity.default_start_time}|${activity.default_end_time}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(activity)
+  }
+
+  const renderables = []
+  for (const groupActivities of groups.values()) {
+    if (groupActivities.length === 1) {
+      const activity = groupActivities[0]
+      const late = lateArrivals?.get(activity.id)
+      renderables.push({
+        id: activity.id,
+        default_start_time: activity.default_start_time,
+        default_end_time: activity.default_end_time,
+        role: null,
+        isCluster: false,
+        activity,
+        enrollmentCount: enrollmentCounts?.get(activity.id) ?? 0,
+        lateCount: late?.count ?? 0,
+        earliestArrival: late?.earliestTime ?? null,
+      })
+    } else {
+      const start = groupActivities[0].default_start_time
+      const end = groupActivities[0].default_end_time
+      const sortedIds = groupActivities.map((a) => a.id).sort()
+      const totalEnrollment = groupActivities.reduce(
+        (sum, a) => sum + (enrollmentCounts?.get(a.id) ?? 0),
+        0
+      )
+      let totalLate = 0
+      let clusterEarliest = null
+      for (const a of groupActivities) {
+        const late = lateArrivals?.get(a.id)
+        if (late) {
+          totalLate += late.count
+          if (!clusterEarliest || late.earliestTime < clusterEarliest) clusterEarliest = late.earliestTime
+        }
+      }
+      renderables.push({
+        id: `cluster-${start}-${end}-null-${sortedIds.join(',')}`,
+        default_start_time: start,
+        default_end_time: end,
+        role: null,
+        isCluster: true,
+        activities: groupActivities,
+        totalEnrollment,
+        clusterTitle: computeClusterTitle(groupActivities),
+        memberCount: groupActivities.length,
+        block: [...new Set(groupActivities.flatMap((a) => a.block ?? []))],
+        lateCount: totalLate,
+        earliestArrival: clusterEarliest,
+      })
+    }
+  }
+
+  return renderables
+}
+
 // Derives a display title for a cluster of activities.
 // Homogeneous clusters: "3 Internships", "2 Advisory", "4 Independent Studies"
 // Heterogeneous clusters: "3 activities"

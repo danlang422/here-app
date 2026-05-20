@@ -124,6 +124,8 @@ V2 schema with migrations in `supabase/migrations/`. Key migrations:
 - `20260513000006` — Opt out of Supabase default grants (explicit GRANTs now required for new tables)
 - `20260514000001` — Add `visible_to_all_staff BOOLEAN NOT NULL DEFAULT false` to `activities`
 - `20260514000002` — Add `start_time_override TIME` and `end_time_override TIME` (both nullable) to `enrollments`
+- `20260520000001` — RLS extension for visible-to-all staff: extends teacher read/write access to `enrollments`, `activity_instances`, and `attendance_records` for `visible_to_all_staff` activities; introduces `activity_is_visible_to_all()` SECURITY DEFINER helper; Path A write access confirmed
+- `20260520000002` — Add "Teachers read visible-to-all activities" SELECT policy on `activities` table (missed in 000001; non-assigned teachers couldn't read the activity row itself)
 
 **Important — new tables require explicit GRANTs:** As of May 2026 we opted into Supabase's new behavior where tables in `public` are not auto-exposed to the Data API. Every new table must include:
 ```sql
@@ -181,11 +183,16 @@ Schema docs are in `docs/schema/` — these are the authoritative source for tab
 | `role-derivation-helper-build-spec.md` | **Implemented** | `src/lib/staffRoles.js` with `getViewerRole(activity, viewerId)`. Merged as #90, session 39. |
 | `visible-to-all-staff-flag-build-spec.md` | **Implemented** | `visible_to_all_staff BOOLEAN` on `activities` + `ActivityDetail` behavior flags row. Flag dormant until #86 consumes it. Merged as #91, session 39. |
 | `enrollment-time-overrides-build-spec.md` | **Implemented** | `start_time_override` / `end_time_override` on `enrollments`, extended `EnrollmentScheduleEditor` and summary text, `canEdit` gate relaxed. Data layer for #87. Merged as #92, session 39. |
-| `teacher-agenda-86.1-overlap-resolution-design.md` | **Design ready** | Sub-area design for #86. `SingleDayAgenda` becomes content-agnostic overlap-resolving primitive via interval-graph greedy coloring. Closes #88. Awaiting Claude Code build spec. Session 40. |
-| `teacher-agenda-86.2-dashboard-and-clustering-design.md` | **Design ready** | Sub-area design for #86. Core rewrite: role-aware time clustering replaces block-aggregation in `Dashboard.jsx`. Designs cluster card, cluster popover, transformation pipeline. Resolves open questions on cluster titles and peek text. Session 40. |
-| `teacher-agenda-86.3-late-arrival-ui-design.md` | **Design ready** | Sub-area design for #86. Amber chip on cards/clusters, "Arriving later" roster section. Consumes session 39's enrollment time overrides. Closes UI side of #87. Session 40. |
-| `teacher-agenda-86.4-block-attendance-and-combined-roster-design.md` | **Design ready** | Sub-area design for #86. Block-attendance button row + combined roster modal. "Mark all P" stays per-section (interim, pending future default-attendance-mode feature). Session 40. |
-| `teacher-agenda-86.5-sidebar-and-rls-extension-design.md` | **Design ready** | Sub-area design for #86. Sidebar surfaces visible-to-all activities (yours / others' sections). Designs RLS extension on `enrollments`/`activity_instances`/`attendance_records`. Path A (widen write access) recommended pending build-spec confirmation. Session 40. |
+| `teacher-agenda-86.1-overlap-resolution-design.md` | **Implemented** | Sub-area design for #86. `SingleDayAgenda` content-agnostic overlap-resolving primitive via interval-graph greedy coloring. Closes #88. See build spec. Session 40; built session 41. |
+| `teacher-agenda-86.1-overlap-resolution-build-spec.md` | **Implemented** | Build spec for 86.1. `SingleDayAgenda` column layout, PX_PER_HOUR increase, greedy coloring algorithm. Built session 41. |
+| `teacher-agenda-86.2-dashboard-and-clustering-design.md` | **Implemented** | Sub-area design for #86. Role-aware time clustering replaces block-aggregation in `Dashboard.jsx`. Cluster card, cluster popover, transformation pipeline. Resolves cluster title and peek text open questions. Session 40; built session 41. |
+| `teacher-agenda-86.2-dashboard-and-clustering-build-spec.md` | **Implemented** | Build spec for 86.2. `TeacherActivityCard`, cluster cards, cluster popover, `buildTeacherRenderables` pipeline. Built session 41. |
+| `teacher-agenda-86.3-late-arrival-ui-design.md` | **Implemented** | Sub-area design for #86. Amber chip on cards/clusters, "Arriving later" roster section. Consumes session 39's enrollment time overrides. Closes UI side of #87. Session 40; built session 41. |
+| `teacher-agenda-86.3-late-arrival-ui-build-spec.md` | **Implemented** | Build spec for 86.3. Late-arrival amber chip, "Arriving later" roster section, `end_time_override` inline annotation. Built session 41. |
+| `teacher-agenda-86.4-block-attendance-and-combined-roster-design.md` | **Implemented** | Sub-area design for #86. Block-attendance button row + combined roster modal. "Mark all P" stays per-section (interim, pending future default-attendance-mode feature). Session 40; built session 41. |
+| `teacher-agenda-86.4-block-attendance-combined-roster-build-spec.md` | **Implemented** | Build spec for 86.4. Block attendance button row, `BlockRosterModal` combined roster. Built session 41. |
+| `teacher-agenda-86.5-sidebar-and-rls-extension-design.md` | **Implemented** | Sub-area design for #86. Sidebar surfaces visible-to-all activities (yours / others' sections). RLS extension on `enrollments`/`activity_instances`/`attendance_records`. Path A confirmed. Session 40; built session 41. |
+| `teacher-agenda-86.5-sidebar-and-rls-extension-build-spec.md` | **Implemented** | Build spec for 86.5. `AgendaSidebar` visible-to-all sections, `buildOthersRenderables`, RLS migrations 000001–000002. Built session 41. |
 
 ## Workflow
 
