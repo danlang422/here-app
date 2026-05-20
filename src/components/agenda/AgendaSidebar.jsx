@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { ArrowUDownLeft } from '@phosphor-icons/react'
-import { buildTeacherRenderables, formatTimeRange, formatTime } from './agendaUtils'
+import { buildTeacherRenderables, buildOthersRenderables, formatTimeRange, formatTime } from './agendaUtils'
 import { getBlockLabel } from '@/lib/constants'
 import SidebarPopover from './SidebarPopover'
 
@@ -48,10 +48,11 @@ function SidebarItem({ item, isMine, blockLabels, onClick }) {
         <span className="text-sm font-medium leading-tight truncate min-w-0">{title}</span>
         <LateArrivalChip count={item.lateCount} earliestTime={item.earliestArrival} />
       </div>
-      <div className="flex items-center gap-1.5 mt-0.5">
-        <RoleBadge role={item.role} />
-        {timeRange && <span className="text-xs text-base-content/50">{timeRange}</span>}
-      </div>
+      {timeRange && (
+        <div className="mt-0.5">
+          <span className="text-xs text-base-content/50">{timeRange}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -77,8 +78,8 @@ function AgendaSidebar({
   )
 
   const othersRenderables = useMemo(
-    () => buildTeacherRenderables(others, new Map(), teacherId, lateArrivals),
-    [others, lateArrivals, teacherId]
+    () => buildOthersRenderables(others, enrollmentCounts, lateArrivals),
+    [others, enrollmentCounts, lateArrivals]
   )
 
   function handleItemClick(item, e) {
