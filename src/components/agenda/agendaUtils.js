@@ -1,5 +1,5 @@
 // Agenda grid layout constants
-export const PX_PER_HOUR = 100
+export const PX_PER_HOUR = 200
 export const TIME_COL_WIDTH = 48
 export const DAY_COL_MIN_WIDTH = 140
 
@@ -13,6 +13,11 @@ export const DEFAULT_GRID_END = '16:00'
 // Density thresholds
 export const DENSITY_FEW_MAX = 3   // 2–3 = "few"
 export const DENSITY_AGG_MIN = 4   // 4+ = aggregate
+
+// Card column padding — matches current left-2 / right-5 Tailwind values
+export const CARD_PAD_LEFT = 8    // px
+export const CARD_PAD_RIGHT = 20  // px — preserves space for StudentActivityCard edge buttons
+export const CARD_OVERLAP_GAP = 4 // px — gap between concurrent columns
 
 // --- Time helpers ---
 
@@ -71,6 +76,92 @@ export function activityMeetsDay(activity, dayValue) {
   }
   // No days_of_week set: show on all weekdays
   return true
+}
+
+// --- Overlap layout ---
+
+// Returns an array of { activity, columnIndex, nColumns } descriptors, one per activity.
+// nColumns === 1 means the activity is in a solo group and renders at full width.
+export function computeOverlapLayout(activities) {
+  if (activities.length === 0) return []
+
+  const n = activities.length
+
+  // Build adjacency: two activities overlap if a.start < b.end AND b.start < a.end
+  const adj = Array.from({ length: n }, () => [])
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const a = activities[i], b = activities[j]
+      if (!a.default_start_time || !a.default_end_time || !b.default_start_time || !b.default_end_time) continue
+      const aStart = timeToMinutes(a.default_start_time)
+      const aEnd   = timeToMinutes(a.default_end_time)
+      const bStart = timeToMinutes(b.default_start_time)
+      const bEnd   = timeToMinutes(b.default_end_time)
+      if (aStart < bEnd && bStart < aEnd) {
+        adj[i].push(j)
+        adj[j].push(i)
+      }
+    }
+  }
+
+  // Find connected components (concurrency groups) via BFS
+  const visited = new Array(n).fill(false)
+  const groups = []
+  for (let i = 0; i < n; i++) {
+    if (visited[i]) continue
+    const group = []
+    const queue = [i]
+    visited[i] = true
+    while (queue.length > 0) {
+      const curr = queue.shift()
+      group.push(curr)
+      for (const nb of adj[curr]) {
+        if (!visited[nb]) {
+          visited[nb] = true
+          queue.push(nb)
+        }
+      }
+    }
+    groups.push(group)
+  }
+
+  // Greedy interval coloring within each group
+  const colIdx = new Array(n).fill(0)
+  const nCols  = new Array(n).fill(1)
+
+  for (const group of groups) {
+    if (group.length === 1) continue
+
+    const sorted = [...group].sort((ai, bi) => {
+      const a = activities[ai], b = activities[bi]
+      if (a.default_start_time !== b.default_start_time)
+        return a.default_start_time.localeCompare(b.default_start_time)
+      if (a.default_end_time !== b.default_end_time)
+        return a.default_end_time.localeCompare(b.default_end_time)
+      return String(a.id).localeCompare(String(b.id))
+    })
+
+    const colEnds = []
+    for (const idx of sorted) {
+      const start = activities[idx].default_start_time
+      let assigned = colEnds.findIndex((end) => end <= start)
+      if (assigned === -1) {
+        assigned = colEnds.length
+        colEnds.push(activities[idx].default_end_time)
+      } else {
+        colEnds[assigned] = activities[idx].default_end_time
+      }
+      colIdx[idx] = assigned
+    }
+
+    for (const idx of group) nCols[idx] = colEnds.length
+  }
+
+  return activities.map((activity, i) => ({
+    activity,
+    columnIndex: colIdx[i],
+    nColumns: nCols[i],
+  }))
 }
 
 export function groupActivitiesForLayout(activities, dayValue) {
