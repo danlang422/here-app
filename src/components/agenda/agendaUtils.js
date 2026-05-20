@@ -1,3 +1,5 @@
+import { getViewerRole } from '@/lib/staffRoles'
+
 // Agenda grid layout constants
 export const PX_PER_HOUR = 200
 export const TIME_COL_WIDTH = 48
@@ -10,9 +12,9 @@ export const GRID_PAD_Y = 12
 export const DEFAULT_GRID_START = '07:00'
 export const DEFAULT_GRID_END = '16:00'
 
-// Density thresholds
-export const DENSITY_FEW_MAX = 3   // 2–3 = "few"
-export const DENSITY_AGG_MIN = 4   // 4+ = aggregate
+// Density thresholds (used by CalendarDayColumn)
+export const DENSITY_FEW_MAX = 3
+export const DENSITY_AGG_MIN = 4
 
 // Card column padding — matches current left-2 / right-5 Tailwind values
 export const CARD_PAD_LEFT = 8    // px
@@ -164,6 +166,120 @@ export function computeOverlapLayout(activities) {
   }))
 }
 
+// --- Teacher clustering ---
+
+// Transforms a flat list of teacher activities into renderable units for SingleDayAgenda.
+// Each unit is either a solo card or a cluster card.
+// Activities sharing (start_time, end_time, role) collapse into a cluster.
+// enrollmentCounts: Map<activityId, number> — from useTeacherAgenda
+export function buildTeacherRenderables(activities, enrollmentCounts, viewerId) {
+  if (!activities?.length) return []
+
+  // Step 1: derive role per activity, apply prep detection
+  const withRoles = []
+  for (const activity of activities) {
+    const rawRole = getViewerRole(activity, viewerId)
+    if (!rawRole) continue
+    const count = enrollmentCounts?.get(activity.id) ?? 0
+    const role = rawRole === 'teacher' && count === 0 ? 'prep' : rawRole
+    withRoles.push({ activity, role, enrollmentCount: count })
+  }
+
+  // Step 2: group by (start_time, end_time, role)
+  const groups = new Map()
+  for (const item of withRoles) {
+    const key = `${item.activity.default_start_time}|${item.activity.default_end_time}|${item.role}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(item)
+  }
+
+  // Step 3: emit renderable units
+  const renderables = []
+  for (const groupItems of groups.values()) {
+    if (groupItems.length === 1) {
+      const { activity, role, enrollmentCount } = groupItems[0]
+      renderables.push({
+        id: activity.id,
+        default_start_time: activity.default_start_time,
+        default_end_time: activity.default_end_time,
+        role,
+        isCluster: false,
+        activity,
+        enrollmentCount,
+      })
+    } else {
+      const { role } = groupItems[0]
+      const clusterActivities = groupItems.map((g) => g.activity)
+      const totalEnrollment = groupItems.reduce((sum, g) => sum + g.enrollmentCount, 0)
+      const start = groupItems[0].activity.default_start_time
+      const end = groupItems[0].activity.default_end_time
+      const sortedIds = [...clusterActivities.map((a) => a.id)].sort()
+      renderables.push({
+        id: `cluster-${start}-${end}-${role}-${sortedIds.join(',')}`,
+        default_start_time: start,
+        default_end_time: end,
+        role,
+        isCluster: true,
+        activities: clusterActivities,
+        totalEnrollment,
+        clusterTitle: computeClusterTitle(clusterActivities),
+        memberCount: clusterActivities.length,
+        block: [...new Set(clusterActivities.flatMap((a) => a.block ?? []))],
+      })
+    }
+  }
+
+  return renderables
+}
+
+// Derives a display title for a cluster of activities.
+// Homogeneous clusters: "3 Internships", "2 Advisory", "4 Independent Studies"
+// Heterogeneous clusters: "3 activities"
+export function computeClusterTitle(activities) {
+  const count = activities.length
+  const STOPWORDS = new Set(['the', 'a', 'an', 'of', 'at', 'in', 'for'])
+
+  const wordArrays = activities.map((a) =>
+    a.name
+      .trim()
+      .split(/\s+/)
+      .map((w) => w.toLowerCase())
+      .filter((w) => /[a-z]/i.test(w) && !STOPWORDS.has(w))
+  )
+
+  const minLen = Math.min(...wordArrays.map((ws) => ws.length))
+  let prefixLen = 0
+  for (let i = 0; i < minLen; i++) {
+    if (wordArrays.every((ws) => ws[i] === wordArrays[0][i])) prefixLen = i + 1
+    else break
+  }
+
+  if (prefixLen >= 1) {
+    const prefixWords = wordArrays[0].slice(0, prefixLen)
+    const phrase = prefixWords.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    return `${count} ${pluralizePhrase(phrase)}`
+  }
+
+  return `${count} activities`
+}
+
+function pluralizePhrase(phrase) {
+  const words = phrase.split(' ')
+  const last = words[words.length - 1]
+  const rest = words.slice(0, -1)
+  return [...rest, pluralizeWord(last)].join(' ')
+}
+
+function pluralizeWord(word) {
+  const lw = word.toLowerCase()
+  if (lw === 'advisory') return word.slice(0, -1) + 'ies'
+  if (lw.endsWith('y') && !/[aeiou]y$/.test(lw)) return word.slice(0, -1) + 'ies'
+  if (/[sxz]$/.test(lw) || /[cs]h$/.test(lw)) return word + 'es'
+  return word + 's'
+}
+
+// --- Calendar layout (used by CalendarDayColumn) ---
+
 export function groupActivitiesForLayout(activities, dayValue) {
   const map = new Map()
   const nullGroup = []
@@ -179,7 +295,6 @@ export function groupActivitiesForLayout(activities, dayValue) {
     }
   }
 
-  // Cluster null-block activities by time overlap (gap tolerance: 15 minutes)
   if (nullGroup.length > 0) {
     const sorted = [...nullGroup].sort((a, b) =>
       (a.default_start_time ?? '').localeCompare(b.default_start_time ?? '')
