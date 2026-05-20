@@ -106,7 +106,7 @@ export async function getTeacherActivitiesForDate(teacherId, orgId) {
 
   const { data: enrollments, error: enrollError } = await supabase
     .from('enrollments')
-    .select('activity_id, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date')
+    .select('activity_id, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date, start_time_override')
     .in('activity_id', activityIds)
     .eq('is_active', true)
 

@@ -172,7 +172,8 @@ export function computeOverlapLayout(activities) {
 // Each unit is either a solo card or a cluster card.
 // Activities sharing (start_time, end_time, role) collapse into a cluster.
 // enrollmentCounts: Map<activityId, number> — from useTeacherAgenda
-export function buildTeacherRenderables(activities, enrollmentCounts, viewerId) {
+// lateArrivals: Map<activityId, { count, earliestTime }> — from useTeacherAgenda
+export function buildTeacherRenderables(activities, enrollmentCounts, viewerId, lateArrivals) {
   if (!activities?.length) return []
 
   // Step 1: derive role per activity, apply prep detection
@@ -198,6 +199,7 @@ export function buildTeacherRenderables(activities, enrollmentCounts, viewerId) 
   for (const groupItems of groups.values()) {
     if (groupItems.length === 1) {
       const { activity, role, enrollmentCount } = groupItems[0]
+      const late = lateArrivals?.get(activity.id)
       renderables.push({
         id: activity.id,
         default_start_time: activity.default_start_time,
@@ -206,6 +208,8 @@ export function buildTeacherRenderables(activities, enrollmentCounts, viewerId) 
         isCluster: false,
         activity,
         enrollmentCount,
+        lateCount: late?.count ?? 0,
+        earliestArrival: late?.earliestTime ?? null,
       })
     } else {
       const { role } = groupItems[0]
@@ -214,6 +218,15 @@ export function buildTeacherRenderables(activities, enrollmentCounts, viewerId) 
       const start = groupItems[0].activity.default_start_time
       const end = groupItems[0].activity.default_end_time
       const sortedIds = [...clusterActivities.map((a) => a.id)].sort()
+      let totalLate = 0
+      let clusterEarliest = null
+      for (const { activity: a } of groupItems) {
+        const late = lateArrivals?.get(a.id)
+        if (late) {
+          totalLate += late.count
+          if (!clusterEarliest || late.earliestTime < clusterEarliest) clusterEarliest = late.earliestTime
+        }
+      }
       renderables.push({
         id: `cluster-${start}-${end}-${role}-${sortedIds.join(',')}`,
         default_start_time: start,
@@ -225,6 +238,8 @@ export function buildTeacherRenderables(activities, enrollmentCounts, viewerId) 
         clusterTitle: computeClusterTitle(clusterActivities),
         memberCount: clusterActivities.length,
         block: [...new Set(clusterActivities.flatMap((a) => a.block ?? []))],
+        lateCount: totalLate,
+        earliestArrival: clusterEarliest,
       })
     }
   }

@@ -35,9 +35,17 @@ function RosterModal({
   const [showFullRoster, setShowFullRoster] = useState(false)
   const queryClient = useQueryClient()
 
-  // Students to display in the list
-  const students = showFullRoster ? allStudents : todayStudents
   const hasFilteredStudents = todayStudents.length < allStudents.length
+
+  // Split display list into on-time and arriving-later sections
+  const displayStudents = showFullRoster ? allStudents : todayStudents
+  const onTimeStudents = displayStudents.filter((s) => s.startTimeOverride == null)
+  const lateStudents = displayStudents
+    .filter((s) => s.startTimeOverride != null)
+    .sort((a, b) => {
+      const timeCmp = a.startTimeOverride.localeCompare(b.startTimeOverride)
+      return timeCmp !== 0 ? timeCmp : a.lastName.localeCompare(b.lastName)
+    })
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -198,7 +206,7 @@ function RosterModal({
             </p>
           )}
 
-          {!isLoading && !error && allStudents.length > 0 && students.length === 0 && (
+          {!isLoading && !error && allStudents.length > 0 && displayStudents.length === 0 && (
             <p className="text-base-content/50 text-center py-8">
               No students scheduled today.{' '}
               <button className="text-primary underline-offset-2 hover:underline" onClick={() => setShowFullRoster(true)}>
@@ -207,20 +215,54 @@ function RosterModal({
             </p>
           )}
 
-          {!isLoading &&
-            !error &&
-            students.map((student, index) => (
-              <StudentRow
-                key={`${student.studentId}-${student.activityId}`}
-                student={student}
-                isAggregate={isAggregate}
-                currentStatus={getStudentStatus(student.studentId)}
-                onToggle={toggleAttendance}
-                actionData={getActionData(student)}
-                onClick={() => handleRowClick(student)}
-                isEven={index % 2 === 1}
-              />
-            ))}
+          {!isLoading && !error && displayStudents.length > 0 && (
+            <>
+              {onTimeStudents.map((student, index) => (
+                <StudentRow
+                  key={`${student.studentId}-${student.activityId}`}
+                  student={student}
+                  isAggregate={isAggregate}
+                  currentStatus={getStudentStatus(student.studentId)}
+                  onToggle={toggleAttendance}
+                  actionData={getActionData(student)}
+                  onClick={() => handleRowClick(student)}
+                  isEven={index % 2 === 1}
+                  timeAnnotation={
+                    student.endTimeOverride
+                      ? `leaves ${formatTime(student.endTimeOverride)}`
+                      : null
+                  }
+                />
+              ))}
+
+              {lateStudents.length > 0 && (
+                <>
+                  <div className="divider my-1" />
+                  <div className="px-2 py-1">
+                    <span className="text-sm font-medium text-warning">Arriving later</span>
+                  </div>
+                  {lateStudents.map((student, index) => {
+                    const annotation = student.endTimeOverride
+                      ? `arrives ${formatTime(student.startTimeOverride)} · leaves ${formatTime(student.endTimeOverride)}`
+                      : `arrives ${formatTime(student.startTimeOverride)}`
+                    return (
+                      <StudentRow
+                        key={`${student.studentId}-${student.activityId}`}
+                        student={student}
+                        isAggregate={isAggregate}
+                        currentStatus={getStudentStatus(student.studentId)}
+                        onToggle={toggleAttendance}
+                        actionData={getActionData(student)}
+                        onClick={() => handleRowClick(student)}
+                        isEven={index % 2 === 1}
+                        timeAnnotation={annotation}
+                      />
+                    )
+                  })}
+                </>
+              )}
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -268,6 +310,7 @@ function StudentRow({
   actionData,
   onClick,
   isEven,
+  timeAnnotation = null,
 }) {
   const displayName = student.preferredName
     ? `${student.preferredName} ${student.lastName}`
@@ -290,6 +333,11 @@ function StudentRow({
         <div className="min-w-20 max-w-35 text-sm text-base-content/50 italic truncate">
           {student.activityName}
         </div>
+      )}
+
+      {/* Time annotation (arrives / leaves) */}
+      {timeAnnotation && (
+        <span className="text-[11px] text-warning shrink-0">{timeAnnotation}</span>
       )}
 
       {/* Icon zone */}
