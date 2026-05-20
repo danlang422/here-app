@@ -143,14 +143,56 @@ Schema docs are in `docs/schema/` — these are the authoritative source for tab
 | `docs/business-logic/` | Schedule logic, check-in rules, attendance rules, enrollment validation |
 | `docs/architecture/` | Tech stack, data flow, auth, realtime, UI patterns |
 | `docs/session-notes/` | Per-session development logs (what was built, decisions made, issues encountered) |
-| `docs/user-flows/` | Per-feature documentation 
+| `docs/design-and-specs/` | Per-feature design docs, build specs, and UX narratives (full list below) |
+| `docs/demos/` | Standalone HTML demo pages used for design review |
+
+### Design and Spec Docs
+
+| File | Status | Notes |
+|------|--------|-------|
+| `admin-dashboard.md` | **Current** | Consolidated dashboard design. |
+| `agenda-view-build-spec.md` | **Implemented** | Built in session 8.2. |
+| `enrollment-panel-build-spec.md` | **Implemented / Pending redesign** | Original floating panel spec — implemented, but being replaced by inline enrollment (#51). |
+| `schedule-action-map.md` | **Current** | Activity states, action validation, build phasing. |
+| `enrollment-and-floating-panels.md` | **Historical** | Original design exploration, not a build reference. |
+| `activity-detail-and-form-redesign-spec.md` | **Implemented** | Unified view/edit detail modal, form redesign, table changes. |
+| `org-settings-build-spec.md` | **Implemented** | Block schedule, academic terms, rotation days. |
+| `calendar-management-build-spec.md` | **Implemented** | School days, exceptions, per-reason rotation. |
+| `student-agenda-today-view-build-spec.md` | **Implemented** | Student TodayView agenda built - buttons and functions need spec. |
+| `teacher-agenda-build-spec.md` | **Implemented** | Teacher Dashboard, roster modal, attendance marking. |
+| `student-actions-build-spec.md` | **Implemented** | Student action buttons and check-in flow |
+| `teacher-roster-student-actions-build-spec.md` | **Implemented** | Teacher visibility of student actions |
+| `student-schedule-view-build-spec.md` | **Pending Decisions** | Admin view of individual student schedule |
+| `activity-management-overhaul-build-spec.md` | **Built** | Admin activity page revamp + activity_term changes |
+| `user-feedback-system-build-spec.md` | **Implemented** | /Help page, FeedbackModal, submit-feedback Edge Function. Built session 16. GitHub Issues integration added session 19. |
+| `admin-calendar-redesign-design-doc.md` | **Current (partially reversed)** | Full design doc for the calendar redesign feature. The "activity splitting, not enrollment overrides" decision has been reversed by `enrollment-level-scheduling-design-doc.md`. |
+| `layer-0-build-spec.md` | **Implemented** | Schema integration, recurrence predicate, calendar CRUD API/hooks, ActivityDetail form fields. Built session 17. |
+| `layer-1-build-spec.md` | **Implemented** | Week view, calendar sidebar, event cards, block overlay fix, empty-slot create. Built session 17. |
+| `layer-2-build-spec.md` | **Implemented** | Time-slot clustering, inter-group column layout, aggregate card expansion, filter bar, recurrence-aware conflict detection. Built session 18. |
+| `filter-bar-expansion-design-doc.md` | **Implemented** | Design doc for filter bar expansion (block, time range, student filters). |
+| `filter-bar-expansion-build-spec.md` | **Implemented** | Block, time range, and student filters added to CalendarFilterBar. Student dimming threaded through WeekGrid → DayColumn → EventCard. Built session 20. |
+| `visual-design-system-design-doc.md` | **Implemented** | App-wide visual polish: palette, typography, Phosphor icon consolidation, interaction design, component styling, block overlay removal. Design doc session 23; implemented session 24. |
+| `enrollment-level-scheduling-design-doc.md` | **Implemented** | Per-student scheduling on enrollments. Schema migration, `enrollmentMeetsToday` predicate, conflict detection refactor, inline enrollment UI. Sessions 25–26. |
+| `geofence-location-search-build-spec.md` | **Implemented** | Nominatim geocoding on location field, silent lat/lng capture, GPS-fix indicator, geofence radius input. Built session 28. |
+| `dev-override-implementation-guide.md` | **Implemented** | Dev date/time override for demo — `getDevNow()`, `getDevToday()`, constant toggle. Built session 29. |
+| `attendance-rollup-design-doc.md` | **Implemented** | Admin attendance rollup view — block groups, status sorting, exception/full toggle, conflict detection. Built session 31. |
+| `public-facing-site-build-spec.md` | **Implemented** | Public landing page, trust/privacy page, about page, public layout, auth-aware root routing. Built session 33. |
+| `teacher-agenda-design-direction.md` | **Current** | Input to #86. Layout rules (time-axis, role-ordered row-fill, aggregation by time+role, cluster popover), late-arrival treatment, sidebar logic, open questions. Reference artifact: `teacher-agenda-demo-v2.html`. Session 37. |
+| `role-derivation-helper-build-spec.md` | **Implemented** | `src/lib/staffRoles.js` with `getViewerRole(activity, viewerId)`. Merged as #90, session 39. |
+| `visible-to-all-staff-flag-build-spec.md` | **Implemented** | `visible_to_all_staff BOOLEAN` on `activities` + `ActivityDetail` behavior flags row. Flag dormant until #86 consumes it. Merged as #91, session 39. |
+| `enrollment-time-overrides-build-spec.md` | **Implemented** | `start_time_override` / `end_time_override` on `enrollments`, extended `EnrollmentScheduleEditor` and summary text, `canEdit` gate relaxed. Data layer for #87. Merged as #92, session 39. |
+| `teacher-agenda-86.1-overlap-resolution-design.md` | **Design ready** | Sub-area design for #86. `SingleDayAgenda` becomes content-agnostic overlap-resolving primitive via interval-graph greedy coloring. Closes #88. Awaiting Claude Code build spec. Session 40. |
+| `teacher-agenda-86.2-dashboard-and-clustering-design.md` | **Design ready** | Sub-area design for #86. Core rewrite: role-aware time clustering replaces block-aggregation in `Dashboard.jsx`. Designs cluster card, cluster popover, transformation pipeline. Resolves open questions on cluster titles and peek text. Session 40. |
+| `teacher-agenda-86.3-late-arrival-ui-design.md` | **Design ready** | Sub-area design for #86. Amber chip on cards/clusters, "Arriving later" roster section. Consumes session 39's enrollment time overrides. Closes UI side of #87. Session 40. |
+| `teacher-agenda-86.4-block-attendance-and-combined-roster-design.md` | **Design ready** | Sub-area design for #86. Block-attendance button row + combined roster modal. "Mark all P" stays per-section (interim, pending future default-attendance-mode feature). Session 40. |
+| `teacher-agenda-86.5-sidebar-and-rls-extension-design.md` | **Design ready** | Sub-area design for #86. Sidebar surfaces visible-to-all activities (yours / others' sections). Designs RLS extension on `enrollments`/`activity_instances`/`attendance_records`. Path A (widen write access) recommended pending build-spec confirmation. Session 40. |
 
 ## Workflow
 
 Design decisions and feature planning happen in conversation with Daniel before implementation. This project follows a discuss-then-build pattern — by the time a task reaches Claude Code, the "what" and "why" should be documented.
 
 - Check `STATUS.md` for current priorities and next steps
-- Look for user flow docs in `docs/user-flows/` for feature-specific behavior specs (this directory is being built out incrementally, feature by feature)
+- Look for feature specs in `docs/design-and-specs/` — see the full table above for what's available and its status
 - The app is designed as a **schedule-building tool** — structure (blocks, templates) emerges from data (activities with real times), not the other way around. UI decisions should reflect this: don't gate features behind setup steps that haven't been completed yet.
 
 ## Issue Tracking
