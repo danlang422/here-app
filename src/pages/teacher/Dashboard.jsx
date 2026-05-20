@@ -13,6 +13,8 @@ import TeacherActivityCard from '@/components/agenda/TeacherActivityCard'
 import ClusterPopover from '@/components/agenda/ClusterPopover'
 import RosterModal from '@/components/roster/RosterModal'
 import BlockRosterModal from '@/components/roster/BlockRosterModal'
+import AgendaSidebar from '@/components/agenda/AgendaSidebar'
+import { useSidebarActivities } from '@/hooks/useSidebarActivities'
 import { getBlockLabel } from '@/lib/constants'
 import {
   timeToMinutes,
@@ -38,6 +40,14 @@ function Dashboard() {
     useTeacherAgenda(teacherId, date, orgId)
   const { data: orgSettings } = useOrgSettings(orgId)
   const { data: defaultTemplate } = useDefaultScheduleTemplate(orgId)
+
+  const {
+    yours: sidebarYours,
+    others: sidebarOthers,
+    enrollmentCounts: sidebarEnrollmentCounts,
+    lateArrivals: sidebarLateArrivals,
+    isLoading: sidebarLoading,
+  } = useSidebarActivities(orgId, date, teacherId, schoolDay)
 
   // Action summary for wave counts on cards and icons in roster
   const allActivityIds = useMemo(
@@ -159,7 +169,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       {/* Date navigation header */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -200,59 +210,84 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Block attendance buttons */}
-      {!isLoading && visibleBlocks.length > 0 && (
-        <div className="flex gap-2 flex-wrap mb-4">
-          {visibleBlocks.map((blockNum) => {
-            const label = getBlockLabel(blockNum, blockLabels)
-            const def = defaultTemplate?.block_definitions?.find((d) => d.block === blockNum)
-            const timeRange = def?.start_time && def?.end_time
-              ? formatTimeRange(def.start_time, def.end_time)
-              : null
-            return (
-              <button
-                key={blockNum}
-                className="btn btn-outline btn-sm flex flex-col items-start gap-0 h-auto py-1.5 px-3 min-w-[80px]"
-                onClick={() => setBlockRosterTarget(blockNum)}
-              >
-                <span className="font-semibold text-xs leading-tight">{label}</span>
-                {timeRange && (
-                  <span className="text-[10px] text-base-content/50 font-normal leading-tight">{timeRange}</span>
-                )}
-              </button>
-            )
-          })}
+      {/* Two-column layout: agenda + sidebar */}
+      <div className="flex gap-5 items-start">
+        {/* Agenda column */}
+        <div className="flex-1 min-w-0">
+          {/* Block attendance buttons */}
+          {!isLoading && visibleBlocks.length > 0 && (
+            <div className="flex gap-2 flex-wrap mb-4">
+              {visibleBlocks.map((blockNum) => {
+                const label = getBlockLabel(blockNum, blockLabels)
+                const def = defaultTemplate?.block_definitions?.find((d) => d.block === blockNum)
+                const timeRange = def?.start_time && def?.end_time
+                  ? formatTimeRange(def.start_time, def.end_time)
+                  : null
+                return (
+                  <button
+                    key={blockNum}
+                    className="btn btn-outline btn-sm flex flex-col items-start gap-0 h-auto py-1.5 px-3 min-w-[80px]"
+                    onClick={() => setBlockRosterTarget(blockNum)}
+                  >
+                    <span className="font-semibold text-xs leading-tight">{label}</span>
+                    {timeRange && (
+                      <span className="text-[10px] text-base-content/50 font-normal leading-tight">{timeRange}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Loading state */}
+          {isLoading && (
+            <div className="flex justify-center py-16">
+              <span className="loading loading-spinner loading-md" />
+            </div>
+          )}
+
+          {/* Content */}
+          {!isLoading && renderables.length > 0 && (
+            <SingleDayAgenda
+              activities={renderables}
+              gridStartMinutes={gridStartMinutes}
+              gridEndMinutes={gridEndMinutes}
+              renderCard={renderCard}
+            />
+          )}
+
+          {/* Empty state */}
+          {!isLoading && renderables.length === 0 && (
+            <div className="card bg-base-100 shadow-sm border border-base-300">
+              <div className="card-body items-center text-center py-16">
+                <CalendarBlank size={40} weight="thin" className="text-base-content/30 mb-2" />
+                <p className="text-base-content/50">
+                  {isToday ? "Nothing scheduled for today. Clear day!" : "No activities scheduled for this date."}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Loading state */}
-      {isLoading && (
-        <div className="flex justify-center py-16">
-          <span className="loading loading-spinner loading-md" />
-        </div>
-      )}
-
-      {/* Content */}
-      {!isLoading && renderables.length > 0 && (
-        <SingleDayAgenda
-          activities={renderables}
-          gridStartMinutes={gridStartMinutes}
-          gridEndMinutes={gridEndMinutes}
-          renderCard={renderCard}
-        />
-      )}
-
-      {/* Empty state */}
-      {!isLoading && renderables.length === 0 && (
-        <div className="card bg-base-100 shadow-sm border border-base-300">
-          <div className="card-body items-center text-center py-16">
-            <CalendarBlank size={40} weight="thin" className="text-base-content/30 mb-2" />
-            <p className="text-base-content/50">
-              {isToday ? "Nothing scheduled for today. Clear day!" : "No activities scheduled for this date."}
-            </p>
+        {/* Sidebar column — hidden on narrow viewports */}
+        {!sidebarLoading && (
+          <div className="hidden lg:block w-56 shrink-0">
+            <AgendaSidebar
+              yours={sidebarYours}
+              others={sidebarOthers}
+              enrollmentCounts={sidebarEnrollmentCounts}
+              lateArrivals={sidebarLateArrivals}
+              teacherId={teacherId}
+              date={date}
+              orgId={orgId}
+              blockLabels={blockLabels}
+              actionSummary={actionSummary}
+              schoolDay={schoolDay}
+              onOpenRoster={(activity) => setRosterTarget(activity)}
+            />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Cluster popover */}
       {clusterPopover && (
@@ -272,8 +307,8 @@ function Dashboard() {
       {/* Block roster modal */}
       {blockRosterTarget !== null && (
         <BlockRosterModal
-          blockLabel={getBlockLabel(blockRosterTarget, blockLabels)}
-          blockTimeRange={(() => {
+          groupTitle={getBlockLabel(blockRosterTarget, blockLabels)}
+          groupTimeRange={(() => {
             const def = defaultTemplate?.block_definitions?.find((d) => d.block === blockRosterTarget)
             return def?.start_time && def?.end_time ? formatTimeRange(def.start_time, def.end_time) : null
           })()}

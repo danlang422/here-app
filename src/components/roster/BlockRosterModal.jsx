@@ -28,7 +28,7 @@ function RoleBadge({ role }) {
 function deriveRole(activity, viewerId, enrollmentCounts) {
   const raw = getViewerRole(activity, viewerId)
   if (raw === 'teacher' && (enrollmentCounts?.get(activity.id) ?? 0) === 0) return 'prep'
-  return raw ?? 'teacher'
+  return raw
 }
 
 function ActivitySectionHeader({ activity, role, blockLabels, onMarkAllPresent }) {
@@ -41,7 +41,7 @@ function ActivitySectionHeader({ activity, role, blockLabels, onMarkAllPresent }
     <div className="px-2 pb-2">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="font-semibold text-sm">{activity.name}</span>
-        <RoleBadge role={role} />
+        {role && <RoleBadge role={role} />}
         <button
           className="text-xs text-primary underline-offset-2 hover:underline ml-auto"
           onClick={onMarkAllPresent}
@@ -61,8 +61,8 @@ function ActivitySectionHeader({ activity, role, blockLabels, onMarkAllPresent }
 }
 
 function BlockRosterModal({
-  blockLabel,
-  blockTimeRange,
+  groupTitle,
+  groupTimeRange,
   activities,
   date,
   orgId,
@@ -156,6 +156,7 @@ function BlockRosterModal({
       queryClient.invalidateQueries({ queryKey: ['roster'] })
       queryClient.invalidateQueries({ queryKey: ['teacher-agenda', teacherId, dateStr] })
       queryClient.invalidateQueries({ queryKey: ['teacher-action-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['agenda', 'visible-to-all', orgId, dateStr] })
       onClose()
     } catch (err) {
       console.error('Failed to save block attendance:', err)
@@ -173,7 +174,7 @@ function BlockRosterModal({
     }
   }
 
-  const subtitle = [blockTimeRange, `${orderedActivities.length} activit${orderedActivities.length === 1 ? 'y' : 'ies'}`]
+  const subtitle = [groupTimeRange, `${orderedActivities.length} activit${orderedActivities.length === 1 ? 'y' : 'ies'}`]
     .filter(Boolean)
     .join(' · ')
 
@@ -187,7 +188,7 @@ function BlockRosterModal({
           ✕
         </button>
         <div className="mb-4">
-          <h3 className="font-bold text-lg">{blockLabel} attendance</h3>
+          <h3 className="font-bold text-lg">{groupTitle} attendance</h3>
           <p className="text-sm text-base-content/60">{subtitle}</p>
         </div>
 

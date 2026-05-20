@@ -422,3 +422,37 @@ export async function checkOut(checkinId) {
   if (error) throw error
   return data
 }
+
+// Fetch all visible_to_all_staff activities for the org, with enrollments.
+// Does NOT filter by date — date filtering happens client-side via activityMeetsToday.
+export async function getVisibleToAllActivitiesForDate(orgId) {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('*')
+    .eq('is_active', true)
+    .eq('organization_id', orgId)
+    .eq('visible_to_all_staff', true)
+
+  if (error) throw error
+
+  const activityIds = data.map((a) => a.id)
+  if (activityIds.length === 0) {
+    return { activities: data, enrollmentsByActivity: new Map() }
+  }
+
+  const { data: enrollments, error: enrollError } = await supabase
+    .from('enrollments')
+    .select('activity_id, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date, start_time_override')
+    .in('activity_id', activityIds)
+    .eq('is_active', true)
+
+  if (enrollError) throw enrollError
+
+  const enrollmentsByActivity = new Map()
+  for (const e of enrollments) {
+    if (!enrollmentsByActivity.has(e.activity_id)) enrollmentsByActivity.set(e.activity_id, [])
+    enrollmentsByActivity.get(e.activity_id).push(e)
+  }
+
+  return { activities: data, enrollmentsByActivity }
+}
