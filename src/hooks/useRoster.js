@@ -65,6 +65,8 @@ export function useRoster(activityIds, date, orgId, activities = [], schoolDay =
         activityLocation: activity?.location ?? null,
         requiresAttendance: activity?.requires_attendance ?? true,
         scheduledToday,
+        startTimeOverride: e.start_time_override ?? null,
+        endTimeOverride: e.end_time_override ?? null,
       }
     })
     .sort((a, b) => a.lastName.localeCompare(b.lastName))

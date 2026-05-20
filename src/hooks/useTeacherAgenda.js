@@ -47,6 +47,24 @@ export function useTeacherAgenda(teacherId, date, orgId) {
     return map
   }, [rawEnrollmentsByActivity, allActivities, schoolDay, date])
 
+  const lateArrivals = useMemo(() => {
+    const map = new Map()
+    for (const [activityId, activityEnrollments] of rawEnrollmentsByActivity) {
+      const activity = allActivities.find((a) => a.id === activityId)
+      const todayEnrollments =
+        activity && schoolDay
+          ? activityEnrollments.filter((e) => enrollmentMeetsToday(e, activity, date, schoolDay))
+          : activityEnrollments
+      const lateOnes = todayEnrollments.filter((e) => e.start_time_override != null)
+      if (lateOnes.length === 0) continue
+      const earliest = lateOnes
+        .map((e) => e.start_time_override)
+        .reduce((a, b) => (a < b ? a : b))
+      map.set(activityId, { count: lateOnes.length, earliestTime: earliest })
+    }
+    return map
+  }, [rawEnrollmentsByActivity, allActivities, schoolDay, date])
+
   const activities = allActivities
     .filter((a) => activityMeetsToday(a, date, schoolDay))
     .sort((a, b) => {
@@ -58,6 +76,7 @@ export function useTeacherAgenda(teacherId, date, orgId) {
     activities,
     allActivities,
     enrollmentCounts,
+    lateArrivals,
     schoolDay,
     isLoading: activitiesQuery.isLoading || schoolDayQuery.isLoading,
     error: activitiesQuery.error || schoolDayQuery.error,

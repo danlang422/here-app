@@ -1,11 +1,21 @@
-import { Stack, CheckCircle, HandWaving } from '@phosphor-icons/react'
-import { formatTimeRange } from './agendaUtils'
+import { Stack, CheckCircle, HandWaving, ArrowUDownLeft } from '@phosphor-icons/react'
+import { formatTimeRange, formatTime } from './agendaUtils'
 import { getBlockLabel } from '@/lib/constants'
 
 const ROLE_BADGE = {
   teacher: { label: 'Teacher', className: 'bg-primary/15 text-primary' },
   monitor: { label: 'Monitor', className: 'bg-secondary/15 text-secondary' },
   prep:    { label: 'Prep',    className: 'bg-base-200 text-base-content/50' },
+}
+
+function LateArrivalChip({ count, earliestTime }) {
+  if (!count) return null
+  return (
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-warning/15 text-warning shrink-0">
+      <ArrowUDownLeft size={10} />
+      <span>{count} arr {formatTime(earliestTime)}</span>
+    </span>
+  )
 }
 
 function RoleBadge({ role }) {
@@ -68,7 +78,10 @@ function SoloCard({ item, blockLabels, waveCount, hasAttendanceRecords, onClick 
     >
       <div className="p-2.5 flex flex-col gap-1 h-full">
         <div className="flex items-center justify-between gap-1">
-          <RoleBadge role={role} />
+          <div className="flex items-center gap-1 min-w-0">
+            <RoleBadge role={role} />
+            <LateArrivalChip count={item.lateCount} earliestTime={item.earliestArrival} />
+          </div>
           <span className="text-[11px] text-base-content/50 shrink-0 tabular-nums">
             {formatTimeRange(activity.default_start_time, activity.default_end_time)}
           </span>
@@ -107,6 +120,7 @@ function ClusterCard({ item, blockLabels, waveCount, hasAttendanceRecords, onCli
           <div className="flex items-center gap-1 min-w-0">
             <RoleBadge role={item.role} />
             <Stack size={12} className="text-base-content/40 shrink-0" />
+            <LateArrivalChip count={item.lateCount} earliestTime={item.earliestArrival} />
           </div>
           <span className="text-[11px] text-base-content/50 shrink-0 tabular-nums">
             {formatTimeRange(item.default_start_time, item.default_end_time)}

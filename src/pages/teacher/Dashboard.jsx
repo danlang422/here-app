@@ -29,7 +29,7 @@ function Dashboard() {
   const teacherId = profile?.id
 
   // Data hooks
-  const { activities, allActivities, enrollmentCounts, schoolDay, isLoading, error } =
+  const { activities, allActivities, enrollmentCounts, lateArrivals, schoolDay, isLoading, error } =
     useTeacherAgenda(teacherId, date, orgId)
   const { data: orgSettings } = useOrgSettings(orgId)
 
@@ -68,8 +68,8 @@ function Dashboard() {
 
   // Role-aware time clustering — replaces block aggregation
   const renderables = useMemo(
-    () => buildTeacherRenderables(activities, enrollmentCounts, teacherId),
-    [activities, enrollmentCounts, teacherId]
+    () => buildTeacherRenderables(activities, enrollmentCounts, teacherId, lateArrivals),
+    [activities, enrollmentCounts, teacherId, lateArrivals]
   )
 
   // Grid bounds
@@ -224,6 +224,7 @@ function Dashboard() {
           renderable={clusterPopover.renderable}
           anchorRect={clusterPopover.anchorRect}
           blockLabels={blockLabels}
+          lateArrivals={lateArrivals}
           onMemberClick={(activity) => {
             setClusterPopover(null)
             setRosterTarget(activity)

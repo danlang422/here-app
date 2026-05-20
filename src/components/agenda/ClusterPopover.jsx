@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { X } from '@phosphor-icons/react'
-import { formatTimeRange } from './agendaUtils'
+import { X, ArrowUDownLeft } from '@phosphor-icons/react'
+import { formatTimeRange, formatTime } from './agendaUtils'
 import { getBlockLabel } from '@/lib/constants'
 
 const POPOVER_WIDTH = 560
 const POPOVER_GAP = 8
 
-function ClusterPopover({ renderable, anchorRect, blockLabels, onMemberClick, onClose }) {
+function ClusterPopover({ renderable, anchorRect, blockLabels, lateArrivals, onMemberClick, onClose }) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -71,17 +71,22 @@ function ClusterPopover({ renderable, anchorRect, blockLabels, onMemberClick, on
         className="p-3 grid gap-2"
         style={{ gridTemplateColumns: `repeat(${renderable.memberCount}, 1fr)` }}
       >
-        {renderable.activities.map((activity) => (
-          <MemberCard
-            key={activity.id}
-            activity={activity}
-            blockLabels={blockLabels}
-            onClick={() => {
-              onClose()
-              onMemberClick(activity)
-            }}
-          />
-        ))}
+        {renderable.activities.map((activity) => {
+          const late = lateArrivals?.get(activity.id)
+          return (
+            <MemberCard
+              key={activity.id}
+              activity={activity}
+              blockLabels={blockLabels}
+              lateCount={late?.count ?? 0}
+              earliestArrival={late?.earliestTime ?? null}
+              onClick={() => {
+                onClose()
+                onMemberClick(activity)
+              }}
+            />
+          )
+        })}
       </div>
 
       {/* Footer */}
@@ -94,7 +99,7 @@ function ClusterPopover({ renderable, anchorRect, blockLabels, onMemberClick, on
   )
 }
 
-function MemberCard({ activity, blockLabels, onClick }) {
+function MemberCard({ activity, blockLabels, lateCount, earliestArrival, onClick }) {
   const timeRange = formatTimeRange(activity.default_start_time, activity.default_end_time)
   const blockLabel = activity.block?.length
     ? activity.block.map((b) => getBlockLabel(b, blockLabels)).join(', ')
@@ -108,6 +113,12 @@ function MemberCard({ activity, blockLabels, onClick }) {
       <div className="font-medium text-sm leading-tight truncate">{activity.name}</div>
       <div className="text-xs text-base-content/50 mt-0.5">{timeRange}</div>
       {blockLabel && <div className="text-xs text-base-content/40 mt-0.5">{blockLabel}</div>}
+      {lateCount > 0 && (
+        <div className="flex items-center gap-0.5 mt-1 text-[10px] font-medium text-warning">
+          <ArrowUDownLeft size={10} />
+          <span>{lateCount} arr {formatTime(earliestArrival)}</span>
+        </div>
+      )}
     </div>
   )
 }
