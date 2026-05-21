@@ -1,12 +1,14 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getRosterForActivities,
   getAttendanceForInstances,
   getInstancesForActivities,
 } from '@/api/agenda'
 import { formatDateISO, enrollmentMeetsToday } from '@/lib/scheduleUtils'
+import { useAttendanceSubscription } from '@/hooks/useAttendanceSubscription'
 
 export function useRoster(activityIds, date, orgId, activities = [], schoolDay = null) {
+  const queryClient = useQueryClient()
   const dateStr = formatDateISO(date)
   const sortedKey = [...activityIds].sort().join(',')
 
@@ -41,6 +43,15 @@ export function useRoster(activityIds, date, orgId, activities = [], schoolDay =
       return { enrollments, attendanceByStudent, instances: instanceMap }
     },
     enabled: activityIds.length > 0 && !!orgId,
+  })
+
+  const resolvedInstanceIds = rosterQuery.data?.instances
+    ? [...rosterQuery.data.instances.values()]
+    : []
+
+  useAttendanceSubscription(resolvedInstanceIds, () => {
+    queryClient.invalidateQueries({ queryKey: ['roster', sortedKey, dateStr] })
+    queryClient.invalidateQueries({ queryKey: ['teacher-action-summary', sortedKey, dateStr] })
   })
 
   // Flatten enrollments into student objects, with scheduledToday flag.
