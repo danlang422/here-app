@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** May 20, 2026 (session 41)
+**Last updated:** May 21, 2026 (session 42)
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed. Migrations through `20260520000002` — adds RLS extension for visible-to-all staff activities (teacher read/write on enrollments, instances, attendance records; `activities` table SELECT policy for non-assigned teachers). Real data: City View org with admin account (Daniel Lang), staff users, and activities. Consolidation pass is complete; remaining data work is **time-accuracy** — adjusting individual activity start/end times to match real-world arrival/departure patterns, gathered incrementally from City View staff and students.
+**Database:** V2 schema deployed. Migrations through `20260521000001` — enables `attendance_records` in the `supabase_realtime` publication (required for Realtime `postgres_changes` events to fire). Real data: City View org with admin account (Daniel Lang), staff users, and activities. Consolidation pass is complete; remaining data work is **time-accuracy** — adjusting individual activity start/end times to match real-world arrival/departure patterns, gathered incrementally from City View staff and students.
 
 **Application:**
 
@@ -50,7 +50,8 @@
 | Edge Functions (`submit-feedback`, `create-user`) | Deployed with `--no-verify-jwt`; config in `supabase/config.toml`. `submit-feedback` posts to GitHub Issues. | Session 16, 19 |
 | Bulk password reset (Edge Function, user_metadata flag) | Built | Session 29 |
 | Dev date/time override | Built | Session 29, #67 |
-| Realtime subscriptions | Not started | — |
+| Realtime subscriptions — attendance_records | Built; `useAttendanceSubscription` wired into `useRoster` | `realtime-attendance-subscription-build-spec.md`, #80 |
+| Realtime subscriptions — check_ins, presence_waves | Not started | Follow-on to #80 |
 
 ## Active Decisions
 
@@ -77,11 +78,13 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 Ordered priority:
 
 1. **Time-accuracy data pass** — ongoing fieldwork. Update activity start/end times as Daniel gathers real arrival/departure information from City View.
-2. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
-3. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
-4. **#21** — Customizable agenda start/end times
+2. **Realtime subscriptions — check_ins and presence_waves** — same pattern as `useAttendanceSubscription`. May consolidate into a single `useRosterSubscription` hook once the pattern is proven. Follow-on to #80.
+3. **#61** — Help & knowledge pages (welcome letter, icon glossary, FAQs)
+4. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
+5. **#21** — Customizable agenda start/end times
 
 **Recently completed:**
+- Session 42 — #80 Realtime attendance subscription. `useAttendanceSubscription` hook (`postgres_changes` on `attendance_records`, filtered by instance IDs, `useRef` callback pattern). Wired into `useRoster` — invalidates `['roster', ...]` and `['teacher-action-summary', ...]` on any event. Migration `20260521000001` adds `attendance_records` to `supabase_realtime` publication (required; table was missing from publication — events connected but never fired without it). Spec had a typo (`instance_id` → `activity_instance_id`); corrected during implementation. RLS worked without changes.
 - Session 41 — #86 Phase 1 teacher agenda rewrite complete. All five sub-areas implemented: 86.1 `SingleDayAgenda` overlap resolution (closes #88), 86.2 role-aware clustering (replaces block aggregation, adds `TeacherActivityCard` with role badges + cluster cards + cluster popover), 86.3 late-arrival amber chip + "Arriving later" roster section (closes UI side of #87), 86.4 block attendance button row + `BlockRosterModal` combined roster, 86.5 visible-to-all sidebar + RLS extension (Path A confirmed). Post-ship bug fixes: `buildOthersRenderables` for sidebar others' section (role-filter bug in `buildTeacherRenderables`); RLS policy on `activities` table for visible-to-all reads (migration 000002).
 - Session 40 — Five sub-area design docs for #86 written (86.1 overlap resolution, 86.2 Dashboard rewrite + clustering, 86.3 late-arrival UI, 86.4 block-attendance + combined roster, 86.5 sidebar + RLS extension). Two design-direction open questions resolved (cluster title rule, cluster peek text dropped). Path A on sidebar write access recommended pending build-spec confirmation. "Mark all P" scoped per-section, default-attendance-mode parked as a future feature.
 - Session 39 — Three prep specs built and merged (#90, #91, #92): `getViewerRole` helper (`src/lib/staffRoles.js`), `visible_to_all_staff` flag on activities (migration + `ActivityDetail` behavior flags row), enrollment time overrides (`start_time_override`/`end_time_override` on enrollments, extended `EnrollmentScheduleEditor` and summary, `canEdit` gate relaxed). All dormant until #86 consumes them. Bug caught: `getOrgEnrollments` and `getRosterForActivities` use explicit column lists — new enrollment columns must be added to both.
