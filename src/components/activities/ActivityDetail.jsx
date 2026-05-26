@@ -178,8 +178,7 @@ export default function ActivityDetail({
     defaultValues: buildInitialValues(activity),
   })
 
-  const [staffRows, setStaffRows] = useState(() => buildStaffRows(activity).rows)
-  const [staffLocked, setStaffLocked] = useState(() => buildStaffRows(activity).isLocked)
+  const [staffRows, setStaffRows] = useState(() => buildStaffRows(activity))
   const [showDescription, setShowDescription] = useState(!!(activity?.description))
   const [pendingTerms, setPendingTerms] = useState([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -190,9 +189,7 @@ export default function ActivityDetail({
   // Reset form, staff rows, and pending terms when activity changes
   useEffect(() => {
     reset(buildInitialValues(activity))
-    const { rows, isLocked } = buildStaffRows(activity)
-    setStaffRows(rows)
-    setStaffLocked(isLocked)
+    setStaffRows(buildStaffRows(activity))
     setShowDescription(!!(activity?.description))
     setPendingTerms([])
     setShowDeleteConfirm(false)
@@ -323,9 +320,7 @@ export default function ActivityDetail({
       calendar_id: formValues.calendar_id || null,
       recurrence_interval: formValues.recurrence_interval,
       recurrence_anchor_date: computeAnchorDate(formValues.start_date, formValues.starting_week, formValues.recurrence_interval),
-      // Carry staff to the parent for post-save write. null when locked (multi-staff activity)
-      // so the parent skips the write and preserves existing junction rows.
-      _pendingStaff: staffLocked ? null : staffPayload.staff,
+      _pendingStaff: staffPayload.staff,
       ...(!activity ? { _pendingTerms: pendingTerms } : {}),
     }
 
@@ -475,19 +470,13 @@ export default function ActivityDetail({
 
         {/* Staff */}
         <div>
-          {mode === 'edit' && staffLocked ? (
-            <div className="text-sm text-warning">
-              This activity has multiple staff assigned. Staff editing is available in the full multi-staff editor (coming soon). Saving here will not affect existing assignments.
-            </div>
-          ) : (
-            <StaffRows
-              mode={mode}
-              activity={activity}
-              staffUsers={staffUsers}
-              rows={staffRows}
-              onChange={setStaffRows}
-            />
-          )}
+          <StaffRows
+            mode={mode}
+            activity={activity}
+            staffUsers={staffUsers}
+            rows={staffRows}
+            onChange={setStaffRows}
+          />
         </div>
 
         {/* Calendar */}

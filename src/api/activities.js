@@ -146,28 +146,40 @@ export async function bulkUpdateActivityFields(ids, updates) {
   return data
 }
 
-// Sync the teacher+monitor rows that the single-staff form manages,
-// without touching any additional rows the form didn't surface.
-// staffEntries: [{ user_id, role }] with at most one teacher + one monitor.
+// Sync the teacher+monitor rows for an activity to exactly match staffEntries.
+// Diffs against current DB state: deletes stale rows, upserts new/changed ones.
+// Only manages teacher/monitor roles; any future roles are untouched.
 export async function setActivityStaff(activityId, staffEntries) {
-  // Delete existing teacher/monitor rows, then re-insert the form's selection.
-  // Only teacher/monitor roles are managed by the form; any future roles are untouched.
-  const { error: deleteError } = await supabase
+  const { data: current, error: fetchError } = await supabase
     .from('activity_staff')
-    .delete()
+    .select('user_id, role')
     .eq('activity_id', activityId)
     .in('role', ['teacher', 'monitor'])
 
-  if (deleteError) throw deleteError
+  if (fetchError) throw fetchError
 
-  const toInsert = staffEntries.filter((e) => e.user_id)
-  if (toInsert.length === 0) return
+  const newUserIds = new Set(staffEntries.map((e) => e.user_id).filter(Boolean))
+  const toDelete = (current ?? []).filter((r) => !newUserIds.has(r.user_id))
 
-  const { error: insertError } = await supabase
-    .from('activity_staff')
-    .insert(toInsert.map((e) => ({ activity_id: activityId, user_id: e.user_id, role: e.role })))
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from('activity_staff')
+      .delete()
+      .eq('activity_id', activityId)
+      .in('user_id', toDelete.map((r) => r.user_id))
+    if (error) throw error
+  }
 
-  if (insertError) throw insertError
+  const toUpsert = staffEntries
+    .filter((e) => e.user_id)
+    .map((e) => ({ activity_id: activityId, user_id: e.user_id, role: e.role }))
+
+  if (toUpsert.length > 0) {
+    const { error } = await supabase
+      .from('activity_staff')
+      .upsert(toUpsert, { onConflict: 'activity_id,user_id' })
+    if (error) throw error
+  }
 }
 
 // Get internship opportunities for an organization

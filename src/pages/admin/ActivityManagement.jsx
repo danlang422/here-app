@@ -223,7 +223,7 @@ function ActivityManagement() {
         { id: selectedActivity.id, updates: activityData },
         {
           onSuccess: async (updated) => {
-            if (_pendingStaff !== null) await setActivityStaff(selectedActivity.id, _pendingStaff)
+            await setActivityStaff(selectedActivity.id, _pendingStaff)
             setSelectedActivity((prev) => ({ ...prev, ...updated }))
             setIsEditing(false)
           },
@@ -232,7 +232,7 @@ function ActivityManagement() {
     } else {
       createMutation.mutate(activityData, {
         onSuccess: async (created) => {
-          if (_pendingStaff !== null) await setActivityStaff(created.id, _pendingStaff)
+          await setActivityStaff(created.id, _pendingStaff)
           for (const pt of _pendingTerms) {
             await addActivityTerm(created.id, pt.termId, { isPrimary: pt.is_primary })
           }

@@ -4,6 +4,7 @@ import { getActivityStaff } from '@/lib/staffRoles'
 
 const ROLES = ['Teacher', 'Monitor', 'Instructor', 'Mentor']
 const LOOKUP_ROLES = new Set(['Teacher', 'Monitor'])
+const SINGLE_ROLES = new Set(['Instructor', 'Mentor'])
 
 /**
  * StaffRows — view/edit staff assignment rows.
@@ -60,8 +61,9 @@ function StaffViewRows({ activity }) {
 }
 
 function StaffEditRows({ rows, staffUsers, onChange }) {
-  const usedRoles = new Set(rows.map((r) => r.role))
-  const availableToAdd = ROLES.filter((r) => !usedRoles.has(r))
+  // Teacher and Monitor can appear multiple times; Instructor and Mentor are single-use.
+  const usedSingleRoles = new Set(rows.filter((r) => SINGLE_ROLES.has(r.role)).map((r) => r.role))
+  const availableToAdd = ROLES.filter((r) => (SINGLE_ROLES.has(r) ? !usedSingleRoles.has(r) : true))
 
   function updateRow(index, patch) {
     const next = rows.map((r, i) => (i === index ? { ...r, ...patch } : r))
@@ -98,7 +100,7 @@ function StaffEditRows({ rows, staffUsers, onChange }) {
                 <option
                   key={r}
                   value={r}
-                  disabled={usedRoles.has(r) && r !== row.role}
+                  disabled={SINGLE_ROLES.has(r) && usedSingleRoles.has(r) && r !== row.role}
                 >
                   {r}
                 </option>
