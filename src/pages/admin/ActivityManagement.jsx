@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import ActivityTable from '@/components/activities/ActivityTable'
 import ActivityToolbar from '@/components/activities/ActivityToolbar'
 import ActivitySelectionBar from '@/components/activities/ActivitySelectionBar'
@@ -6,6 +7,7 @@ import ActivityDetailModal from '@/components/activities/ActivityDetailModal'
 import BulkEditModal from '@/components/activities/BulkEditModal'
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities'
 import { addActivityTerm } from '@/api/activityTerms'
+import { setActivityStaff, getActivity } from '@/api/activities'
 import { useOrgEnrollments } from '@/hooks/useEnrollments'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
@@ -25,6 +27,7 @@ function getScheduleStatus(activity) {
 function ActivityManagement() {
   const profile = useAuthStore((s) => s.profile)
   const orgId = profile?.organization_id
+  const queryClient = useQueryClient()
 
   // Server state
   const { data: activities = [], isLoading, error: loadError } = useActivities(orgId)
@@ -114,11 +117,11 @@ function ActivityManagement() {
     if (filters.staff !== 'all') {
       if (filters.staff === 'none') {
         result = result.filter((a) =>
-          !a.teacher_id && !a.monitor_id && !a.instructor_name && !a.mentor_name
+          !a.activity_staff?.length && !a.instructor_name && !a.mentor_name
         )
       } else {
         result = result.filter((a) =>
-          a.teacher_id === filters.staff || a.monitor_id === filters.staff
+          a.activity_staff?.some((s) => s.user_id === filters.staff)
         )
       }
     }
@@ -215,20 +218,26 @@ function ActivityManagement() {
   }
 
   function handleSave(formData) {
+    const { _pendingStaff = [], _pendingTerms = [], ...activityData } = formData
+
     if (selectedActivity) {
       updateMutation.mutate(
-        { id: selectedActivity.id, updates: formData },
+        { id: selectedActivity.id, updates: activityData },
         {
-          onSuccess: (updated) => {
-            setSelectedActivity((prev) => ({ ...prev, ...updated }))
+          onSuccess: async () => {
+            await setActivityStaff(selectedActivity.id, _pendingStaff)
+            queryClient.invalidateQueries({ queryKey: ['activities', orgId] })
+            const fresh = await getActivity(selectedActivity.id)
+            setSelectedActivity(fresh)
             setIsEditing(false)
           },
         }
       )
     } else {
-      const { _pendingTerms = [], ...activityData } = formData
       createMutation.mutate(activityData, {
         onSuccess: async (created) => {
+          await setActivityStaff(created.id, _pendingStaff)
+          queryClient.invalidateQueries({ queryKey: ['activities', orgId] })
           for (const pt of _pendingTerms) {
             await addActivityTerm(created.id, pt.termId, { isPrimary: pt.is_primary })
           }

@@ -54,9 +54,9 @@ export function CalendarEventCard({ activity, enrollmentCount, mode, aggregateDa
     >
       <div className="flex flex-col gap-0.5 h-full p-1.5 overflow-hidden">
         <span className="text-xs font-semibold truncate">{activity.name}</span>
-        {activity.teacher?.last_name && (
+        {(activity.activity_staff?.find((s) => s.role === 'teacher')?.user?.last_name) && (
           <span className="text-[10px] text-base-content/60 truncate">
-            {activity.teacher.last_name}
+            {activity.activity_staff.find((s) => s.role === 'teacher').user.last_name}
           </span>
         )}
         <span className="text-[10px] text-base-content/60">

@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { getBlockLabel } from '@/lib/constants'
 import { CaretRight } from '@phosphor-icons/react'
+import { getActivityStaff } from '@/lib/staffRoles'
 
 /**
  * ActivityTable — displays a list of activities. Rows are clickable.
@@ -188,11 +189,11 @@ function DaysDisplay({ activity }) {
 function StaffDisplay({ activity }) {
   const staffList = []
 
-  if (activity.teacher) {
-    staffList.push(`${activity.teacher.last_name}, ${activity.teacher.first_name?.charAt(0)}.`)
-  }
-  if (activity.monitor) {
-    staffList.push(`${activity.monitor.last_name}, ${activity.monitor.first_name?.charAt(0)}.`)
+  for (const s of getActivityStaff(activity)) {
+    if (s.user) {
+      const u = s.user
+      staffList.push(`${u.last_name}, ${u.first_name?.charAt(0)}.`)
+    }
   }
   if (activity.instructor_name) {
     staffList.push(activity.instructor_name)

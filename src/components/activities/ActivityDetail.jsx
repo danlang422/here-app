@@ -16,7 +16,7 @@ import { validateEnrollment } from '@/lib/enrollmentValidation'
 import { formatUserName } from '@/api/users'
 import useAuthStore from '@/store/authStore'
 import StaffRows from './StaffRows'
-import { buildStaffRows, staffRowsToFlat } from './staffUtils'
+import { buildStaffRows, staffRowsToPayload } from './staffUtils'
 
 // ─── Behavior flag definitions ────────────────────────────────────────────────
 
@@ -287,11 +287,12 @@ export default function ActivityDetail({
   }
 
   function onFormSubmit(formValues) {
-    const staffFlat = staffRowsToFlat(staffRows)
+    const staffPayload = staffRowsToPayload(staffRows)
     const data = {
       name: formValues.name.trim(),
       description: formValues.description?.trim() || null,
-      ...staffFlat,
+      instructor_name: staffPayload.instructor_name,
+      mentor_name: staffPayload.mentor_name,
       block: formValues.block?.length > 0 ? formValues.block : null,
       days_of_week: formValues.days_of_week?.length > 0 ? formValues.days_of_week : null,
       rotation_day_type: formValues.rotation_day_type || null,
@@ -319,7 +320,7 @@ export default function ActivityDetail({
       calendar_id: formValues.calendar_id || null,
       recurrence_interval: formValues.recurrence_interval,
       recurrence_anchor_date: computeAnchorDate(formValues.start_date, formValues.starting_week, formValues.recurrence_interval),
-      // For new activities: carry pending terms to the parent for post-create insertion
+      _pendingStaff: staffPayload.staff,
       ...(!activity ? { _pendingTerms: pendingTerms } : {}),
     }
 

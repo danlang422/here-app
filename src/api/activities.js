@@ -1,10 +1,12 @@
 import { supabase } from './supabase'
 
+const STAFF_EMBED = `activity_staff(id, user_id, role, user:user_profiles(id, first_name, last_name, preferred_name))`
+
 // Get a single activity by ID
 export async function getActivity(activityId) {
   const { data, error } = await supabase
     .from('activities')
-    .select('*')
+    .select(`*, ${STAFF_EMBED}`)
     .eq('id', activityId)
     .single()
 
@@ -18,8 +20,7 @@ export async function getActivities(organizationId, { termId, isActive = true } 
     .from('activities')
     .select(`
       *,
-      teacher:user_profiles!teacher_id(first_name, last_name),
-      monitor:user_profiles!monitor_id(first_name, last_name),
+      ${STAFF_EMBED},
       activity_terms(id, term_id, is_primary, term:academic_terms(id, name, start_date, end_date)),
       calendar:calendars(id, name, color)
     `)
@@ -90,14 +91,25 @@ export async function updateActivity(activityId, updates) {
   return data
 }
 
-// Get activities for a teacher (where they are teacher or monitor)
+// Get activities for a teacher via the junction table (inner join filters to assigned activities).
+// NOTE: confirmed dead code as of #70 — no callers found. Retained but not used.
 export async function getTeacherActivities(teacherId, organizationId) {
+  const { data: staffRows, error: staffError } = await supabase
+    .from('activity_staff')
+    .select('activity_id')
+    .eq('user_id', teacherId)
+
+  if (staffError) throw staffError
+
+  const activityIds = staffRows.map((r) => r.activity_id)
+  if (activityIds.length === 0) return []
+
   const { data, error } = await supabase
     .from('activities')
     .select('*')
     .eq('organization_id', organizationId)
     .eq('is_active', true)
-    .or(`teacher_id.eq.${teacherId},monitor_id.eq.${teacherId}`)
+    .in('id', activityIds)
     .order('block')
 
   if (error) throw error
@@ -110,6 +122,7 @@ export async function getStudentActivities(studentId) {
     .from('activities')
     .select(`
       *,
+      ${STAFF_EMBED},
       enrollments!inner(id, student_id, block, is_active, notes)
     `)
     .eq('enrollments.student_id', studentId)
@@ -131,6 +144,42 @@ export async function bulkUpdateActivityFields(ids, updates) {
 
   if (error) throw error
   return data
+}
+
+// Sync the teacher+monitor rows for an activity to exactly match staffEntries.
+// Diffs against current DB state: deletes stale rows, upserts new/changed ones.
+// Only manages teacher/monitor roles; any future roles are untouched.
+export async function setActivityStaff(activityId, staffEntries) {
+  const { data: current, error: fetchError } = await supabase
+    .from('activity_staff')
+    .select('user_id, role')
+    .eq('activity_id', activityId)
+    .in('role', ['teacher', 'monitor'])
+
+  if (fetchError) throw fetchError
+
+  const newUserIds = new Set(staffEntries.map((e) => e.user_id).filter(Boolean))
+  const toDelete = (current ?? []).filter((r) => !newUserIds.has(r.user_id))
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from('activity_staff')
+      .delete()
+      .eq('activity_id', activityId)
+      .in('user_id', toDelete.map((r) => r.user_id))
+    if (error) throw error
+  }
+
+  const toUpsert = staffEntries
+    .filter((e) => e.user_id)
+    .map((e) => ({ activity_id: activityId, user_id: e.user_id, role: e.role }))
+
+  if (toUpsert.length > 0) {
+    const { error } = await supabase
+      .from('activity_staff')
+      .upsert(toUpsert, { onConflict: 'activity_id,user_id' })
+    if (error) throw error
+  }
 }
 
 // Get internship opportunities for an organization

@@ -20,8 +20,7 @@ export async function getAllActiveEnrollments() {
         id, name, block, is_active, is_not_scheduled, is_release,
         requires_attendance, days_of_week, rotation_day_type,
         recurrence_interval, recurrence_anchor_date,
-        start_date, end_date,
-        teacher_id, monitor_id
+        start_date, end_date
       )
     `)
     .eq('is_active', true)

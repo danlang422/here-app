@@ -22,7 +22,7 @@ Policies on `user_profiles` cannot safely query `user_profiles` — Postgres eva
 
 - **`is_enrolled_in(activity_id UUID)`** — Returns `true` if the current user is actively enrolled in the given activity. Used in `activities` and `activity_instances` policies instead of direct `enrollments` subqueries.
 
-- **`is_teacher_or_monitor_of(activity_id UUID)`** — Returns `true` if the current user is `teacher_id` or `monitor_id` of the given activity. Used in `enrollments`, `activity_instances`, and all instance-dependent table policies instead of direct `activities` subqueries.
+- **`is_teacher_or_monitor_of(activity_id UUID)`** — Returns `true` if the current user appears in `activity_staff` for the given activity (any role), scoped to the caller's org. Used in `enrollments`, `activity_instances`, and all instance-dependent table policies. **Note:** intentionally not renamed to `is_staff_of` — renaming would require dropping and recreating all ~9 dependent policies, which caused the session-36 recursion bugs. The name remains semantically accurate.
 
 All four functions are `SECURITY DEFINER`, set `search_path = public`, and are granted `EXECUTE` to `authenticated` only (revoked from `PUBLIC` and `anon`). They expose only the minimum data needed.
 
@@ -48,8 +48,8 @@ public.get_profile_display_info(profile_id uuid)
 -- Returns true if auth.uid() is actively enrolled in the given activity.
 public.is_enrolled_in(activity_id_param uuid) RETURNS boolean
 
--- Returns true if auth.uid() is teacher_id or monitor_id of the given activity,
--- scoped to the caller's org via user_profiles.
+-- Returns true if auth.uid() appears in activity_staff for the given activity,
+-- scoped to the caller's org via user_profiles. (Not renamed to is_staff_of — see #70 build spec.)
 public.is_teacher_or_monitor_of(activity_id_param uuid) RETURNS boolean
 ```
 
@@ -88,7 +88,16 @@ public.is_teacher_or_monitor_of(activity_id_param uuid) RETURNS boolean
 |-----------|-----|-----------|
 | SELECT | Student (enrolled) | `is_enrolled_in(id)` — DEFINER function |
 | SELECT | Teacher (org) | `organization_id = my_org AND is_role('teacher')` |
+| SELECT | Teacher (visible-to-all) | `activity_is_visible_to_all(id)` — DEFINER function |
 | ALL | Admin | `organization_id = my_org AND is_role('admin')` |
+
+### activity_staff
+| Operation | Who | Condition |
+|-----------|-----|-----------|
+| SELECT | Student (enrolled) | `is_enrolled_in(activity_id)` — DEFINER function |
+| SELECT | Teacher (own activities) | `is_teacher_or_monitor_of(activity_id)` — DEFINER function |
+| SELECT | Teacher (visible-to-all) | `activity_is_visible_to_all(activity_id)` — DEFINER function |
+| ALL | Admin (org) | `EXISTS (activities JOIN user_profiles WHERE org matches AND role='admin')` |
 
 ### enrollments
 | Operation | Who | Condition |

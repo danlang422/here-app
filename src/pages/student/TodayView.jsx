@@ -468,11 +468,12 @@ function getGreeting() {
   return 'Good evening'
 }
 
-// Resolve staff display name: instructor_name > teacher last name > null
+// Resolve staff display name: instructor_name > first teacher last name > null
 function resolveStaffName(activity) {
   if (activity.instructor_name) return activity.instructor_name
-  if (activity.teacher) {
-    const t = activity.teacher
+  const teacher = (activity.activity_staff ?? []).find((s) => s.role === 'teacher')
+  if (teacher?.user) {
+    const t = teacher.user
     return t.preferred_name || t.last_name || `${t.first_name} ${t.last_name}`
   }
   return null
