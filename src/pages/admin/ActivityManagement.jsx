@@ -7,7 +7,7 @@ import ActivityDetailModal from '@/components/activities/ActivityDetailModal'
 import BulkEditModal from '@/components/activities/BulkEditModal'
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities'
 import { addActivityTerm } from '@/api/activityTerms'
-import { setActivityStaff } from '@/api/activities'
+import { setActivityStaff, getActivity } from '@/api/activities'
 import { useOrgEnrollments } from '@/hooks/useEnrollments'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
@@ -224,10 +224,11 @@ function ActivityManagement() {
       updateMutation.mutate(
         { id: selectedActivity.id, updates: activityData },
         {
-          onSuccess: async (updated) => {
+          onSuccess: async () => {
             await setActivityStaff(selectedActivity.id, _pendingStaff)
             queryClient.invalidateQueries({ queryKey: ['activities', orgId] })
-            setSelectedActivity((prev) => ({ ...prev, ...updated }))
+            const fresh = await getActivity(selectedActivity.id)
+            setSelectedActivity(fresh)
             setIsEditing(false)
           },
         }
