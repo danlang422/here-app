@@ -65,7 +65,7 @@ export function CalendarAggregatePopover({
                   <span className="text-sm font-medium truncate">{activity.name}</span>
                   <span className="text-xs text-base-content/60">
                     {formatTime(activity.default_start_time)}&ndash;{formatTime(activity.default_end_time)}
-                    {activity.teacher?.last_name && ` \u00b7 ${activity.teacher.last_name}`}
+                    {activity.activity_staff?.find((s) => s.role === 'teacher')?.user?.last_name && ` \u00b7 ${activity.activity_staff.find((s) => s.role === 'teacher').user.last_name}`}
                     {` \u00b7 ${enrollCount} student${enrollCount !== 1 ? 's' : ''}`}
                   </span>
                 </div>

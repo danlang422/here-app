@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** May 21, 2026 (session 42)
+**Last updated:** May 26, 2026 (session 43)
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed. Migrations through `20260521000001` — enables `attendance_records` in the `supabase_realtime` publication (required for Realtime `postgres_changes` events to fire). Real data: City View org with admin account (Daniel Lang), staff users, and activities. Consolidation pass is complete; remaining data work is **time-accuracy** — adjusting individual activity start/end times to match real-world arrival/departure patterns, gathered incrementally from City View staff and students.
+**Database:** V2 schema deployed. Migrations through `20260526000001` — `activity_staff` junction table replacing `activities.teacher_id`/`monitor_id` (#70 Phase 2). Real data: City View org with admin account (Daniel Lang), staff users, and activities. Consolidation pass is complete; remaining data work is **time-accuracy** — adjusting individual activity start/end times to match real-world arrival/departure patterns, gathered incrementally from City View staff and students.
 
 **Application:**
 
@@ -15,6 +15,7 @@
 | Auth & navigation | Built | — |
 | **Admin** | | |
 | Activity management (CRUD, detail modal, behavior flags, staff, enrollment roster, bulk edit, bulk calendar assignment) | Built | `activity-detail-and-form-redesign-spec.md`, `activity-management-overhaul-build-spec.md`, #55 |
+| `activity_staff` junction table — replaces `teacher_id`/`monitor_id`, multi-staff data model | Built; #70 Phase 2 complete; unblocks #77, #78, #79 | `activity-staff-junction-table-build-spec.md` |
 | Geofence location search (Nominatim autocomplete, lat/lng capture, GPS-fix indicator, radius input) | Built | `geofence-location-search-build-spec.md` |
 | Admin calendar — aggregate card student count fix (#63) and card height fix (#65) | Built | Session 28.2 |
 | User management (CRUD, bulk paste-from-spreadsheet entry) | Built | — |
@@ -84,6 +85,7 @@ Ordered priority:
 5. **#21** — Customizable agenda start/end times
 
 **Recently completed:**
+- Session 43 — #70 Phase 2 `activity_staff` junction table. Migration `20260526000001`: creates table, migrates data from `teacher_id`/`monitor_id` with in-transaction verify gate, repoints `is_teacher_or_monitor_of` body (name kept), adds RLS policies, drops old columns. Code: `getViewerRole`/`getActivityStaff` in `staffRoles.js`, `buildStaffRows`/`staffRowsToPayload` in `staffUtils.js`, `setActivityStaff` API function, updated query layer (`getActivity`, `getActivities`, `getTeacherActivitiesForDate`, `getStudentActivitiesForDate`, `getVisibleToAllActivitiesForDate`), view-mode `StaffViewRows` rewrite, `ActivityDetail` edit-mode guardrail (disabled when multi-staff). Seven unlisted consumers also fixed: `attendance.js`, `ActivityManagement.jsx` staff filter, `ActivityTable.jsx`, `TodayView.jsx`, `CalendarEventCard.jsx`, `CalendarAggregatePopover.jsx`, `ScheduleIssueForm.jsx`. Unblocks #77 (substitute role), #78 (bulk staff assignment), #79 (monitor UI Phase 3).
 - Session 42 — #80 Realtime attendance subscription. `useAttendanceSubscription` hook (`postgres_changes` on `attendance_records`, filtered by instance IDs, `useRef` callback pattern). Wired into `useRoster` — invalidates `['roster', ...]` and `['teacher-action-summary', ...]` on any event. Migration `20260521000001` adds `attendance_records` to `supabase_realtime` publication (required; table was missing from publication — events connected but never fired without it). Spec had a typo (`instance_id` → `activity_instance_id`); corrected during implementation. RLS worked without changes.
 - Session 41 — #86 Phase 1 teacher agenda rewrite complete. All five sub-areas implemented: 86.1 `SingleDayAgenda` overlap resolution (closes #88), 86.2 role-aware clustering (replaces block aggregation, adds `TeacherActivityCard` with role badges + cluster cards + cluster popover), 86.3 late-arrival amber chip + "Arriving later" roster section (closes UI side of #87), 86.4 block attendance button row + `BlockRosterModal` combined roster, 86.5 visible-to-all sidebar + RLS extension (Path A confirmed). Post-ship bug fixes: `buildOthersRenderables` for sidebar others' section (role-filter bug in `buildTeacherRenderables`); RLS policy on `activities` table for visible-to-all reads (migration 000002).
 - Session 40 — Five sub-area design docs for #86 written (86.1 overlap resolution, 86.2 Dashboard rewrite + clustering, 86.3 late-arrival UI, 86.4 block-attendance + combined roster, 86.5 sidebar + RLS extension). Two design-direction open questions resolved (cluster title rule, cluster peek text dropped). Path A on sidebar write access recommended pending build-spec confirmation. "Mark all P" scoped per-section, default-attendance-mode parked as a future feature.
@@ -94,7 +96,7 @@ Ordered priority:
 
 **Data entry:** Consolidation complete. Schedule fully normalized. Enrollment-level scheduling complete (including hard-delete unenrollments and advisory conflict detection). Remaining is time-accuracy — gathered incrementally as available.
 
-**Teacher UI & staff model redesign (epic #84):** Umbrella issue covering the set of changes surfaced in the April 2026 staff conversation. Phases: pre-phase 1 concepting (#85, **complete**), Phase 1 agenda layout rewrite (#86, ready for spec), Phase 2 staff model (#70, #77, #78), Phase 3 teacher visibility UI (#79), downstream (#80, #81). Phase 2 can run parallel to Phase 1. Design direction for Phases 1 and 3 is now captured in `teacher-agenda-design-direction.md`. See session 34 notes for the original decisions and context; session 37 for the design direction output.
+**Teacher UI & staff model redesign (epic #84):** Umbrella issue covering the set of changes surfaced in the April 2026 staff conversation. Phases: pre-phase 1 concepting (#85, **complete**), Phase 1 agenda layout rewrite (#86, **complete**), Phase 2 staff model (#70 **complete**, #77 and #78 now unblocked), Phase 3 teacher visibility UI (#79, now unblocked), downstream (#80 **complete**, #81). Design direction captured in `teacher-agenda-design-direction.md`. See session 34 notes for original decisions; session 37 for design direction output.
 
 ---
 

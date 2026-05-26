@@ -18,6 +18,11 @@ CREATE INDEX idx_activities_needs_scheduling
   ON activities(organization_id, is_active, is_not_scheduled, is_release)
   WHERE is_active = true AND is_not_scheduled = false AND is_release = false;
 
+-- activity_staff lookups (see 03-activities.md for table definition)
+CREATE INDEX idx_activity_staff_activity ON activity_staff(activity_id);
+CREATE INDEX idx_activity_staff_user ON activity_staff(user_id);
+CREATE INDEX idx_activity_staff_user_role ON activity_staff(user_id, role);
+
 -- Teacher roster lookup
 CREATE INDEX idx_enrollments_activity_active
   ON enrollments(activity_id, is_active)

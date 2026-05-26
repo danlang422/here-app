@@ -61,9 +61,8 @@ CREATE TABLE activities (
   CONSTRAINT not_scheduled_and_release_mutually_exclusive
     CHECK (NOT (is_not_scheduled = true AND is_release = true)),
 
-  -- Personnel (all nullable — fill in as information becomes available)
-  teacher_id UUID REFERENCES user_profiles(id),     -- City View teacher; owns activity, takes attendance
-  monitor_id UUID REFERENCES user_profiles(id),     -- City View staff supervising without ownership
+  -- Personnel (instructor_name and mentor_name are nullable free-text)
+  -- City View staff are stored in the activity_staff junction table, not here.
   instructor_name TEXT,                             -- External instructor (Kirkwood prof, cooperating teacher)
   mentor_name TEXT,                                 -- Internship mentor (external, not in system)
 
@@ -157,8 +156,6 @@ CREATE TABLE activities (
 );
 
 CREATE INDEX idx_activities_org ON activities(organization_id);
-CREATE INDEX idx_activities_teacher ON activities(teacher_id);
-CREATE INDEX idx_activities_monitor ON activities(monitor_id);
 CREATE INDEX idx_activities_active ON activities(organization_id, is_active) WHERE is_active = true;
 CREATE INDEX idx_activities_days_gin ON activities USING GIN(days_of_week);
 ```
@@ -169,12 +166,12 @@ CREATE INDEX idx_activities_days_gin ON activities USING GIN(days_of_week);
 
 Activities are configured entirely through their scheduling fields and behavior flags — there is no type system. These scenarios illustrate common configurations:
 
-- **Regular class** — block assigned, `days_of_week` set, `requires_attendance` + `allows_presence_wave`. Teacher assigned via `teacher_id`.
-- **College course (e.g. Kirkwood)** — block assigned, `days_of_week` pattern like MWF or TuTh, `requires_attendance`. External professor recorded in `instructor_name`; optionally a City View staff member in `monitor_id`.
+- **Regular class** — block assigned, `days_of_week` set, `requires_attendance` + `allows_presence_wave`. Teacher assigned via `activity_staff` with role `teacher`.
+- **College course (e.g. Kirkwood)** — block assigned, `days_of_week` pattern like MWF or TuTh, `requires_attendance`. External professor recorded in `instructor_name`; optionally a City View staff member in `activity_staff` with role `monitor`.
 - **External HS course (e.g. Kennedy Band)** — block assigned, `rotation_day_type` instead of `days_of_week` (occurrence driven by district A/B rotation calendar), `requires_attendance = false` (other school handles it). External teacher in `instructor_name`.
-- **Online course** — `is_not_scheduled = true`, `requires_checkin`, no block/days/times. Supervised via `monitor_id`.
-- **Freeform block** — block assigned, `days_of_week` set, `requires_checkin` + `allows_freeform`. Supervised via `monitor_id`.
-- **Internship** — block assigned, `days_of_week` set, `requires_checkin` + `requires_geofence`. External mentor in `mentor_name`; supervised via `monitor_id`. Location/geofence fields copied from `internship_opportunities` at creation.
+- **Online course** — `is_not_scheduled = true`, `requires_checkin`, no block/days/times. Supervised via `activity_staff` with role `monitor`.
+- **Freeform block** — block assigned, `days_of_week` set, `requires_checkin` + `allows_freeform`. Supervised via `activity_staff` with role `monitor`.
+- **Internship** — block assigned, `days_of_week` set, `requires_checkin` + `requires_geofence`. External mentor in `mentor_name`; supervised via `activity_staff` with role `monitor`. Location/geofence fields copied from `internship_opportunities` at creation.
 - **Release** — block assigned with a schedule (blocks the slot visually), `is_release = true`, no attendance or check-in. Student is released for the period.
 
 All activities that occupy a time slot in the schedule get a block number, including external activities. The only activities without a block are those with `is_not_scheduled = true` or activities whose block has not yet been assigned.
@@ -185,14 +182,42 @@ See `docs/business-logic/01-schedule-and-calendar.md` for the full `activityMeet
 
 **Personnel fields explained:**
 
-- `teacher_id`: A City View staff member who owns the activity. They see enrolled students on their roster and are responsible for taking attendance. Typically set for regular classes.
-- `monitor_id`: A City View staff member who supervises without ownership. They see enrolled students listed under this block in their view. Typically set for freeform blocks, online courses, internships, and sometimes college courses if a staff member is assigned to supervise.
+- `activity_staff` (junction table): City View staff assigned to this activity. Each row has a `role` of `teacher` (present with students, takes attendance) or `monitor` (responsible for students but supervising from elsewhere). A staff member can have at most one role per activity (`unique_activity_user` constraint on `(activity_id, user_id)` without role). See `activity_staff` table below.
 - `instructor_name`: Free text for external instructors — Kirkwood professors, cooperating teachers at other high schools. Not a user in the system.
 - `mentor_name`: Free text for internship mentors. Not a user in the system. Future: could become a separate `mentors` table with contact info.
 
 **Teacher view query logic:**
 
-A teacher's view for a given block shows all activities where `teacher_id = me OR monitor_id = me` AND `block = X` AND the activity is scheduled for today. Students are then listed per activity, with `requires_attendance` determining whether they appear on the attendance roster.
+A teacher's view for a given block shows all activities where they appear in `activity_staff` AND `block = X` AND the activity is scheduled for today. The `is_teacher_or_monitor_of(activity_id)` DEFINER function handles this check via the junction table. Additionally, activities with `visible_to_all_staff = true` are surfaced to all staff regardless of junction membership — this is handled separately via `activity_is_visible_to_all(activity_id)`.
+
+---
+
+## activity_staff
+
+Junction table linking City View staff to activities with a role distinction.
+
+```sql
+CREATE TABLE activity_staff (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'teacher' CHECK (role IN ('teacher', 'monitor')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT unique_activity_user UNIQUE (activity_id, user_id)
+);
+
+CREATE INDEX idx_activity_staff_activity ON activity_staff(activity_id);
+CREATE INDEX idx_activity_staff_user ON activity_staff(user_id);
+CREATE INDEX idx_activity_staff_user_role ON activity_staff(user_id, role);
+```
+
+**Role semantics:**
+- `teacher` — physically present with students; owns the roster; marks attendance.
+- `monitor` — responsible for students but supervising from elsewhere (e.g. a staff member who owns the freeform block but isn't in the room).
+
+**Constraint note:** `unique_activity_user` is on `(activity_id, user_id)` without `role`. One person cannot appear twice on the same activity, even in different roles — a staff member is either present or remote for a given activity, not both. This also keeps `getViewerRole` single-valued.
+
+**Queries:** Use `getActivityStaff(activity)` in `src/lib/staffRoles.js` to get the sorted staff list. Use `getViewerRole(activity, viewerId)` to get the current viewer's role. Both require the activity object to carry an `activity_staff` array (guaranteed by all API query functions in `src/api/activities.js` and `src/api/agenda.js`).
 
 ---
 

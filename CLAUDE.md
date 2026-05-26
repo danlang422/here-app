@@ -127,6 +127,7 @@ V2 schema with migrations in `supabase/migrations/`. Key migrations:
 - `20260520000001` — RLS extension for visible-to-all staff: extends teacher read/write access to `enrollments`, `activity_instances`, and `attendance_records` for `visible_to_all_staff` activities; introduces `activity_is_visible_to_all()` SECURITY DEFINER helper; Path A write access confirmed
 - `20260520000002` — Add "Teachers read visible-to-all activities" SELECT policy on `activities` table (missed in 000001; non-assigned teachers couldn't read the activity row itself)
 - `20260521000001` — Add `attendance_records` to `supabase_realtime` publication (required for Realtime `postgres_changes` events to fire; table was never added when originally created)
+- `20260526000001` — `activity_staff` junction table (#70 Phase 2): replaces `activities.teacher_id`/`monitor_id` with `activity_staff(activity_id, user_id, role)`; data migrated with verify gate; `is_teacher_or_monitor_of` body repointed (name kept); RLS on new table; old columns dropped
 
 **Important — new tables require explicit GRANTs:** As of May 2026 we opted into Supabase's new behavior where tables in `public` are not auto-exposed to the Data API. Every new table must include:
 ```sql
@@ -195,6 +196,7 @@ Schema docs are in `docs/schema/` — these are the authoritative source for tab
 | `teacher-agenda-86.5-sidebar-and-rls-extension-design.md` | **Implemented** | Sub-area design for #86. Sidebar surfaces visible-to-all activities (yours / others' sections). RLS extension on `enrollments`/`activity_instances`/`attendance_records`. Path A confirmed. Session 40; built session 41. |
 | `teacher-agenda-86.5-sidebar-and-rls-extension-build-spec.md` | **Implemented** | Build spec for 86.5. `AgendaSidebar` visible-to-all sections, `buildOthersRenderables`, RLS migrations 000001–000002. Built session 41. |
 | `realtime-attendance-subscription-build-spec.md` | **Implemented** | `useAttendanceSubscription` hook + wired into `useRoster`. Migration adds `attendance_records` to `supabase_realtime` publication. Built session 42, closes #80. |
+| `activity-staff-junction-table-build-spec.md` | **Implemented** | `activity_staff` junction table (#70 Phase 2). Migration, `getViewerRole`/`getActivityStaff` helpers, query layer, view-mode UI, edit-mode guardrail. Built session 43. |
 
 ## Workflow
 

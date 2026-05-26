@@ -1,5 +1,6 @@
 import { X } from '@phosphor-icons/react'
 import { formatUserName } from '@/api/users'
+import { getActivityStaff } from '@/lib/staffRoles'
 
 const ROLES = ['Teacher', 'Monitor', 'Instructor', 'Mentor']
 const LOOKUP_ROLES = new Set(['Teacher', 'Monitor'])
@@ -25,14 +26,16 @@ export default function StaffRows({ mode, activity, staffUsers = [], rows = [], 
   return <StaffEditRows rows={rows} staffUsers={staffUsers} onChange={onChange} />
 }
 
+const ROLE_LABELS = { teacher: 'Teacher', monitor: 'Monitor' }
+
 function StaffViewRows({ activity }) {
+  const staff = getActivityStaff(activity)
   const entries = []
 
-  if (activity?.teacher) {
-    entries.push({ label: 'Teacher', name: formatUserName(activity.teacher) })
-  }
-  if (activity?.monitor) {
-    entries.push({ label: 'Monitor', name: formatUserName(activity.monitor) })
+  for (const s of staff) {
+    if (s.user) {
+      entries.push({ label: ROLE_LABELS[s.role] ?? s.role, name: formatUserName(s.user) })
+    }
   }
   if (activity?.instructor_name) {
     entries.push({ label: 'Instructor', name: activity.instructor_name })
@@ -47,8 +50,8 @@ function StaffViewRows({ activity }) {
 
   return (
     <div className="space-y-0.5">
-      {entries.map((e) => (
-        <div key={e.label} className="text-sm">
+      {entries.map((e, i) => (
+        <div key={i} className="text-sm">
           <span className="text-base-content/50">{e.label}:</span> {e.name}
         </div>
       ))}

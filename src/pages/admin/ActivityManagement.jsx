@@ -6,6 +6,7 @@ import ActivityDetailModal from '@/components/activities/ActivityDetailModal'
 import BulkEditModal from '@/components/activities/BulkEditModal'
 import { useActivities, useCreateActivity, useUpdateActivity, useDeleteActivity } from '@/hooks/useActivities'
 import { addActivityTerm } from '@/api/activityTerms'
+import { setActivityStaff } from '@/api/activities'
 import { useOrgEnrollments } from '@/hooks/useEnrollments'
 import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useDefaultScheduleTemplate } from '@/hooks/useScheduleTemplate'
@@ -114,11 +115,11 @@ function ActivityManagement() {
     if (filters.staff !== 'all') {
       if (filters.staff === 'none') {
         result = result.filter((a) =>
-          !a.teacher_id && !a.monitor_id && !a.instructor_name && !a.mentor_name
+          !a.activity_staff?.length && !a.instructor_name && !a.mentor_name
         )
       } else {
         result = result.filter((a) =>
-          a.teacher_id === filters.staff || a.monitor_id === filters.staff
+          a.activity_staff?.some((s) => s.user_id === filters.staff)
         )
       }
     }
@@ -215,20 +216,23 @@ function ActivityManagement() {
   }
 
   function handleSave(formData) {
+    const { _pendingStaff = [], _pendingTerms = [], ...activityData } = formData
+
     if (selectedActivity) {
       updateMutation.mutate(
-        { id: selectedActivity.id, updates: formData },
+        { id: selectedActivity.id, updates: activityData },
         {
-          onSuccess: (updated) => {
+          onSuccess: async (updated) => {
+            if (_pendingStaff !== null) await setActivityStaff(selectedActivity.id, _pendingStaff)
             setSelectedActivity((prev) => ({ ...prev, ...updated }))
             setIsEditing(false)
           },
         }
       )
     } else {
-      const { _pendingTerms = [], ...activityData } = formData
       createMutation.mutate(activityData, {
         onSuccess: async (created) => {
+          if (_pendingStaff !== null) await setActivityStaff(created.id, _pendingStaff)
           for (const pt of _pendingTerms) {
             await addActivityTerm(created.id, pt.termId, { isPrimary: pt.is_primary })
           }

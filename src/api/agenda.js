@@ -40,7 +40,7 @@ export async function getStudentActivitiesForDate(studentId, orgId) {
     .from('enrollments')
     .select(`
       *,
-      activity:activities!inner(*)
+      activity:activities!inner(*, activity_staff(user_id, role))
     `)
     .eq('student_id', studentId)
     .eq('is_active', true)
@@ -59,21 +59,20 @@ export async function getStudentActivitiesForDate(studentId, orgId) {
       enrollment_recurrence_anchor_date: enrollment.recurrence_anchor_date,
     }))
 
-  // Fetch teacher/monitor display names via SECURITY DEFINER function
+  // Resolve staff display names via SECURITY DEFINER RPC (avoids cross-role join recursion).
+  // Embed provides user_id+role linkage; batch RPC resolves names.
   const staffIds = activities.flatMap((a) =>
-    [a.teacher_id, a.monitor_id].filter(Boolean)
+    (a.activity_staff ?? []).map((s) => s.user_id)
   )
   const staffProfiles = await batchGetProfileDisplayInfo(staffIds)
 
-  // Attach staff profile info to each activity
+  // Attach resolved user profile to each staff row
   return activities.map((activity) => ({
     ...activity,
-    teacher: activity.teacher_id
-      ? staffProfiles.get(activity.teacher_id) ?? null
-      : null,
-    monitor: activity.monitor_id
-      ? staffProfiles.get(activity.monitor_id) ?? null
-      : null,
+    activity_staff: (activity.activity_staff ?? []).map((s) => ({
+      ...s,
+      user: staffProfiles.get(s.user_id) ?? null,
+    })),
   }))
 }
 
@@ -85,25 +84,34 @@ export async function ensureActivityInstances(activityIds, orgId, date) {
   )
 }
 
-// Fetch all activities assigned to a teacher (as teacher_id or monitor_id),
+// Fetch all activities assigned to a teacher via the activity_staff junction,
 // plus active enrollment counts per activity. Does NOT filter by date —
 // date filtering happens client-side via activityMeetsToday.
 export async function getTeacherActivitiesForDate(teacherId, orgId) {
+  // Step 1: find which activities this teacher is staff on
+  const { data: staffRows, error: staffError } = await supabase
+    .from('activity_staff')
+    .select('activity_id')
+    .eq('user_id', teacherId)
+
+  if (staffError) throw staffError
+
+  const activityIds = staffRows.map((r) => r.activity_id)
+  if (activityIds.length === 0) {
+    return { activities: [], enrollmentsByActivity: new Map() }
+  }
+
+  // Step 2: fetch those activities with full activity_staff embed
   const { data, error } = await supabase
     .from('activities')
-    .select('*')
+    .select('*, activity_staff(user_id, role)')
     .eq('is_active', true)
     .eq('organization_id', orgId)
-    .or(`teacher_id.eq.${teacherId},monitor_id.eq.${teacherId}`)
+    .in('id', activityIds)
 
   if (error) throw error
 
-  // Fetch enrollment counts for these activities
-  const activityIds = data.map((a) => a.id)
-  if (activityIds.length === 0) {
-    return { activities: data, enrollmentCounts: new Map() }
-  }
-
+  // Step 3: fetch enrollment rows for enrollment counts + late-arrival logic
   const { data: enrollments, error: enrollError } = await supabase
     .from('enrollments')
     .select('activity_id, days_of_week, rotation_day_type, recurrence_interval, recurrence_anchor_date, start_time_override')
@@ -425,10 +433,12 @@ export async function checkOut(checkinId) {
 
 // Fetch all visible_to_all_staff activities for the org, with enrollments.
 // Does NOT filter by date — date filtering happens client-side via activityMeetsToday.
+// activity_staff embed is required: useSidebarActivities calls getViewerRole (reads junction)
+// to split activities into yours/others sections.
 export async function getVisibleToAllActivitiesForDate(orgId) {
   const { data, error } = await supabase
     .from('activities')
-    .select('*')
+    .select('*, activity_staff(user_id, role)')
     .eq('is_active', true)
     .eq('organization_id', orgId)
     .eq('visible_to_all_staff', true)
