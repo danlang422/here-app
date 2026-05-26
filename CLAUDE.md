@@ -196,7 +196,7 @@ Schema docs are in `docs/schema/` — these are the authoritative source for tab
 | `teacher-agenda-86.5-sidebar-and-rls-extension-design.md` | **Implemented** | Sub-area design for #86. Sidebar surfaces visible-to-all activities (yours / others' sections). RLS extension on `enrollments`/`activity_instances`/`attendance_records`. Path A confirmed. Session 40; built session 41. |
 | `teacher-agenda-86.5-sidebar-and-rls-extension-build-spec.md` | **Implemented** | Build spec for 86.5. `AgendaSidebar` visible-to-all sections, `buildOthersRenderables`, RLS migrations 000001–000002. Built session 41. |
 | `realtime-attendance-subscription-build-spec.md` | **Implemented** | `useAttendanceSubscription` hook + wired into `useRoster`. Migration adds `attendance_records` to `supabase_realtime` publication. Built session 42, closes #80. |
-| `activity-staff-junction-table-build-spec.md` | **Implemented** | `activity_staff` junction table (#70 Phase 2). Migration, `getViewerRole`/`getActivityStaff` helpers, query layer, view-mode UI, edit-mode guardrail. Built session 43. |
+| `activity-staff-junction-table-build-spec.md` | **Implemented** | `activity_staff` junction table + multi-staff edit form (#70, fully closed). Migration, `getViewerRole`/`getActivityStaff` helpers, `setActivityStaff` diff-reconcile, query layer, view-mode and multi-staff edit UI. Built session 43. |
 
 ## Workflow
 
