@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import ActivityTable from '@/components/activities/ActivityTable'
 import ActivityToolbar from '@/components/activities/ActivityToolbar'
 import ActivitySelectionBar from '@/components/activities/ActivitySelectionBar'
@@ -26,6 +27,7 @@ function getScheduleStatus(activity) {
 function ActivityManagement() {
   const profile = useAuthStore((s) => s.profile)
   const orgId = profile?.organization_id
+  const queryClient = useQueryClient()
 
   // Server state
   const { data: activities = [], isLoading, error: loadError } = useActivities(orgId)
@@ -224,6 +226,7 @@ function ActivityManagement() {
         {
           onSuccess: async (updated) => {
             await setActivityStaff(selectedActivity.id, _pendingStaff)
+            queryClient.invalidateQueries({ queryKey: ['activities', orgId] })
             setSelectedActivity((prev) => ({ ...prev, ...updated }))
             setIsEditing(false)
           },
@@ -233,6 +236,7 @@ function ActivityManagement() {
       createMutation.mutate(activityData, {
         onSuccess: async (created) => {
           await setActivityStaff(created.id, _pendingStaff)
+          queryClient.invalidateQueries({ queryKey: ['activities', orgId] })
           for (const pt of _pendingTerms) {
             await addActivityTerm(created.id, pt.termId, { isPrimary: pt.is_primary })
           }
