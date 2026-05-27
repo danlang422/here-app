@@ -35,7 +35,7 @@ async function batchGetProfileDisplayInfo(profileIds) {
 // Fetch a student's actively enrolled activities with staff display names.
 // Does NOT filter by date — returns all active enrollments. Date filtering
 // happens client-side via activityMeetsToday (depends on school day record).
-export async function getStudentActivitiesForDate(studentId, orgId) {
+export async function getStudentActivitiesForDate(studentId) {
   const { data, error } = await supabase
     .from('enrollments')
     .select(`

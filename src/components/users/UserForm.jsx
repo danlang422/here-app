@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 
 const ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
@@ -54,7 +54,7 @@ function Field({ label, children }) {
 export default function UserForm({ user = null, onSave, onCancel, saving = false }) {
   const isEdit = !!user
 
-  const { register, handleSubmit, watch, setValue, getValues, reset, formState: { isValid } } = useForm({
+  const { register, handleSubmit, control, setValue, getValues, reset, formState: { isValid } } = useForm({
     defaultValues: buildInitialForm(user),
     mode: 'onChange',
   })
@@ -64,7 +64,7 @@ export default function UserForm({ user = null, onSave, onCancel, saving = false
     reset(buildInitialForm(user))
   }, [user, reset])
 
-  const watchedRoles = watch('roles')
+  const watchedRoles = useWatch({ name: 'roles', control })
 
   function handleRoleToggle(role) {
     const current = getValues('roles')

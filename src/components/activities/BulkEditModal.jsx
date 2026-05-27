@@ -229,7 +229,7 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
             hint="Only toggled flags will be changed"
           >
             <div className="flex flex-wrap gap-1">
-              {BEHAVIOR_FLAGS.map(({ field, icon: Icon, label }) => {
+              {BEHAVIOR_FLAGS.map(({ field, icon: FlagIcon, label }) => {
                 const state = flagState[field]
                 const btnClass =
                   state === null
@@ -246,7 +246,7 @@ export default function BulkEditModal({ selectedIds, terms = [], orgSettings, or
                     onClick={() => cycleFlag(field)}
                     disabled={!flagsEnabled}
                   >
-                    <Icon size={11} />
+                    <FlagIcon size={11} />
                     <span className="hidden sm:inline text-xs">{label}</span>
                     {state === null && <span className="text-xs opacity-60">—</span>}
                     {state === true && <span className="text-xs">on</span>}

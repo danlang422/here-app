@@ -1,16 +1,7 @@
 import useUIStore from '@/store/uiStore'
-import { addDays, subDays } from '@/lib/scheduleUtils'
+import { addDays, subDays, getWeekStart } from '@/lib/scheduleUtils'
 
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-function getWeekStart(date) {
-  const d = new Date(date)
-  const day = d.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
-  const diff = day === 0 ? -6 : 1 - day // Mon = day 1
-  d.setDate(d.getDate() + diff)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
 
 function formatNavRange(mon, fri) {
   const monMonth = MONTH_ABBR[mon.getMonth()]
@@ -59,4 +50,3 @@ export function CalendarWeekNav() {
   )
 }
 
-export { getWeekStart }

@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { ArrowUDownLeft } from '@phosphor-icons/react'
 import { buildTeacherRenderables, buildOthersRenderables, formatTimeRange, formatTime } from './agendaUtils'
-import { getBlockLabel } from '@/lib/constants'
 import SidebarPopover from './SidebarPopover'
 
 const ROLE_BADGE = {
@@ -30,7 +29,7 @@ function LateArrivalChip({ count, earliestTime }) {
   )
 }
 
-function SidebarItem({ item, isMine, blockLabels, onClick }) {
+function SidebarItem({ item, isMine, onClick }) {
   const title = item.isCluster ? item.clusterTitle : item.activity.name
   const timeRange = formatTimeRange(item.default_start_time, item.default_end_time)
 

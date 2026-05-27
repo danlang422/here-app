@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Backpack, ChalkboardTeacher, UserGear, SignOut, Question } from '@phosphor-icons/react'
 import { signOut } from '@/api/auth'
 import useAuthStore from '@/store/authStore'
@@ -6,7 +6,6 @@ import { getDisplayName, getInitials } from '@/lib/utils'
 import { Toast } from '@/components/ui/Toast'
 
 function AppLayout({ children }) {
-  const location = useLocation()
   const navigate = useNavigate()
   const { profile, currentRole, availableRoles, setCurrentRole } = useAuthStore()
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { supabase } from '@/api/supabase'
 import { updatePassword } from '@/api/auth'
 
@@ -10,7 +10,7 @@ function ResetPassword() {
   const [expired, setExpired] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  const { register, handleSubmit, watch, formState: { isSubmitting, errors } } = useForm({
+  const { register, handleSubmit, control, formState: { isSubmitting, errors } } = useForm({
     defaultValues: { password: '', confirmPassword: '' },
   })
 
@@ -54,7 +54,7 @@ function ResetPassword() {
   }
 
   const [formError, setFormError] = useState(null)
-  const password = watch('password')
+  const password = useWatch({ name: 'password', control })
 
   if (success) {
     return (

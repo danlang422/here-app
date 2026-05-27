@@ -63,6 +63,7 @@ function ActivityManagement() {
 
   // Clear selection when filters or search change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedIds(new Set())
   }, [filters, searchQuery])
 

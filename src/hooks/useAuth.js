@@ -85,6 +85,8 @@ export function useAuthListener() {
       mounted = false
       subscription.unsubscribe()
     }
+    // Zustand store actions (clearAuth, setLoading, setProfile, setSession) are stable references
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }
 

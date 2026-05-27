@@ -11,7 +11,7 @@ import { useOrgSettings } from '@/hooks/useOrgSettings'
 import { useStaffUsers, useStudents } from '@/hooks/useUsers'
 import { getBlocks, getBlockLabel } from '@/lib/constants'
 import { useTerms } from '@/hooks/useTerms'
-import { addDays, formatDateISO, enrollmentMeetsToday } from '@/lib/scheduleUtils'
+import { addDays, formatDateISO, enrollmentMeetsToday, getWeekStart } from '@/lib/scheduleUtils'
 import {
   timeToMinutes,
   floorToHour,
@@ -19,7 +19,7 @@ import {
   DEFAULT_GRID_START,
   DEFAULT_GRID_END,
 } from '@/components/agenda/agendaUtils'
-import { CalendarWeekNav, getWeekStart } from './CalendarWeekNav'
+import { CalendarWeekNav } from './CalendarWeekNav'
 import { CalendarFilterBar } from './CalendarFilterBar'
 import { CalendarSidebar } from './CalendarSidebar'
 import { CalendarWeekGrid } from './CalendarWeekGrid'
@@ -56,11 +56,11 @@ export function CalendarView() {
   )
 
   // Calendar visibility filter
-  const calendarVisibility = useCalendarUiStore((s) => s.calendarVisibility)
+  const _calendarVisibility = useCalendarUiStore((s) => s.calendarVisibility)
   const isCalendarVisible = useCalendarUiStore((s) => s.isCalendarVisible)
   const visibleActivities = useMemo(
     () => activities.filter((a) => a.calendar_id === null || isCalendarVisible(a.calendar_id)),
-    [activities, calendarVisibility, isCalendarVisible]
+    [activities, isCalendarVisible]
   )
 
   // Filter state

@@ -25,8 +25,6 @@ export function useBulkEditActivities(orgId) {
 
   async function bulkEdit({ selectedIds, changes }) {
     const ids = [...selectedIds]
-    const totalSteps = (hasScalar(changes) ? 1 : 0) + (changes.termIds != null ? ids.length : 0)
-
     setIsPending(true)
     setProgress(0)
     setErrors([])

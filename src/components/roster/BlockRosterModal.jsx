@@ -74,7 +74,7 @@ function BlockRosterModal({
   onClose,
 }) {
   const activityIds = activities.map((a) => a.id)
-  const { todayStudents, allStudents, attendanceByStudent, instances, isLoading, error } =
+  const { todayStudents, attendanceByStudent, instances, isLoading, error } =
     useRoster(activityIds, date, orgId, activities, schoolDay)
 
   const [pendingChanges, setPendingChanges] = useState(new Map())

@@ -7,7 +7,8 @@ import { getBlockLabel } from '@/lib/constants'
 import { formatDateISO } from '@/lib/scheduleUtils'
 import { formatTime } from '@/components/agenda/agendaUtils'
 import StudentDetailOverlay from './StudentDetailOverlay'
-import { StudentRow, STATUS_OPTIONS } from './RosterRow'
+import { StudentRow } from './RosterRow'
+import { STATUS_OPTIONS } from './rosterUtils'
 
 function RosterModal({
   activities,

@@ -20,6 +20,15 @@ export function subDays(date, days) {
   return addDays(date, -days)
 }
 
+export function getWeekStart(date) {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day // Mon = day 1
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 export function isSameDay(a, b) {
   const da = new Date(a)
   const db = new Date(b)

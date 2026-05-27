@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom'
 import useAuthStore from '@/store/authStore'
 
 function DashboardRedirect() {
-  const { currentRole, loading } = useAuthStore()
+  const { currentRole } = useAuthStore()
 
   // Profile hasn't loaded yet — wait rather than redirecting to /login
   if (!currentRole) {

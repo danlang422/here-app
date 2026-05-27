@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { updatePassword } from '@/api/auth'
 import useAuthStore from '@/store/authStore'
 import { getDisplayName } from '@/lib/utils'
@@ -11,11 +11,11 @@ function Account() {
 
   const displayName = getDisplayName(profile)
 
-  const { register, handleSubmit, watch, reset, formState: { isSubmitting, errors } } = useForm({
+  const { register, handleSubmit, control, reset, formState: { isSubmitting, errors } } = useForm({
     defaultValues: { password: '', confirmPassword: '' },
   })
 
-  const password = watch('password')
+  const password = useWatch({ name: 'password', control })
 
   async function onPasswordSubmit({ password: newPassword }) {
     setPasswordError(null)

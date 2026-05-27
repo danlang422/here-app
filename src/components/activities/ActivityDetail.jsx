@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import {
   PencilSimple, Check, X,
   ClipboardText, HandWaving, ListChecks,
@@ -174,7 +174,7 @@ export default function ActivityDetail({
   const blocks = useMemo(() => getBlocks(blockCount), [blockCount])
   const rotationDayNames = orgSettings?.rotation_day_names ?? ['A', 'B']
 
-  const { register, handleSubmit, watch, setValue, reset, getValues } = useForm({
+  const { register, handleSubmit, control, setValue, reset, getValues } = useForm({
     defaultValues: buildInitialValues(activity),
   })
 
@@ -189,19 +189,23 @@ export default function ActivityDetail({
   // Reset form, staff rows, and pending terms when activity changes
   useEffect(() => {
     reset(buildInitialValues(activity))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStaffRows(buildStaffRows(activity))
     setShowDescription(!!(activity?.description))
     setPendingTerms([])
     setShowDeleteConfirm(false)
   }, [activity?.id ?? 'new']) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const watchedIsNotScheduled = watch('is_not_scheduled')
-  const watchedDaysOfWeek = watch('days_of_week')
-  const watchedRotation = watch('rotation_day_type')
-  const watchedName = watch('name')
-  const watchedRecurrenceInterval = watch('recurrence_interval')
-  const watchedGeofence = watch('requires_geofence')
-  const watchedLocationLat = watch('location_lat')
+  const watchedIsNotScheduled = useWatch({ name: 'is_not_scheduled', control })
+  const watchedDaysOfWeek = useWatch({ name: 'days_of_week', control })
+  const watchedRotation = useWatch({ name: 'rotation_day_type', control })
+  const watchedName = useWatch({ name: 'name', control })
+  const watchedRecurrenceInterval = useWatch({ name: 'recurrence_interval', control })
+  const watchedGeofence = useWatch({ name: 'requires_geofence', control })
+  const watchedLocationLat = useWatch({ name: 'location_lat', control })
+  const watchedStartTime = useWatch({ name: 'default_start_time', control })
+  const watchedEndTime = useWatch({ name: 'default_end_time', control })
+  const watchedFlagValues = useWatch({ name: BEHAVIOR_FLAGS.map(f => f.field), control })
 
   // Clamp starting_week when interval drops below the current selection
   useEffect(() => {
@@ -257,7 +261,7 @@ export default function ActivityDetail({
   }
 
   // Block → time auto-fill from default template (uses first selected block)
-  const watchedBlock = watch('block')
+  const watchedBlock = useWatch({ name: 'block', control })
   useEffect(() => {
     if (mode !== 'edit' || !defaultTemplate?.block_definitions || !watchedBlock?.length) return
     const blockNum = watchedBlock[0]
@@ -425,8 +429,8 @@ export default function ActivityDetail({
       {/* ── Properties tray: behavior flags ── */}
       <div className="bg-base-200 rounded-lg px-4 py-3 w-fit">
         <div className="flex gap-1 flex-wrap">
-          {BEHAVIOR_FLAGS.map((flag) => {
-            const active = watch(flag.field)
+          {BEHAVIOR_FLAGS.map((flag, i) => {
+            const active = watchedFlagValues[i]
             const FlagIcon = flag.icon
             return (
               <button
@@ -454,7 +458,6 @@ export default function ActivityDetail({
         {/* Location — full width, above staff */}
         <LocationField
           register={register}
-          watch={watch}
           setValue={setValue}
           geofenceEnabled={watchedGeofence}
           hasCoordinates={watchedLocationLat != null}
@@ -509,7 +512,6 @@ export default function ActivityDetail({
           ) : (
             <SchedulingEdit
               register={register}
-              watch={watch}
               setValue={setValue}
               blocks={blocks}
               blockLabels={blockLabels}
@@ -521,8 +523,8 @@ export default function ActivityDetail({
               watchedRotation={watchedRotation}
               onDayToggle={handleDayToggle}
               onRotationChange={handleRotationChange}
-              watchedStartTime={watch('default_start_time')}
-              watchedEndTime={watch('default_end_time')}
+              watchedStartTime={watchedStartTime}
+              watchedEndTime={watchedEndTime}
               watchedRecurrenceInterval={watchedRecurrenceInterval}
               watchedBlock={watchedBlock}
               onBlockToggle={handleBlockToggle}
@@ -644,7 +646,7 @@ export default function ActivityDetail({
 // ─── LocationField ─────────────────────────────────────────────────────────────
 
 function LocationField({
-  register, watch, setValue,
+  register, setValue,
   geofenceEnabled, hasCoordinates, mode, activity,
   nominatimResults, setNominatimResults,
   nominatimLoading, setNominatimLoading,
