@@ -40,7 +40,7 @@ export async function getStudentActivitiesForDate(studentId, orgId) {
     .from('enrollments')
     .select(`
       *,
-      activity:activities!inner(*, activity_staff(user_id, role))
+      activity:activities!inner(*, activity_staff(user_id, role), calendar:calendar_id(color, name))
     `)
     .eq('student_id', studentId)
     .eq('is_active', true)

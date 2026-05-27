@@ -1,4 +1,9 @@
-import { Flame } from '@phosphor-icons/react'
+import { Flame, ListChecks } from '@phosphor-icons/react'
+import {
+  NumberSquareZero, NumberSquareOne, NumberSquareTwo, NumberSquareThree,
+  NumberSquareFour, NumberSquareFive, NumberSquareSix, NumberSquareSeven,
+  NumberSquareEight, NumberSquareNine,
+} from '@phosphor-icons/react'
 import { getDevNow } from '@/lib/devOverrides' // DEV OVERRIDE — remove for production
 import ActionButton from '@/components/student/ActionButton'
 import {
@@ -8,10 +13,15 @@ import {
 } from '@/lib/actionAvailability'
 import { formatTimeRange } from './agendaUtils'
 
+const BLOCK_SQUARE_ICONS = [
+  NumberSquareZero, NumberSquareOne, NumberSquareTwo, NumberSquareThree,
+  NumberSquareFour, NumberSquareFive, NumberSquareSix, NumberSquareSeven,
+  NumberSquareEight, NumberSquareNine,
+]
+
 function StudentActivityCard({
   activity,
   staffDisplayName,
-  blockLabel,
   isToday,
   checkIn,
   wave,
@@ -23,10 +33,10 @@ function StudentActivityCard({
   onCheckIn,
   onCheckOut,
   calendarColor,
+  onTap,
 }) {
-  // Build the block · location · staff line
-  const metaParts = [blockLabel, activity.location, staffDisplayName].filter(Boolean)
-  const metaLine = metaParts.join(' \u00b7 ')
+  // Line 3: prefer location, fall back to staffDisplayName
+  const locationLine = activity.location || staffDisplayName || null
 
   // Determine button states
   const now = getDevNow() // DEV OVERRIDE
@@ -38,81 +48,102 @@ function StudentActivityCard({
     : null
   const statusState = getStatusButtonState(hasInstance, statusCount > 0, isToday)
 
-  // Primary button: check-in takes priority over wave
   const hasPrimary = checkinState || waveState
   const hasSecondary = statusState !== null
+  const buttonCount = (hasPrimary ? 1 : 0) + (hasSecondary ? 1 : 0)
 
-  // Handle check-in/check-out button click
-  const handlePrimaryClick = () => {
+  const handlePrimaryClick = (e) => {
+    e.stopPropagation()
     if (checkinState === 'available') onCheckIn?.(activity)
     else if (checkinState === 'checkout-available') onCheckOut?.(activity, checkIn)
     else if (waveState === 'available') onWave?.(activity)
   }
 
-  const handleStatusClick = () => {
+  const handleStatusClick = (e) => {
+    e.stopPropagation()
     if (statusState === 'available' || statusState === 'has-updates') {
       onStatusUpdate?.(activity)
     }
   }
 
-  // Count action buttons to determine stacking
-  const buttonCount = (hasPrimary ? 1 : 0) + (hasSecondary ? 1 : 0)
+  const buttons = (
+    <>
+      {hasPrimary && (
+        <ActionButton
+          type={checkinState ? 'checkin' : 'wave'}
+          state={checkinState ?? waveState}
+          onClick={handlePrimaryClick}
+        />
+      )}
+      {hasSecondary && (
+        <ActionButton
+          type="status"
+          state={statusState}
+          onClick={handleStatusClick}
+          hasUpdates={statusCount > 0}
+        />
+      )}
+    </>
+  )
+
+  const hasFooter = (activity.block?.length > 0) || streak > 0 || activity.allows_freeform
 
   return (
     <div
-      className="bg-base-100 border border-base-300 border-l-4 rounded-2xl shadow-sm overflow-visible h-full relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
+      className="bg-base-100 border border-base-300 border-l-4 rounded-2xl shadow-sm overflow-visible h-full relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer"
       style={calendarColor ? { borderLeftColor: calendarColor } : undefined}
+      onClick={onTap}
     >
       {/* Content area */}
-      <div className="p-3 pr-7 flex flex-col gap-0.5 h-full">
-        {/* Row 1: title (left) + time (right) */}
-        <div className="flex justify-between items-baseline gap-2">
-          <span className="font-medium truncate">{activity.name}</span>
-          <span className="text-sm text-base-content/60 shrink-0">
-            {formatTimeRange(activity.default_start_time, activity.default_end_time)}
-          </span>
-        </div>
+      <div className="p-3 pr-3 sm:pr-7 flex flex-col gap-0.5 h-full">
+        {/* Line 1: Title — wraps, no truncation */}
+        <span className="font-medium leading-snug">{activity.name}</span>
 
-        {/* Row 2: block · location · staff [· 🔥 streak] */}
-        {(metaLine || streak > 0) && (
-          <div className="flex items-center gap-1 text-sm text-base-content/60">
-            {metaLine && <span className="truncate">{metaLine}</span>}
+        {/* Line 2: Time range */}
+        <span className="text-sm text-base-content/60">
+          {formatTimeRange(activity.default_start_time, activity.default_end_time)}
+        </span>
+
+        {/* Line 3: Location or staff */}
+        {locationLine && (
+          <span className="text-sm text-base-content/60 truncate">{locationLine}</span>
+        )}
+
+        {/* Footer: block squares, streak, freeform */}
+        {hasFooter && (
+          <div className="flex flex-wrap gap-1 mt-1 items-center">
+            {(activity.block ?? []).map((b) => {
+              const Icon = BLOCK_SQUARE_ICONS[b] ?? NumberSquareZero
+              return <Icon key={b} size={14} className="text-base-content/40" />
+            })}
             {streak > 0 && (
-              <span className={`inline-flex items-center gap-0.5 shrink-0 ${streak >= 5 ? 'text-amber-500' : 'text-base-content/40'}`}>
+              <span className={`inline-flex items-center gap-0.5 ${streak >= 5 ? 'text-amber-500' : 'text-base-content/40'}`}>
                 <Flame weight="fill" size={13} />
                 <span className="text-xs">{streak}</span>
               </span>
+            )}
+            {activity.allows_freeform && (
+              <ListChecks size={13} className="text-base-content/40" />
             )}
           </div>
         )}
       </div>
 
-      {/* Edge-overlapping action buttons */}
+      {/* Desktop buttons — absolute, overhanging */}
       {buttonCount > 0 && (
-        <div
-          className="absolute flex flex-col gap-1.5 items-center"
-          style={{
-            right: '-18px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-          }}
-        >
-          {hasPrimary && (
-            <ActionButton
-              type={checkinState ? 'checkin' : 'wave'}
-              state={checkinState ?? waveState}
-              onClick={handlePrimaryClick}
-            />
-          )}
-          {hasSecondary && (
-            <ActionButton
-              type="status"
-              state={statusState}
-              onClick={handleStatusClick}
-              hasUpdates={statusCount > 0}
-            />
-          )}
-        </div>
+        <>
+          <div
+            className="hidden sm:flex absolute flex-col gap-1.5 items-center"
+            style={{ right: '-18px', top: '50%', transform: 'translateY(-50%)' }}
+          >
+            {buttons}
+          </div>
+
+          {/* Mobile buttons — inline, inside card */}
+          <div className="flex sm:hidden flex-col gap-1.5 items-end absolute bottom-3 right-3">
+            {buttons}
+          </div>
+        </>
       )}
     </div>
   )

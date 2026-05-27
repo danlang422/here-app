@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { HandWaving, CheckCircle, NotePencil, SignOut, CaretLeft, CaretRight, CalendarBlank } from '@phosphor-icons/react'
+import { HandWaving, CheckCircle, NotePencil, SignOut, CaretCircleLeft, CaretCircleRight, CalendarBlank } from '@phosphor-icons/react'
 import useAuthStore from '@/store/authStore'
 import { useToastStore } from '@/store/toastStore'
 import { useStudentAgenda } from '@/hooks/useStudentAgenda'
@@ -14,6 +14,7 @@ import SingleDayAgenda from '@/components/agenda/SingleDayAgenda'
 import StudentActivityCard from '@/components/agenda/StudentActivityCard'
 import StatusUpdateModal from '@/components/student/StatusUpdateModal'
 import FreeformTagSelector from '@/components/student/FreeformTagSelector'
+import ActivityDetailSheet from '@/components/student/ActivityDetailSheet'
 import {
   timeToMinutes,
   floorToHour,
@@ -21,7 +22,7 @@ import {
   DEFAULT_GRID_START,
   DEFAULT_GRID_END,
 } from '@/components/agenda/agendaUtils'
-import { getDevNow, getDevToday, isDevOverrideActive } from '@/lib/devOverrides' // DEV OVERRIDE — remove for production
+import { getDevNow, getDevToday } from '@/lib/devOverrides' // DEV OVERRIDE — remove for production
 import {
   ensureActivityInstances,
   createPresenceWave,
@@ -104,6 +105,9 @@ function TodayView() {
       })
 
   const greeting = getGreeting()
+
+  // --- Detail sheet state ---
+  const [activeDetailActivity, setActiveDetailActivity] = useState(null)
 
   // --- Modal state ---
   const [statusModal, setStatusModal] = useState(null)
@@ -330,16 +334,11 @@ function TodayView() {
   // Render card function for SingleDayAgenda
   const renderCard = (activity) => {
     const staffName = resolveStaffName(activity)
-    const label =
-      activity.block?.length > 0
-        ? activity.block.map(b => getBlockLabel(b, blockLabels)).join(', ')
-        : null
 
     return (
       <StudentActivityCard
         activity={activity}
         staffDisplayName={staffName}
-        blockLabel={label}
         isToday={isToday}
         checkIn={actionData?.checkIns?.get(activity.id) ?? null}
         wave={actionData?.waves?.get(activity.id) ?? null}
@@ -351,6 +350,7 @@ function TodayView() {
         onStatusUpdate={handleStatusUpdate}
         onCheckIn={handleCheckIn}
         onCheckOut={handleCheckOut}
+        onTap={() => setActiveDetailActivity(activity)}
       />
     )
   }
@@ -372,7 +372,7 @@ function TodayView() {
           onClick={goToPrev}
           aria-label="Previous day"
         >
-          <CaretLeft size={16} />
+          <CaretCircleLeft size={20} />
         </button>
         <div className="text-center">
           {isToday && (
@@ -392,7 +392,7 @@ function TodayView() {
           onClick={goToNext}
           aria-label="Next day"
         >
-          <CaretRight size={16} />
+          <CaretCircleRight size={20} />
         </button>
       </div>
 
@@ -456,6 +456,27 @@ function TodayView() {
         onConfirm={handleFreeformConfirm}
         availableActivities={freeformModal?.availableActivities ?? []}
         activityName={freeformModal?.activityName ?? ''}
+      />
+
+      {/* Activity Detail Sheet */}
+      <ActivityDetailSheet
+        isOpen={!!activeDetailActivity}
+        onClose={() => setActiveDetailActivity(null)}
+        activity={activeDetailActivity}
+        blockLabel={activeDetailActivity?.block?.length > 0
+          ? activeDetailActivity.block.map(b => getBlockLabel(b, blockLabels)).join(', ')
+          : null}
+        staffDisplayName={activeDetailActivity ? resolveStaffName(activeDetailActivity) : null}
+        isToday={isToday}
+        checkIn={actionData?.checkIns?.get(activeDetailActivity?.id) ?? null}
+        wave={actionData?.waves?.get(activeDetailActivity?.id) ?? null}
+        statusCount={actionData?.statusCounts?.get(activeDetailActivity?.id) ?? 0}
+        hasInstance={actionData?.instances?.has(activeDetailActivity?.id) ?? false}
+        streak={streakData?.get(activeDetailActivity?.id) ?? 0}
+        onWave={handleWave}
+        onStatusUpdate={handleStatusUpdate}
+        onCheckIn={handleCheckIn}
+        onCheckOut={handleCheckOut}
       />
     </div>
   )

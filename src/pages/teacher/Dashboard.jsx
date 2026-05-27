@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getDevNow, getDevToday } from '@/lib/devOverrides' // DEV OVERRIDE — remove for production
-import { CaretLeft, CaretRight, CalendarBlank } from '@phosphor-icons/react'
+import { CaretCircleLeft, CaretCircleRight, CalendarBlank } from '@phosphor-icons/react'
 import useAuthStore from '@/store/authStore'
 import { useTeacherAgenda } from '@/hooks/useTeacherAgenda'
 import { useTeacherActionSummary } from '@/hooks/useTeacherActionSummary'
@@ -170,50 +170,50 @@ function Dashboard() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Date navigation header */}
-      <div className="flex items-center justify-between mb-4">
-        <button
-          className="btn btn-ghost btn-circle btn-sm"
-          onClick={goToPrev}
-          aria-label="Previous day"
-        >
-          <CaretLeft size={16} />
-        </button>
-        <div className="text-center">
-          <h1 className="text-lg font-semibold flex items-center gap-2 justify-center">
-            {fullDateLabel}
-            {rotationLabel && (
-              <span className="badge badge-sm bg-base-200 border-base-300 text-base-content/60 font-normal">
-                {rotationLabel}
-              </span>
-            )}
-          </h1>
-        </div>
-        <button
-          className="btn btn-ghost btn-circle btn-sm"
-          onClick={goToNext}
-          aria-label="Next day"
-        >
-          <CaretRight size={16} />
-        </button>
-      </div>
-
-      {/* Today shortcut when navigated away */}
-      {!isToday && (
-        <div className="text-center mb-3">
-          <button
-            className="text-xs text-primary hover:underline"
-            onClick={() => setDate(getDevToday())} // DEV OVERRIDE
-          >
-            Back to today
-          </button>
-        </div>
-      )}
-
       {/* Two-column layout: agenda + sidebar */}
       <div className="flex gap-5 items-start">
         {/* Agenda column */}
         <div className="flex-1 min-w-0">
+          {/* Date navigation header */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              className="btn btn-ghost btn-circle btn-sm"
+              onClick={goToPrev}
+              aria-label="Previous day"
+            >
+              <CaretCircleLeft size={20} />
+            </button>
+            <div className="text-center">
+              <h1 className="text-lg font-semibold flex items-center gap-2 justify-center">
+                {fullDateLabel}
+                {rotationLabel && (
+                  <span className="badge badge-sm bg-base-200 border-base-300 text-base-content/60 font-normal">
+                    {rotationLabel}
+                  </span>
+                )}
+              </h1>
+            </div>
+            <button
+              className="btn btn-ghost btn-circle btn-sm"
+              onClick={goToNext}
+              aria-label="Next day"
+            >
+              <CaretCircleRight size={20} />
+            </button>
+          </div>
+
+          {/* Today shortcut when navigated away */}
+          {!isToday && (
+            <div className="text-center mb-3">
+              <button
+                className="text-xs text-primary hover:underline"
+                onClick={() => setDate(getDevToday())} // DEV OVERRIDE
+              >
+                Back to today
+              </button>
+            </div>
+          )}
+
           {/* Block attendance buttons */}
           {!isLoading && visibleBlocks.length > 0 && (
             <div className="flex gap-2 flex-wrap mb-4">
