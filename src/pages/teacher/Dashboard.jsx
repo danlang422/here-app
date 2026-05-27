@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getDevNow, getDevToday } from '@/lib/devOverrides' // DEV OVERRIDE — remove for production
-import { CaretCircleLeft, CaretCircleRight, CalendarBlank } from '@phosphor-icons/react'
+import {
+  CaretCircleLeft, CaretCircleRight, CalendarBlank,
+  NumberSquareZero, NumberSquareOne, NumberSquareTwo, NumberSquareThree,
+  NumberSquareFour, NumberSquareFive, NumberSquareSix, NumberSquareSeven,
+  NumberSquareEight, NumberSquareNine,
+} from '@phosphor-icons/react'
 import useAuthStore from '@/store/authStore'
 import { useTeacherAgenda } from '@/hooks/useTeacherAgenda'
 import { useTeacherActionSummary } from '@/hooks/useTeacherActionSummary'
@@ -25,6 +30,19 @@ import {
   buildTeacherRenderables,
   formatTimeRange,
 } from '@/components/agenda/agendaUtils'
+
+const BLOCK_SQUARE_ICONS = [
+  NumberSquareZero, NumberSquareOne, NumberSquareTwo, NumberSquareThree,
+  NumberSquareFour, NumberSquareFive, NumberSquareSix, NumberSquareSeven,
+  NumberSquareEight, NumberSquareNine,
+]
+
+function fmtTime(t) {
+  const [h, m] = t.split(':').map(Number)
+  const suffix = h >= 12 ? 'PM' : 'AM'
+  const hour = h % 12 || 12
+  return m === 0 ? `${hour} ${suffix}` : `${hour}:${String(m).padStart(2, '0')} ${suffix}`
+}
 
 function Dashboard() {
   const [date, setDate] = useState(getDevToday()) // DEV OVERRIDE
@@ -214,31 +232,6 @@ function Dashboard() {
             </div>
           )}
 
-          {/* Block attendance buttons */}
-          {!isLoading && visibleBlocks.length > 0 && (
-            <div className="flex gap-2 flex-wrap mb-4">
-              {visibleBlocks.map((blockNum) => {
-                const label = getBlockLabel(blockNum, blockLabels)
-                const def = defaultTemplate?.block_definitions?.find((d) => d.block === blockNum)
-                const timeRange = def?.start_time && def?.end_time
-                  ? formatTimeRange(def.start_time, def.end_time)
-                  : null
-                return (
-                  <button
-                    key={blockNum}
-                    className="btn btn-outline btn-sm flex flex-col items-start gap-0 h-auto py-1.5 px-3 min-w-[80px]"
-                    onClick={() => setBlockRosterTarget(blockNum)}
-                  >
-                    <span className="font-semibold text-xs leading-tight">{label}</span>
-                    {timeRange && (
-                      <span className="text-[10px] text-base-content/50 font-normal leading-tight">{timeRange}</span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
           {/* Loading state */}
           {isLoading && (
             <div className="flex justify-center py-16">
@@ -248,12 +241,40 @@ function Dashboard() {
 
           {/* Content */}
           {!isLoading && renderables.length > 0 && (
-            <SingleDayAgenda
-              activities={renderables}
-              gridStartMinutes={gridStartMinutes}
-              gridEndMinutes={gridEndMinutes}
-              renderCard={renderCard}
-            />
+            <div className="flex items-start gap-5">
+              {/* Left block button strip */}
+              {visibleBlocks.length > 0 && (
+                <div className="shrink-0 flex flex-col items-center gap-3 pt-2">
+                  {visibleBlocks.map((blockNum) => {
+                    const def = defaultTemplate?.block_definitions?.find((d) => d.block === blockNum)
+                    const Icon = BLOCK_SQUARE_ICONS[blockNum] ?? NumberSquareZero
+                    return (
+                      <button
+                        key={blockNum}
+                        className="flex flex-col items-center gap-0.5 p-0 bg-transparent border-none cursor-pointer text-base-content hover:text-base-content/50 transition-colors"
+                        onClick={() => setBlockRosterTarget(blockNum)}
+                        aria-label={`Open ${getBlockLabel(blockNum, blockLabels)} roster`}
+                      >
+                        <Icon size={40} weight="regular" />
+                        {def?.start_time && def?.end_time && (
+                          <span className="text-[10px] leading-tight text-center text-base-content/60">
+                            {fmtTime(def.start_time)}<br />{fmtTime(def.end_time)}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <SingleDayAgenda
+                  activities={renderables}
+                  gridStartMinutes={gridStartMinutes}
+                  gridEndMinutes={gridEndMinutes}
+                  renderCard={renderCard}
+                />
+              </div>
+            </div>
           )}
 
           {/* Empty state */}
