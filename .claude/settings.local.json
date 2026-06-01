@@ -58,7 +58,10 @@
       "Bash(brew list *)",
       "Read(//Users/daniellang/bin/**)",
       "Read(//Users/daniellang/.local/bin/**)",
-      "Bash(command -v gh)"
+      "Bash(command -v gh)",
+      "Bash(Start-Sleep -Seconds 4)",
+      "Bash(Get-Content \"C:\\\\Users\\\\dansl\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-dansl-Files-DevProjects-here-app\\\\036b95ef-639b-46ae-98a3-f8e808b3803b\\\\tasks\\\\bzl8edwuj.output\" -Tail 5)",
+      "mcp__playwright__browser_close"
     ]
   }
 }
