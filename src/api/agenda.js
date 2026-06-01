@@ -1,36 +1,6 @@
 import { supabase } from './supabase'
 import { upsertActivityInstance, getInstancesForDate } from './instances'
-
-// Fetch display name info for a profile via SECURITY DEFINER function.
-// Bypasses RLS to avoid recursion when students need teacher names.
-// Returns { id, first_name, last_name, preferred_name } or null.
-async function getProfileDisplayInfo(profileId) {
-  const { data, error } = await supabase
-    .rpc('get_profile_display_info', { profile_id: profileId })
-
-  if (error) {
-    console.error('Failed to fetch profile display info:', error)
-    return null
-  }
-
-  return data?.[0] ?? null
-}
-
-// Batch-fetch display names for multiple profile IDs.
-// Deduplicates IDs and returns a Map of id → profile info.
-async function batchGetProfileDisplayInfo(profileIds) {
-  const uniqueIds = [...new Set(profileIds.filter(Boolean))]
-  if (uniqueIds.length === 0) return new Map()
-
-  const results = await Promise.all(
-    uniqueIds.map(async (id) => {
-      const info = await getProfileDisplayInfo(id)
-      return [id, info]
-    })
-  )
-
-  return new Map(results)
-}
+import { batchGetProfileDisplayInfo } from './profiles'
 
 // Fetch a student's actively enrolled activities with staff display names.
 // Does NOT filter by date — returns all active enrollments. Date filtering

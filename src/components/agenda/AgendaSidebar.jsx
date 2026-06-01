@@ -91,49 +91,52 @@ function AgendaSidebar({
 
   return (
     <div className="flex flex-col gap-3">
-      {yoursRenderables.length > 0 && (
-        <div>
-          <div className="text-[10px] font-semibold text-base-content/40 uppercase tracking-wide px-1 mb-1.5">
-            Visible to all · yours
+      {/* Visible-to-all sections capped at 50vh so the activity widget below stays visible */}
+      <div className="flex flex-col gap-3 overflow-y-auto max-h-[50vh]">
+        {yoursRenderables.length > 0 && (
+          <div>
+            <div className="text-[10px] font-semibold text-base-content/40 uppercase tracking-wide px-1 mb-1.5">
+              Visible to all · yours
+            </div>
+            <div className="flex flex-col gap-1">
+              {yoursRenderables.map((item) => (
+                <SidebarItem
+                  key={item.id}
+                  item={item}
+                  isMine={true}
+                  blockLabels={blockLabels}
+                  onClick={(e) => handleItemClick(item, e)}
+                />
+              ))}
+            </div>
           </div>
-          <div className="flex flex-col gap-1">
-            {yoursRenderables.map((item) => (
-              <SidebarItem
-                key={item.id}
-                item={item}
-                isMine={true}
-                blockLabels={blockLabels}
-                onClick={(e) => handleItemClick(item, e)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      {othersRenderables.length > 0 && (
-        <div>
-          <div className="text-[10px] font-semibold text-base-content/40 uppercase tracking-wide px-1 mb-1.5">
-            Visible to all · others'
+        {othersRenderables.length > 0 && (
+          <div>
+            <div className="text-[10px] font-semibold text-base-content/40 uppercase tracking-wide px-1 mb-1.5">
+              Visible to all · others'
+            </div>
+            <div className="flex flex-col gap-1">
+              {othersRenderables.map((item) => (
+                <SidebarItem
+                  key={item.id}
+                  item={item}
+                  isMine={false}
+                  blockLabels={blockLabels}
+                  onClick={(e) => handleItemClick(item, e)}
+                />
+              ))}
+            </div>
           </div>
-          <div className="flex flex-col gap-1">
-            {othersRenderables.map((item) => (
-              <SidebarItem
-                key={item.id}
-                item={item}
-                isMine={false}
-                blockLabels={blockLabels}
-                onClick={(e) => handleItemClick(item, e)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      {yoursRenderables.length === 0 && othersRenderables.length === 0 && (
-        <p className="text-xs text-base-content/30 text-center py-4">
-          No school-wide activities today.
-        </p>
-      )}
+        {yoursRenderables.length === 0 && othersRenderables.length === 0 && (
+          <p className="text-xs text-base-content/30 text-center py-4">
+            No school-wide activities today.
+          </p>
+        )}
+      </div>
 
       {sidebarPopover && (
         <SidebarPopover

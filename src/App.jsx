@@ -26,6 +26,9 @@ import StudentTodayView from '@/pages/student/TodayView'
 // Teacher pages
 import TeacherDashboard from '@/pages/teacher/Dashboard'
 
+// History page (role-dispatched)
+import HistoryView from '@/pages/HistoryView'
+
 // Help page
 import HelpPage from '@/pages/HelpPage'
 
@@ -105,6 +108,15 @@ function App() {
         <ProtectedRoute>
           <AppLayout>
             <HelpPage />
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* History route — role-dispatched to student or teacher view */}
+      <Route path="/history" element={
+        <ProtectedRoute>
+          <AppLayout>
+            <HistoryView />
           </AppLayout>
         </ProtectedRoute>
       } />

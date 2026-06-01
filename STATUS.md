@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** May 27, 2026 (session 45)
+**Last updated:** June 1, 2026 (session 47)
 
 ---
 
@@ -52,6 +52,7 @@
 | Bulk password reset (Edge Function, user_metadata flag) | Built | Session 29 |
 | Dev date/time override | Built | Session 29, #67 |
 | Realtime subscriptions — attendance_records | Built; `useAttendanceSubscription` wired into `useRoster` | `realtime-attendance-subscription-build-spec.md`, #80 |
+| Action history feed — `/history` page (student + teacher), `RecentActivityWidget` on TodayView/sidebar, `FeedEntryCard`, `StudentActionFeed` | Built; #71 complete | `action-history-feed-build-spec.md` |
 | Realtime subscriptions — check_ins, presence_waves | Not started | Follow-on to #80 |
 
 ## Active Decisions
@@ -85,6 +86,8 @@ Ordered priority:
 5. **#21** — Customizable agenda start/end times
 
 **Recently completed:**
+- Session 47 — #71 Action history feed. `src/api/history.js` (`getStudentActionHistory`, `getTeacherStudentActionHistory`, `getRecentTeacherActions`) + `src/api/profiles.js` (shared profile display helpers extracted from `agenda.js`). Four hooks in `src/hooks/useHistory.js`. Three new components: `FeedEntryCard`, `StudentActionFeed`, `RecentActivityWidget`. Two new pages: `src/pages/student/HistoryView.jsx`, `src/pages/teacher/HistoryView.jsx`; `src/pages/HistoryView.jsx` is a role dispatcher (no `requiredRole` on route). `RecentActivityWidget` added to student TodayView (below agenda) and teacher sidebar (below visible-to-all). `StudentDetailOverlay` gets "View history" link linking to `/history?studentId=[id]`. Two-step query pattern used for teacher history to work around PostgREST's inability to filter on nested relation columns. Teacher student filter applied client-side after hook returns. Teacher widget uses flat action rows (notification style), not the instance-grouped `FeedEntry` shape. `AgendaSidebar` visible-to-all sections capped at `max-h-[50vh] overflow-y-auto` to keep widget visible.
+- Session 46 — Replace block attendance buttons with NumberSquare icon strip. (Commit `892dd2e`.)
 - Session 45 — Lint cleanup. `npm run lint` was at 18 errors + 6 warnings; now exits 0 with 0 errors/warnings. Dead code removed across 9 files (unused imports, variables, props, destructure aliases). ESLint config fixed: added `argsIgnorePattern: '^[A-Z_]'` to `no-unused-vars` so destructured callback aliases used only in JSX are not flagged. Node globals updated from deprecated `eslint-env` comments to flat-config-compatible `/* global */` syntax. Two new utility files extracted to fix fast-refresh mixed-export warnings: `src/lib/scheduleUtils.js` (`getWeekStart`) and `src/components/roster/rosterUtils.js` (`formatTimestamp`, `STATUS_OPTIONS`). All `watch()` calls from `useForm()` replaced with `useWatch({ name, control })` across 4 files for React Compiler compatibility. `npm run build` also clean.
 - Session 44 — Student card layout redesign + `ActivityDetailSheet`. (No session notes — commit `65527e8`.)
 - Session 43 — #70 fully closed. `activity_staff` junction table + multi-staff edit form. Migration `20260526000001`: creates table, migrates data from `teacher_id`/`monitor_id` with in-transaction verify gate, repoints `is_teacher_or_monitor_of` body (name kept, no dependent policies touched), adds 4 RLS policies, drops old columns. Code: `getViewerRole`/`getActivityStaff` in `staffRoles.js`, `buildStaffRows`/`staffRowsToPayload` in `staffUtils.js`, `setActivityStaff` diff-reconcile API function (fetch current → delete stale → upsert new/changed), updated query layer (`getActivity`, `getActivities`, `getTeacherActivitiesForDate`, `getStudentActivitiesForDate`, `getVisibleToAllActivitiesForDate`), view-mode `StaffViewRows` rewrite, multi-staff `StaffEditRows` (multiple Teacher and Monitor rows; Instructor/Mentor remain single-use). Seven unlisted consumers also fixed: `attendance.js`, `ActivityManagement.jsx` staff filter, `ActivityTable.jsx`, `TodayView.jsx`, `CalendarEventCard.jsx`, `CalendarAggregatePopover.jsx`, `ScheduleIssueForm.jsx`. Two post-ship bug fixes: cache invalidation ordering (second `invalidateQueries` added after `setActivityStaff` in `handleSave`); stale staff in detail view after save (replaced `{ ...prev, ...updated }` merge with a `getActivity` fetch after staff sync). Unblocks #77 (substitute role), #78 (bulk staff assignment), #79 (monitor UI Phase 3).

@@ -51,6 +51,7 @@ src/
 │   ├── enrollment/ # EnrollmentPanel
 │   ├── layout/     # AppLayout, AdminLayout, AuthProvider, ProtectedRoute
 │   ├── panels/     # FloatingPanel
+│   ├── history/    # FeedEntryCard, StudentActionFeed, RecentActivityWidget
 │   ├── roster/     # RosterModal, StudentDetailOverlay
 │   ├── student/    # ActionButton, FreeformTagSelector, StatusUpdateModal
 │   └── users/      # UserTable, UserForm, BulkUserEntry
@@ -62,7 +63,7 @@ src/
 └── main.jsx        # Entry point
 ```
 
-**Hooks** (`src/hooks/`): `useAuth`, `useActivities`, `useActivityTerms`, `useBulkEditActivities`, `useCalendars`, `useEnrollments`, `useOrgSettings`, `useRoster`, `useScheduleTemplate`, `useSchoolDays`, `useStreakData`, `useStudentActions`, `useStudentAgenda`, `useStudentInstanceDetail`, `useTeacherActionSummary`, `useTeacherAgenda`, `useTerms`, `useUsers`
+**Hooks** (`src/hooks/`): `useAuth`, `useActivities`, `useActivityTerms`, `useBulkEditActivities`, `useCalendars`, `useEnrollments`, `useHistory`, `useOrgSettings`, `useRoster`, `useScheduleTemplate`, `useSchoolDays`, `useStreakData`, `useStudentActions`, `useStudentAgenda`, `useStudentInstanceDetail`, `useTeacherActionSummary`, `useTeacherAgenda`, `useTerms`, `useUsers`
 
 ## Coding Conventions
 
@@ -91,6 +92,8 @@ src/
 **Two modes of conflict detection.** Block-based (`wouldConflictByBlock`) is the enrollment gatekeeper — it prevents double-booking within a block and is a hard gate. Time-based (`wouldConflictByTime`) is for scheduling visibility — it shows whether activities overlap in actual time, returns overlap/gap in minutes, and is informational only. These are separate because activity times don't always match block boundaries (e.g. an external course assigned to Block 0 may not span Block 0's full time range). Block assignment is organizational (admin judgment), not validated against time. See `src/lib/enrollmentValidation.js`.
 
 **Enrollment is a workflow, not a page.** The enrollment UI is built from composable pieces (StudentSelector, ActivitySelector, EnrollmentFlow) that can be initiated from multiple contexts — activity management, schedule overview, etc. The two-panel flow is: select students → pick activity target → validate → enroll.
+
+**PostgREST cannot filter on nested relation columns.** Queries like `.gte('activity_instance.date', x)` silently return unfiltered results. When filtering by a field on a joined table, fetch the parent IDs first (e.g., get instance IDs for a date range), then query the target table with `.in('activity_instance_id', ids)`. See `getTeacherStudentActionHistory` in `src/api/history.js` for the canonical example.
 
 **Explicit column lists in enrollment queries.** Two functions use explicit `select()` column lists instead of `select('*')`: `getOrgEnrollments` in `src/api/enrollments.js` and `getRosterForActivities` in `src/api/agenda.js`. Any new column added to the `enrollments` table must also be added to both of these lists, or the values will save to the DB but be silently missing from the React Query cache. This was discovered in session 39 when `start_time_override`/`end_time_override` were missing from the UI after save.
 
@@ -197,6 +200,7 @@ Schema docs are in `docs/schema/` — these are the authoritative source for tab
 | `teacher-agenda-86.5-sidebar-and-rls-extension-build-spec.md` | **Implemented** | Build spec for 86.5. `AgendaSidebar` visible-to-all sections, `buildOthersRenderables`, RLS migrations 000001–000002. Built session 41. |
 | `realtime-attendance-subscription-build-spec.md` | **Implemented** | `useAttendanceSubscription` hook + wired into `useRoster`. Migration adds `attendance_records` to `supabase_realtime` publication. Built session 42, closes #80. |
 | `activity-staff-junction-table-build-spec.md` | **Implemented** | `activity_staff` junction table + multi-staff edit form (#70, fully closed). Migration, `getViewerRole`/`getActivityStaff` helpers, `setActivityStaff` diff-reconcile, query layer, view-mode and multi-staff edit UI. Built session 43. |
+| `action-history-feed-build-spec.md` | **Implemented** | Action history feed (#71). `/history` route (role-dispatched), student + teacher `HistoryView` pages, `FeedEntryCard`, `StudentActionFeed`, `RecentActivityWidget` for TodayView and teacher sidebar. `src/api/history.js` + `src/api/profiles.js` (shared profile helpers). Built session 47. |
 
 ## Workflow
 

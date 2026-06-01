@@ -15,6 +15,7 @@ import StudentActivityCard from '@/components/agenda/StudentActivityCard'
 import StatusUpdateModal from '@/components/student/StatusUpdateModal'
 import FreeformTagSelector from '@/components/student/FreeformTagSelector'
 import ActivityDetailSheet from '@/components/student/ActivityDetailSheet'
+import RecentActivityWidget from '@/components/history/RecentActivityWidget'
 import {
   timeToMinutes,
   floorToHour,
@@ -434,6 +435,13 @@ function TodayView() {
               {isToday ? "Nothing on your schedule today. Enjoy the break!" : "No classes scheduled for this date."}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Recent Activity Widget */}
+      {!isLoading && (
+        <div className="mt-6">
+          <RecentActivityWidget studentId={studentId} />
         </div>
       )}
 

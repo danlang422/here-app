@@ -19,6 +19,7 @@ import ClusterPopover from '@/components/agenda/ClusterPopover'
 import RosterModal from '@/components/roster/RosterModal'
 import BlockRosterModal from '@/components/roster/BlockRosterModal'
 import AgendaSidebar from '@/components/agenda/AgendaSidebar'
+import RecentActivityWidget from '@/components/history/RecentActivityWidget'
 import { useSidebarActivities } from '@/hooks/useSidebarActivities'
 import { getBlockLabel } from '@/lib/constants'
 import {
@@ -293,6 +294,7 @@ function Dashboard() {
         {/* Sidebar column — hidden on narrow viewports */}
         {!sidebarLoading && (
           <div className="hidden lg:block w-56 shrink-0">
+            <div className="flex flex-col gap-4">
             <AgendaSidebar
               yours={sidebarYours}
               others={sidebarOthers}
@@ -306,6 +308,8 @@ function Dashboard() {
               schoolDay={schoolDay}
               onOpenRoster={(activity) => setRosterTarget(activity)}
             />
+            <RecentActivityWidget teacherId={teacherId} />
+            </div>
           </div>
         )}
       </div>

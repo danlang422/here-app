@@ -1,8 +1,8 @@
 # Action History Feed — Build Spec
 
-**Status:** Ready to build
+**Status:** Implemented
 **GitHub issue:** #71
-**Session:** 45
+**Session:** 47
 
 ---
 
@@ -322,6 +322,17 @@ Run Supabase security advisor after adding new queries.
 - Page icon in the history page headers
 - Widget "View full history" / "View all" link icon
 - Eventually: nav entry point icon if/when a toolbar or nav item is added
+
+---
+
+## Implementation Notes (session 47 deviations)
+
+- **Single `/history` route, role-dispatched.** Spec called for `/history` (student) and `/teacher/history` (teacher) as separate routes. Implemented as a single `/history` route — `src/pages/HistoryView.jsx` reads `currentRole` from authStore and renders the appropriate page component. Simpler routing; the `?studentId=` deep-link still works unchanged.
+- **Two-step query pattern for teacher history.** Spec's proposed query shape (`.gte('activity_instance.date', x)`) doesn't work in PostgREST — filtering on nested relation columns is not supported. Student history uses direct timestamp columns on the action tables. Teacher history fetches instance IDs for the teacher's activities first, then queries action tables filtered to those IDs.
+- **Teacher student filter is client-side only.** `useTeacherStudentHistory` fetches all actions for the teacher's activities; the student dropdown in the teacher history page filters the already-fetched result rather than triggering a new query. Switching students is instant.
+- **`batchGetProfileDisplayInfo` extracted to `src/api/profiles.js`.** Was a private helper in `agenda.js`; now a shared export used by both the history API layer and the existing agenda code.
+- **`StudentDetailOverlay` is at `src/components/roster/StudentDetailOverlay.jsx`**, not `src/components/teacher/StudentDetailOverlay.jsx` as the spec listed. "View history" link added in the footer.
+- **`AgendaSidebar` height cap added.** Visible-to-all sections capped at `max-h-[50vh] overflow-y-auto` so the teacher `RecentActivityWidget` at the bottom remains visible without scrolling past a long visible-to-all list.
 
 ---
 

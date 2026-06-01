@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { HandWaving, CheckCircle, SignOut, Prohibit, Flame } from '@phosphor-icons/react'
+import { Link } from 'react-router-dom'
+import { HandWaving, CheckCircle, SignOut, Prohibit, Flame, ClockCounterClockwise } from '@phosphor-icons/react'
 import { useStudentInstanceDetail } from '@/hooks/useStudentInstanceDetail'
 import { getBlockLabel } from '@/lib/constants'
 
@@ -187,7 +188,15 @@ function StudentDetailOverlay({
         </div>
 
         {/* Footer */}
-        <div className="modal-action">
+        <div className="modal-action justify-between">
+          <Link
+            to={`/history?studentId=${student?.studentId}`}
+            className="btn btn-ghost btn-sm flex items-center gap-1.5 text-primary"
+            onClick={onClose}
+          >
+            <ClockCounterClockwise size={14} />
+            View history
+          </Link>
           <button className="btn btn-ghost" onClick={onClose}>
             Close
           </button>
