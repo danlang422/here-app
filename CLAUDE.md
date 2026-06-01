@@ -152,6 +152,7 @@ Schema docs are in `docs/schema/` — these are the authoritative source for tab
 | `docs/session-notes/` | Per-session development logs (what was built, decisions made, issues encountered) |
 | `docs/design-and-specs/` | Per-feature design docs, build specs, and UX narratives (full list below) |
 | `docs/demos/` | Standalone HTML demo pages used for design review |
+| `docs/learning/` | Non-build directory for learning and review |
 
 ### Design and Spec Docs
 
@@ -215,3 +216,6 @@ Design decisions and feature planning happen in conversation with Daniel before 
 Issues are tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues). Use the GitHub CLI or GitHub API to access issues from the repo. User-submitted feedback (via the /help page) posts directly to GitHub Issues through the `submit-feedback` Edge Function.
 
 GitHub repo: `danlang422/here-app`
+
+## Learning Mode
+The `docs/learning/` directory contains materials for structured learning sessions focused on understanding the codebase. Read this directory only when the session is explicitly framed as a learning session, not during normal development.
