@@ -1,0 +1,35 @@
+name: Supabase Keep-Alive
+
+# Pings the Here app's Supabase project twice a week so it doesn't
+# get paused for inactivity (free tier pauses after 7 days with no
+# database activity). This is a read-only request and doesn't
+# depend on the request actually returning data — RLS can block it
+# and it still counts as activity.
+
+on:
+  schedule:
+    # Mon and Thu at 13:00 UTC (~8am Central, adjust if you want)
+    - cron: "0 13 * * 1,4"
+  workflow_dispatch: {} # lets you trigger it manually from the Actions tab to test
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${SUPABASE_URL}/rest/v1/organizations?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_KEY}")
+          echo "Supabase responded with HTTP $response"
+          # Any response (including 401/403 from RLS) means the request
+          # reached the database and counts as activity. Only fail the
+          # job on a true connection failure (000).
+          if [ "$response" = "000" ]; then
+            echo "No response from Supabase — connection failed."
+            exit 1
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
