@@ -2,9 +2,9 @@ name: Supabase Keep-Alive
 
 # Pings the Here app's Supabase project twice a week so it doesn't
 # get paused for inactivity (free tier pauses after 7 days with no
-# database activity). This is a read-only request and doesn't
-# depend on the request actually returning data — RLS can block it
-# and it still counts as activity.
+# database activity). Calls the public.ping() RPC function via the
+# anon key — this generates a real database round-trip without
+# needing the service role / secret key.
 
 on:
   schedule:
@@ -19,15 +19,20 @@ jobs:
       - name: Ping Supabase REST API
         run: |
           response=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${SUPABASE_URL}/rest/v1/organizations?select=id&limit=1" \
+            -X POST \
+            "${SUPABASE_URL}/rest/v1/rpc/ping" \
             -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}")
+            -H "Authorization: Bearer ${SUPABASE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
           echo "Supabase responded with HTTP $response"
-          # Any response (including 401/403 from RLS) means the request
-          # reached the database and counts as activity. Only fail the
-          # job on a true connection failure (000).
+          # 200 means the ping() function ran — real database activity.
+          # Fail on 000 (no connection) or anything unexpected.
           if [ "$response" = "000" ]; then
             echo "No response from Supabase — connection failed."
+            exit 1
+          elif [ "$response" != "200" ]; then
+            echo "Unexpected response: $response"
             exit 1
           fi
         env:
