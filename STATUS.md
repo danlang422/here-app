@@ -69,9 +69,11 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 ### Platform deferred items
 
-**`feedback-screenshots` public bucket** — Intentionally public so screenshots embed inline in GitHub Issues (no public API exists for uploading GitHub issue images programmatically). Low risk for internal app; paths are UUID-scoped. Revisit if app scales or GitHub adds an image upload API. See session 36 notes for full options analysis.
-
 **Leaked password protection (HaveIBeenPwned check)** — Supabase Auth feature that checks passwords against known breached credential lists. Requires Pro plan. Enable when upgrading from Free tier.
+
+### Fixed
+
+**`feedback-screenshots` bucket is now private** — Was intentionally public (session 36) so screenshots embed inline in GitHub Issues via `getPublicUrl()`. With the repo now public, the bucket's unauthenticated SELECT policy meant anyone could enumerate and read every screenshot across all orgs via the storage list endpoint — no longer an acceptable tradeoff. `submit-feedback` now uses `createSignedUrl()` (10-year expiry) instead; the bucket has no public/authenticated policies left since all access goes through the edge function's service-role client. See `20260702000001_feedback_screenshots_private_bucket.sql`.
 
 ## Next Steps
 

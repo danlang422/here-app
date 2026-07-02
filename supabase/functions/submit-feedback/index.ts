@@ -178,10 +178,18 @@ Deno.serve(async (req) => {
           });
 
         if (!uploadError) {
-          const { data: publicData } = adminClient.storage
+          // Bucket is private; sign for a very long expiry so the image
+          // keeps rendering inline in the GitHub issue indefinitely.
+          const SIGNED_URL_EXPIRY_SECONDS = 315360000; // 10 years
+          const { data: signedData, error: signedUrlError } = await adminClient.storage
             .from("feedback-screenshots")
-            .getPublicUrl(storagePath);
-          screenshotUrl = publicData?.publicUrl || null;
+            .createSignedUrl(storagePath, SIGNED_URL_EXPIRY_SECONDS);
+
+          if (signedUrlError) {
+            console.warn("Signed URL creation failed:", signedUrlError.message);
+          }
+
+          screenshotUrl = signedData?.signedUrl || null;
 
           if (screenshotUrl) {
             await adminClient
