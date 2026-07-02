@@ -1,12 +1,12 @@
 # Here App — Project Status
 
-**Last updated:** June 1, 2026 (session 47)
+**Last updated:** July 2, 2026 (session 52)
 
 ---
 
 ## Current State
 
-**Database:** V2 schema deployed. Migrations through `20260526000001` — `activity_staff` junction table replacing `activities.teacher_id`/`monitor_id` (#70 Phase 2). Real data: City View org with admin account (Daniel Lang), staff users, and activities. Consolidation pass is complete; remaining data work is **time-accuracy** — adjusting individual activity start/end times to match real-world arrival/departure patterns, gathered incrementally from City View staff and students.
+**Database:** V2 schema deployed. Migrations through `20260702000003` — revoked `anon`'s inherited table grants (session 52; see Fixed section below). Migration ledger reconciled against production's actual applied timestamps in the same session — `supabase db diff --linked` now reads clean. Real data: City View org with admin account (Daniel Lang), staff users, and activities. Consolidation pass is complete; remaining data work is **time-accuracy** — adjusting individual activity start/end times to match real-world arrival/departure patterns, gathered incrementally from City View staff and students.
 
 **Application:**
 
@@ -43,6 +43,7 @@
 | PAET buttons — larger size + "Mark all P" bulk action | Built | Session 32, #75 |
 | **Public-facing site** | | |
 | Public landing page, trust/privacy page, about page, public layout, auth-aware root routing | Built (feat/public-facing-site) | `public-facing-site-build-spec.md`, Session 33 |
+| Landing page screenshot tour — three-panel visual tour replacing prose "About" section, lightbox modal | Built | Session 50 |
 | **Infrastructure** | | |
 | Hooks / TanStack Query layer | Built | — |
 | Zustand stores (auth, UI, calendar UI) | Built | — |
@@ -54,6 +55,7 @@
 | Realtime subscriptions — attendance_records | Built; `useAttendanceSubscription` wired into `useRoster` | `realtime-attendance-subscription-build-spec.md`, #80 |
 | Action history feed — `/history` page (student + teacher), `RecentActivityWidget` on TodayView/sidebar, `FeedEntryCard`, `StudentActionFeed` | Built; #71 complete | `action-history-feed-build-spec.md` |
 | Realtime subscriptions — check_ins, presence_waves | Not started | Follow-on to #80 |
+| Supabase keep-alive GitHub Action — pings `public.ping()` RPC twice weekly to prevent free-tier pause during slow development periods | Built | Session 49 (table-query version), Session 50 (dedicated `ping()` RPC) |
 
 ## Active Decisions
 
@@ -75,6 +77,10 @@ Tracked in [GitHub Issues](https://github.com/danlang422/here-app/issues) — th
 
 **`feedback-screenshots` bucket is now private** — Was intentionally public (session 36) so screenshots embed inline in GitHub Issues via `getPublicUrl()`. With the repo now public, the bucket's unauthenticated SELECT policy meant anyone could enumerate and read every screenshot across all orgs via the storage list endpoint — no longer an acceptable tradeoff. `submit-feedback` now uses `createSignedUrl()` (10-year expiry) instead; the bucket has no public/authenticated policies left since all access goes through the edge function's service-role client. See `20260702000001_feedback_screenshots_private_bucket.sql`.
 
+**Six INSERT policy org-scoping gaps closed** — `check_ins`, `presence_waves`, `status_updates`, `post_responses`, `comments`, `notifications` checked row ownership (`student_id`/`author_id = auth.uid()`) but never verified the parent record belonged to the caller's own org — reachable via direct Supabase REST calls with any valid JWT, not through the app's UI. Fixed using the existing `get_my_organization_id()` pattern; `notifications` (no `organization_id` column) checks the recipient via a `user_profiles`-to-`user_profiles` join. See `20260702000002_fix_insert_policy_org_scoping.sql`, session 52.
+
+**`anon` role's inherited table grants revoked** — `anon` held full SELECT/INSERT/UPDATE/DELETE on every pre-existing `public` table (all but `activity_staff`, protected only by having been created later). Root cause: the May 2026 `ALTER DEFAULT PRIVILEGES` migration (`20260513141200`) only governs tables created after it runs, not tables that already existed. RLS was providing real protection throughout (every policy keys off `auth.uid()`/`get_my_organization_id()`, both `NULL` for `anon`), but the grant layer was effectively absent as a second line of defense. Verified no pre-login code path queries `public` schema tables before fixing. See `20260702000003_revoke_anon_inherited_table_grants.sql`, session 52.
+
 ## Next Steps
 
 **Iteration 4 goal: get to real user testing.**
@@ -87,7 +93,13 @@ Ordered priority:
 4. **#62** — Activity entry UX improvements (sticky header, save + add new consideration)
 5. **#21** — Customizable agenda start/end times
 
+**Decided, not yet scheduled:** Demo environment will be a separate Supabase project (Option B), confirmed session 52. Build-out (create project, seed fake data, deploy Edge Functions, point a demo frontend deployment at it) not started — no priority set yet relative to the ordered list above.
+
 **Recently completed:**
+- Session 52 — Security audit + remediation. Investigated demo-environment isolation options (separate Supabase project vs. second org in production); recommended and confirmed the separate-project approach (build-out deferred as follow-up). Audit surfaced two live gaps, fixed independent of the demo decision: (1) `feedback-screenshots` storage bucket made private, `submit-feedback` switched to signed URLs; (2) six INSERT RLS policies fixed for missing org-scoping checks. Separately, reconciled the migration ledger against production (six May-13 files renamed off a shared placeholder timestamp; eight dashboard-applied migrations recorded via `migration repair`) and discovered/fixed a real gap: `anon` held full table grants on nearly the entire schema, inherited from before the May 2026 `ALTER DEFAULT PRIVILEGES` migration (which only covers tables created after it ran). Also: seed script re-added, `npm audit fix` applied (lockfile only). Full narrative in session notes 48–52 (docs backfill covering the undocumented June 1 – July 2 span).
+- Session 50 — Landing page screenshot tour (three-panel visual tour, lightbox modal). Keep-alive workflow switched from querying a real table with the anon key to a dedicated `public.ping()` RPC function.
+- Session 49 — Supabase keep-alive GitHub Action added (prevents free-tier project pause during slow development periods).
+- Session 48 — `docs/learning/` set up for structured learning-mode sessions (`LEARNING.md`, `data-model.md`). Removed session 51; see that note.
 - Session 47 — #71 Action history feed. `src/api/history.js` (`getStudentActionHistory`, `getTeacherStudentActionHistory`, `getRecentTeacherActions`) + `src/api/profiles.js` (shared profile display helpers extracted from `agenda.js`). Four hooks in `src/hooks/useHistory.js`. Three new components: `FeedEntryCard`, `StudentActionFeed`, `RecentActivityWidget`. Two new pages: `src/pages/student/HistoryView.jsx`, `src/pages/teacher/HistoryView.jsx`; `src/pages/HistoryView.jsx` is a role dispatcher (no `requiredRole` on route). `RecentActivityWidget` added to student TodayView (below agenda) and teacher sidebar (below visible-to-all). `StudentDetailOverlay` gets "View history" link linking to `/history?studentId=[id]`. Two-step query pattern used for teacher history to work around PostgREST's inability to filter on nested relation columns. Teacher student filter applied client-side after hook returns. Teacher widget uses flat action rows (notification style), not the instance-grouped `FeedEntry` shape. `AgendaSidebar` visible-to-all sections capped at `max-h-[50vh] overflow-y-auto` to keep widget visible.
 - Session 46 — Replace block attendance buttons with NumberSquare icon strip. (Commit `892dd2e`.)
 - Session 45 — Lint cleanup. `npm run lint` was at 18 errors + 6 warnings; now exits 0 with 0 errors/warnings. Dead code removed across 9 files (unused imports, variables, props, destructure aliases). ESLint config fixed: added `argsIgnorePattern: '^[A-Z_]'` to `no-unused-vars` so destructured callback aliases used only in JSX are not flagged. Node globals updated from deprecated `eslint-env` comments to flat-config-compatible `/* global */` syntax. Two new utility files extracted to fix fast-refresh mixed-export warnings: `src/lib/scheduleUtils.js` (`getWeekStart`) and `src/components/roster/rosterUtils.js` (`formatTimestamp`, `STATUS_OPTIONS`). All `watch()` calls from `useForm()` replaced with `useWatch({ name, control })` across 4 files for React Compiler compatibility. `npm run build` also clean.
