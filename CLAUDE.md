@@ -119,18 +119,22 @@ V2 schema with migrations in `supabase/migrations/`. Key migrations:
 - `20260324000000` — Feedback/reports table
 - `20260406000000` — Enrollment-level scheduling (4 nullable scheduling columns on `enrollments`: `days_of_week`, `rotation_day_type`, `recurrence_interval`, `recurrence_anchor_date`)
 - `20260421000000` — Multi-block activities (`activities.block` and `enrollments.block` converted from `INTEGER` to `INTEGER[]`; existing single-block data migrated to single-element arrays)
-- `20260513000001` — RLS overhaul: all `user_metadata` references replaced with `user_profiles` subqueries
-- `20260513000002` — Function security: replaced `user_metadata` in functions, added `search_path`, fixed `handle_new_auth_user`
-- `20260513000003` — Revoke anon execute (attempt via `REVOKE FROM anon` — superseded by 000004)
-- `20260513000004` — Revoke public execute: `REVOKE FROM PUBLIC` + `GRANT TO authenticated` for all SECURITY DEFINER functions
-- `20260513000005` — Fix `user_profiles` recursion: introduced `get_my_organization_id()` SECURITY DEFINER helper
-- `20260513000006` — Opt out of Supabase default grants (explicit GRANTs now required for new tables)
+- `20260513132022` — RLS overhaul: all `user_metadata` references replaced with `user_profiles` subqueries
+- `20260513132044` — Function security: replaced `user_metadata` in functions, added `search_path`, fixed `handle_new_auth_user`
+- `20260513132120` — Revoke anon execute (attempt via `REVOKE FROM anon` — superseded by 132144)
+- `20260513132144` — Revoke public execute: `REVOKE FROM PUBLIC` + `GRANT TO authenticated` for all SECURITY DEFINER functions
+- `20260513141142` — Fix `user_profiles` recursion: introduced `get_my_organization_id()` SECURITY DEFINER helper
+- `20260513141200` — Opt out of Supabase default grants via `ALTER DEFAULT PRIVILEGES` (governs tables/sequences created *after* this migration; did not retroactively revoke anon's existing grants on pre-existing tables — see `20260702000003`)
 - `20260514000001` — Add `visible_to_all_staff BOOLEAN NOT NULL DEFAULT false` to `activities`
 - `20260514000002` — Add `start_time_override TIME` and `end_time_override TIME` (both nullable) to `enrollments`
 - `20260520000001` — RLS extension for visible-to-all staff: extends teacher read/write access to `enrollments`, `activity_instances`, and `attendance_records` for `visible_to_all_staff` activities; introduces `activity_is_visible_to_all()` SECURITY DEFINER helper; Path A write access confirmed
 - `20260520000002` — Add "Teachers read visible-to-all activities" SELECT policy on `activities` table (missed in 000001; non-assigned teachers couldn't read the activity row itself)
 - `20260521000001` — Add `attendance_records` to `supabase_realtime` publication (required for Realtime `postgres_changes` events to fire; table was never added when originally created)
 - `20260526000001` — `activity_staff` junction table (#70 Phase 2): replaces `activities.teacher_id`/`monitor_id` with `activity_staff(activity_id, user_id, role)`; data migrated with verify gate; `is_teacher_or_monitor_of` body repointed (name kept); RLS on new table; old columns dropped
+- `20260625000001` — `ping()` SECURITY DEFINER function granted to `anon`, for the GitHub Actions keep-alive workflow to generate DB activity via `/rest/v1/rpc/ping` without a service-role key; returns no user data
+- `20260702000001` — Made `feedback-screenshots` storage bucket private; `submit-feedback` edge function switched from `getPublicUrl()` to `createSignedUrl()` (10-year expiry); removed the bucket's public/authenticated SELECT policies (bucket previously allowed unauthenticated list/read of every org's screenshots)
+- `20260702000002` — Fixed six INSERT policy gaps that checked row ownership but not parent-record org membership: `check_ins`, `presence_waves`, `status_updates`, `post_responses`, `comments`, `notifications` (the last via a `user_profiles`-to-`user_profiles` join, since `notifications` has no `organization_id` column)
+- `20260702000003` — Revoked `anon`'s inherited table/sequence grants on every pre-existing `public` table (`REVOKE ALL ... FROM anon`). Root cause: `20260513141200`'s `ALTER DEFAULT PRIVILEGES` only governs tables created after it runs — every table that existed before May 13 had retained its original at-creation grants, which included full CRUD for `anon`. RLS was still enforcing real protection throughout (all policies key off `auth.uid()`/`get_my_organization_id()`, both `NULL` for `anon`), but the grant layer was effectively absent for `anon` on nearly the whole schema until this migration. Verified via codebase audit that no pre-login code path queries `public` schema tables, so this closes a real gap with no functional impact.
 
 **Important — new tables require explicit GRANTs:** As of May 2026 we opted into Supabase's new behavior where tables in `public` are not auto-exposed to the Data API. Every new table must include:
 ```sql
