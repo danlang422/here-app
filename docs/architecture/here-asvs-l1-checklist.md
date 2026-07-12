@@ -143,7 +143,7 @@ Status values: `not started` / `in progress` / `verified` / `fixed` / `n/a`
 
 | ID | Type | Requirement | Applicability | Status | Evidence |
 |---|---|---|---|---|---|
-| V13.4.1 | Implementation | Verify that the application is deployed either without any source control metadata, including the .git or .svn folders, or in a way that these folders are inaccessible both externally and to the application itself. | | not started | |
+| V13.4.1 | Implementation | Verify that the application is deployed either without any source control metadata, including the .git or .svn folders, or in a way that these folders are inaccessible both externally and to the application itself. | Applies — satisfied by deployment architecture, not a control we added. Vercel builds from `dist/` (Vite output), which never contains `.git`; nothing to leak by construction. | verified | Tested `https://sayhere.xyz/.git/HEAD` and `/.git/config` directly (session 2026-07-12): both return HTTP 200 `Content-Type: text/html`, `Content-Disposition: inline; filename="index.html"`, body = the app's `index.html` shell — not git data, not a directory listing. This is `vercel.json`'s SPA catch-all rewrite (`"source": "/(.*)", "destination": "/index.html"`) firing because no real file exists at that path in `dist/`, the same behavior any nonexistent route gets. Confirms no `.git` metadata is reachable. |
 
 ## V14 — Data Protection (2 L1 requirements)
 
