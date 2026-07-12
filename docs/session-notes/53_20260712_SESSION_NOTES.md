@@ -84,5 +84,19 @@ No ASVS requirements were actually worked this session — this was tooling only
 ## What's ready for the next session
 
 - Doc-update hook is live and logging in dry-run mode (`.git/hook-logs/check-docs-updated.log`). Decide whether/when to create `.claude/doc-hook-enabled` after watching it for a while.
-- ASVS audit workflow (`/asvs-audit`) is ready to use. Suggested first run: `/asvs-audit V13` (Configuration — only one L1 requirement) as a small dry run of the workflow itself before tackling a larger chapter. V8 Authorization remains the recommended first substantial chapter, given the heavy overlap with the RLS work already done in session 52.
+- ASVS audit workflow (`/asvs-audit`) has now had its dry run (see 53.3 below). V8 Authorization remains the recommended next substantial chapter, given the heavy overlap with the RLS work already done in session 52.
 - Otherwise unchanged: time-accuracy data pass, realtime `check_ins`/`presence_waves` (#80 follow-on), #61, #62, #21.
+
+---
+
+## 53.3 ASVS audit dry run — `/asvs-audit V13` (later the same day)
+
+First real use of the `/asvs-audit` skill built earlier in this session, run as the planned small dry run before tackling a larger chapter.
+
+V13 (Configuration) has exactly one L1 requirement, `V13.4.1` — verify the application is deployed without exposed source control metadata like `.git`/`.svn`. Walked through what the requirement guards against (an exposed `.git` directory can leak source, commit history, or secrets accidentally committed) and why it applies here. Rather than reasoning it through from documentation alone, tested it directly: `curl` against the live production URL, `https://sayhere.xyz/.git/HEAD` and `/.git/config` — both returned HTTP 200 with `Content-Type: text/html` and the app's actual `index.html` shell as the body, not git data. Root cause of the 200 (not a 404) is `vercel.json`'s SPA catch-all rewrite (`"source": "/(.*)", "destination": "/index.html"`) firing because no real file exists at that path in the Vite build output (`dist/`) — the same behavior any nonexistent route gets. Confirms there's no `.git` metadata reachable at all; the 200 is just SPA routing, not a hit. Daniel confirmed understanding and restated the "why it's not an issue for Here" reasoning in his own words — Checkpoint A per the skill.
+
+`V13.4.1` marked `verified` in `docs/architecture/here-asvs-l1-checklist.md`, with the curl evidence and reasoning in the Evidence column, and an Applicability note explaining it's satisfied by the deployment architecture (Vercel + Vite build output never containing `.git`) rather than a control that was specifically added. Committed as `c04c528`.
+
+Also a useful live test of the doc-update hook from 53.1: since the checklist file is on the hook's substantive-paths list, `.git/hook-logs/check-docs-updated.log` correctly logged a `DRY-RUN: would flag c04c528...` line for this commit, confirming the classification logic works in real use — but took no action, since `.claude/doc-hook-enabled` still doesn't exist. Expected, not a bug.
+
+No other ASVS chapters were touched. V13 is the only chapter with a non-"not started" status, and it's now fully resolved (its one L1 requirement is the whole chapter). 1 of 70 L1 requirements verified overall.
