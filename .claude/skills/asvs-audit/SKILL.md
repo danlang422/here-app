@@ -86,9 +86,20 @@ or `in progress` first.
    `here-security-decisions.md`'s matching section is drafted/current first. If a
    row is marked `n/a`, the Applicability column must contain an actual rationale
    — never a silent skip (ASVS's own reporting guidance requires this).
-7. Commit normally. STATUS.md / session-note updates are handled by the existing
-   `doc-updater` flow (manual or via `scripts/check-docs-updated.sh`'s post-commit
-   hook) — no separate mechanism needed here.
+7. Commit normally, per-requirement is fine. At the end of the working session
+   (or another natural stopping point — not necessarily after every single row),
+   invoke the `doc-updater` agent yourself for STATUS.md and the session note,
+   covering everything done since the last doc-updater pass. **Do this
+   proactively — don't wait to be asked.** Check whether `.claude/doc-hook-enabled`
+   exists first (`scripts/check-docs-updated.sh` explains what it does if you need
+   the context): if it doesn't, the post-commit hook is dry-run-only and will
+   never do this for you, so it's on you. Either way, review `doc-updater`'s diff
+   yourself before committing it — don't take its output on faith. (See
+   `docs/session-notes/53_20260712_SESSION_NOTES.md`, section 53.4: invoked
+   headlessly/unreviewed, it once fabricated a claim about tooling state that
+   nobody had told it and it never checked. The fix landed in
+   `doc-updater-agent.md`, but treat review as the real safeguard, not the fix
+   alone.)
 
 ## It's fine to stop mid-chapter
 
