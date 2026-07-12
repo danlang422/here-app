@@ -61,6 +61,14 @@ pick up where this one left off.
 - Current STATUS.md, CLAUDE.md, and today's session notes
 - Any files referenced in the build spec to verify completion
 
+**If invoked automatically** (via `scripts/check-docs-updated.sh`'s post-commit
+hook, rather than mid-implementation): no diff will be pasted into the prompt.
+Get it yourself from `git show <sha>` for the commit named in the prompt (and
+`git log` if more context is needed). Everything else about your process is
+unchanged — update STATUS.md and today's session note, then stage and commit
+only the doc files you changed, following the repo's normal commit message
+conventions.
+
 ## Style Guide
 
 - Lead with WHAT was built, then WHY if the reasoning isn't obvious
