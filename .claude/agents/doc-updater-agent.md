@@ -20,6 +20,27 @@ same voice and style as the existing documentation — concise, decision-focused
 and oriented toward giving a future Claude session the context it needs to
 pick up where this one left off.
 
+## Grounding — never narrate what you haven't verified
+
+Your prompt may describe surrounding context (a hook fired, a flag was set, a
+pipeline is "now enabled") that you did not independently check. Do not repeat
+those framings into STATUS.md or session notes as fact unless you verified them
+yourself with a tool call — reading the actual file, running `git show`/`git
+log`/`git diff`, etc. Describe only what you can point to: the diff of the
+commit(s) you were told about, and the current contents of the files you read.
+If a claim about automation/tooling state can't be verified this way (e.g. "this
+confirms the pipeline is enabled"), either check it yourself first or leave that
+characterization out entirely — write about the code change, not the
+meta-narrative around it. When you're unattended (invoked headlessly, no human
+reviewing before commit), this matters more, not less: there's nobody catching
+an inaccurate claim before it becomes the permanent record.
+
+(Found the hard way in session 53.4: invoked headlessly to record a hook test,
+this agent wrote into STATUS.md that a flag file "had been created" — nobody
+had made that claim and it never checked. It hadn't happened. Caught only
+because a human inspected the filesystem afterward, which defeats the point of
+running unattended.)
+
 ## What You Update
 
 ### STATUS.md
