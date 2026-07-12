@@ -1,6 +1,6 @@
 # Here App — Project Status
 
-**Last updated:** July 2, 2026 (session 52)
+**Last updated:** July 12, 2026 (ASVS security audit scaffolding — no numbered dev session yet, see Next Steps)
 
 ---
 
@@ -95,6 +95,8 @@ Ordered priority:
 
 **Decided, not yet scheduled:** Demo environment will be a separate Supabase project (Option B), confirmed session 52. Build-out (create project, seed fake data, deploy Edge Functions, point a demo frontend deployment at it) not started — no priority set yet relative to the ordered list above.
 
+**In progress, not yet scheduled:** OWASP ASVS v5.0.0 Level 1 security audit, going beyond the RLS/grants remediation from session 52 to a full standards-based pass. Scaffolding complete (July 2026): `docs/architecture/here-asvs-l1-checklist.md` (70 L1 requirements across 15 applicable chapters — V16 Logging/Error Handling and V17 WebRTC excluded, zero L1 requirements each — tagged Documentation vs. Implementation per ASVS's own structure, with an Evidence column for verification notes) and `docs/architecture/here-security-decisions.md` (companion doc holding the actual written policies for the four Documentation-type requirements: V2.1.1 input validation, V6.1.1 auth/anti-automation, V8.1.1 authorization, V15.1.1 dependency update SLA). V5 File Handling and V10 OAuth/OIDC flagged likely N/A pending confirmation — no storage/upload or OAuth code found in `src/`. V8 Authorization recommended as the first chapter to work, since it overlaps heavily with the RLS work already done. Intended to run as a Claude Code project going forward, working one chapter at a time rather than all at once.
+
 **Recently completed:**
 - Session 52 — Security audit + remediation. Investigated demo-environment isolation options (separate Supabase project vs. second org in production); recommended and confirmed the separate-project approach (build-out deferred as follow-up). Audit surfaced two live gaps, fixed independent of the demo decision: (1) `feedback-screenshots` storage bucket made private, `submit-feedback` switched to signed URLs; (2) six INSERT RLS policies fixed for missing org-scoping checks. Separately, reconciled the migration ledger against production (six May-13 files renamed off a shared placeholder timestamp; eight dashboard-applied migrations recorded via `migration repair`) and discovered/fixed a real gap: `anon` held full table grants on nearly the entire schema, inherited from before the May 2026 `ALTER DEFAULT PRIVILEGES` migration (which only covers tables created after it ran). Also: seed script re-added, `npm audit fix` applied (lockfile only). Full narrative in session notes 48–52 (docs backfill covering the undocumented June 1 – July 2 span).
 - Session 50 — Landing page screenshot tour (three-panel visual tour, lightbox modal). Keep-alive workflow switched from querying a real table with the anon key to a dedicated `public.ping()` RPC function.
@@ -126,7 +128,7 @@ Ordered priority:
 | `CLAUDE.md` | Project overview, commands, conventions, key architectural decisions — **Claude's entry point** |
 | `docs/schema/` | Database tables, constraints, indexes, queries, RLS policies, migration strategy |
 | `docs/business-logic/` | Schedule logic, check-in rules, attendance rules, enrollment validation, notifications |
-| `docs/architecture/` | Tech stack, data flow, auth, realtime, UI patterns — audited against codebase April 2026 (session 35) |
+| `docs/architecture/` | Tech stack, data flow, auth, realtime, UI patterns — audited against codebase April 2026 (session 35). Also holds `here-asvs-l1-checklist.md` and `here-security-decisions.md` (ASVS v5.0.0 Level 1 security audit, scaffolded July 2026). |
 | `docs/session-notes/` | Per-session development logs |
 | `docs/design-and-specs/` | Per-feature design docs, build specs, and UX narratives — full list in CLAUDE.md |
 | `docs/demos/` | Standalone HTML demo pages used for design review |
