@@ -26,5 +26,9 @@ supabase/.temp
 *.sln
 *.sw?
 
-# MCP 
+# MCP
 .playwright-mcp/
+
+# Local opt-in flag for scripts/check-docs-updated.sh (post-commit doc-update hook).
+# Stays untracked on purpose — cloning the repo must not silently enable it.
+.claude/doc-hook-enabled
