@@ -23,7 +23,7 @@ if [ "$PARENT_COUNT" -gt 1 ]; then
   exit 0
 fi
 
-CHANGED_FILES="$(git diff-tree --no-commit-id --name-only -r HEAD)"
+CHANGED_FILES="$(git diff-tree --no-commit-id --name-only -r --root HEAD)"
 
 is_substantive=false
 has_doc_update=false
