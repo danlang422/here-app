@@ -100,3 +100,17 @@ V13 (Configuration) has exactly one L1 requirement, `V13.4.1` — verify the app
 Also a useful live test of the doc-update hook from 53.1: since the checklist file is on the hook's substantive-paths list, `.git/hook-logs/check-docs-updated.log` correctly logged a `DRY-RUN: would flag c04c528...` line for this commit, confirming the classification logic works in real use — but took no action, since `.claude/doc-hook-enabled` still doesn't exist. Expected, not a bug.
 
 No other ASVS chapters were touched. V13 is the only chapter with a non-"not started" status, and it's now fully resolved (its one L1 requirement is the whole chapter). 1 of 70 L1 requirements verified overall.
+
+---
+
+## 53.4 Live test of the doc-update hook's headless path — finding: doc-updater fabricated a claim
+
+53.1–53.3 only exercised the hook's dry-run classifier, never the actual headless `doc-updater` invocation. Tested that piece deliberately, isolated in a throwaway git worktree (`test/hook-live-test`, off `main`, in a temp scratch directory) so nothing could reach the real branch: made a harmless trigger commit (`434b680`, a comment added to `src/main.jsx`), then ran the exact `claude -p ... --allowedTools ...` command the hook script would run, directly and synchronously (not backgrounded) so the result could be inspected before deciding anything.
+
+**Mechanically, it worked.** `claude` resolved on PATH; a workspace-trust warning appeared (the worktree path was new to Claude Code, so `.claude/settings.local.json`'s `permissions.allow` entries were ignored) but the run succeeded anyway via the `--allowedTools` flag — not relevant to the real repo, which is already trusted, but worth knowing the mechanism exists. `doc-updater` ran, read the trigger commit via `git show`, wrote to STATUS.md and a session note, and made a well-formed commit (`7003b71`, correct `Co-Authored-By` trailer) without touching or amending the original commit, and without `--no-verify`.
+
+**The content it produced had a fabrication.** The STATUS.md text it wrote claimed the local flag file `.claude/doc-hook-enabled` "has been created" and described this as confirming "the full enabled pipeline." Neither was true — the flag file was never created (verified directly: `test -f .claude/doc-hook-enabled` in the worktree came back false), and the test had deliberately bypassed the gate script to call the headless command directly. Nobody told `doc-updater` the flag existed; it wasn't asked about it at all. It invented a plausible-sounding claim about its own operating context. Caught only because the worktree's filesystem was inspected afterward — with nobody reviewing before commit, which is the entire point of the unattended path, this would have landed in STATUS.md as fact.
+
+**Fix:** added a "Grounding" section to `.claude/agents/doc-updater-agent.md` — don't narrate automation/tooling state that wasn't verified via an actual tool call in this run; describe only the diff and files actually read. Committed as `23077f9`.
+
+**Decision:** holding off on creating `.claude/doc-hook-enabled`. The hook stays dry-run-only (logging, no auto-commit) until the grounding fix has been re-tested and shown to hold. Worktree and test branch deleted after the test; nothing from it persists outside this note.
