@@ -9,21 +9,21 @@ Sections below are stubs, filled in as we work each chapter. Each should referen
 ---
 
 ## Input Validation Policy
-*Satisfies: V2.1.1*
+*Satisfies: v5.0.0-2.1.1*
 
 *(Not yet written — fill in when we work V2.)*
 
 ## Authentication & Anti-Automation Policy
-*Satisfies: V6.1.1*
+*Satisfies: v5.0.0-6.1.1*
 
 *(Not yet written — fill in when we work V6. Should cover: rate limiting approach, what "credential stuffing" defense looks like given Supabase Auth's built-in behavior, and how account lockout is prevented from becoming a DoS vector against your own users.)*
 
 ## Authorization Policy
-*Satisfies: V8.1.1*
+*Satisfies: v5.0.0-8.1.1*
 
 *(Not yet written — fill in when we work V8. Likely the fastest section to write, since the actual rules already exist as RLS policies from the prior audit — this is mostly a matter of writing down in plain language what those policies enforce, e.g. who can see/edit which activities, enrollments, and staff records.)*
 
 ## Third-Party Component Update Policy
-*Satisfies: V15.1.1*
+*Satisfies: v5.0.0-15.1.1*
 
 *(Not yet written — fill in when we work V15. Should define a remediation time frame for dependencies with known vulnerabilities — e.g. "critical CVEs patched within N days" — realistic for a solo maintainer, not aspirational.)*

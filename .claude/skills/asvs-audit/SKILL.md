@@ -28,6 +28,23 @@ Daniel understands it and agrees.**
 - **Checklist:** `docs/architecture/here-asvs-l1-checklist.md` — the working table,
   one row per L1 requirement, grouped by chapter (V1–V15). This is what gets
   updated.
+- **Requirement ID format matters — two different conventions, don't mix them up:**
+  - Chapter/section nicknames (`V1`, `V13`, `V13.1`) are ASVS's own convention —
+    uppercase, no version — used in headers and prose (matches the Reference
+    filenames, e.g. `0x22-V13-Configuration.md`, and section headers inside them
+    like `## V13.1 Configuration Documentation`). Fine to use as-is when talking
+    about a chapter or section in general.
+  - A specific requirement row, cited for traceability (checklist ID column,
+    `here-security-decisions.md`'s "Satisfies:" lines, any audit-report-style
+    reference), must use ASVS's own recommended format instead:
+    `v<version>-<chapter>.<section>.<requirement>` — lowercase `v`, e.g.
+    `v5.0.0-13.4.1`, not `V13.4.1`. Straight from `0x03-What-is-the-ASVS.md`,
+    "How to Reference ASVS Requirements": the plain numeric ID alone isn't
+    version-stable across ASVS releases, so citations should carry the version.
+    (Found in session 54: every row in the checklist and security-decisions doc
+    had been using the uppercase-no-version form since the checklist was
+    scaffolded — fixed by reformatting all existing IDs. Don't reintroduce it
+    when adding new rows.)
 - **Full ASVS text:** `C:\Users\dansl\Files\Reference\ASVS-5.0.0-en\` — the actual
   OWASP source, far more detail than the checklist's shortened requirement text
   (rationale, context, related requirements). Always read the matching chapter
