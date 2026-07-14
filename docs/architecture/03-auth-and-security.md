@@ -1,6 +1,6 @@
 # Auth & Security
 
-**Last updated:** April 2026 (session 34)
+**Last updated:** July 2026 (docs-freshness pass — RLS section corrected for #70 junction-table migration and post-May RLS changes; rest of file unchanged since session 34)
 
 ## Supabase Auth
 
@@ -135,10 +135,11 @@ All data access is enforced at the database level through Supabase RLS policies.
 
 RLS policies are documented in `docs/schema/10-rls-policies.md`. Key principles:
 
-- **Organization scoping:** All queries are implicitly scoped to the user's organization.
-- **Role-based access:** Policies check `user_profiles.roles` via helper functions (`is_role()`, `is_staff_of()`) rather than checking columns directly.
-- **Ownership checks:** Students can only create/read their own check-ins, waves, and status updates (`student_id = auth.uid()`).
-- **Teacher scope:** Currently `teacher_id = me OR monitor_id = me` on activities — this will move to a junction table query when #70 lands.
+- **Organization scoping:** All queries are implicitly scoped to the user's organization, generally via the `get_my_organization_id()` SECURITY DEFINER helper.
+- **Role-based access:** Policies check `user_profiles.roles` via inline `EXISTS` subqueries (there is no single `is_role()` function — see the RLS doc's Legend) and via SECURITY DEFINER helper functions for the recursion-prone/junction-table cases: `is_enrolled_in()`, `is_teacher_or_monitor_of()`, and `activity_is_visible_to_all()`.
+- **Ownership checks:** Students can only create/read their own check-ins, waves, and status updates (`student_id = auth.uid()`); INSERTs on these tables (plus `post_responses`, `comments`, `notifications`) also verify the parent record's org membership, closing a gap fixed in `20260702000002`.
+- **Teacher scope:** Staffing is via the `activity_staff` junction table (`user_id`, `activity_id`, `role`), checked through `is_teacher_or_monitor_of()` — the old `activities.teacher_id`/`monitor_id` columns were removed when #70 landed (`20260526000001_activity_staff_junction.sql`). Teachers also get read access (and, on `attendance_records`, write access) to activities flagged `visible_to_all_staff = true` even when they aren't in `activity_staff` for that activity (`20260520000001`).
 - **Admin:** Full read/write on all org data.
+- **Anon:** Holds zero table grants on any `public` table as of `20260702000003` — a defense-in-depth layer independent of RLS. See "Table Grants" in `docs/schema/10-rls-policies.md`.
 
 Performance note: `organization_id` is denormalized onto several tables (including `activity_instances`) so RLS can check org membership without additional joins on high-traffic queries.

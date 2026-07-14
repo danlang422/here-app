@@ -39,13 +39,13 @@
 -- Required for every new table
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.your_table TO authenticated;
 GRANT ALL ON public.your_table TO service_role;
--- Add anon grant only if the table needs to be publicly readable:
--- GRANT SELECT ON public.your_table TO anon;
 ALTER TABLE public.your_table ENABLE ROW LEVEL SECURITY;
 -- Then add RLS policies
 ```
 
-The platform enforces this for all existing projects on October 30, 2026.
+**Do not grant `anon` access on new tables.** As of `20260702000003_revoke_anon_inherited_table_grants.sql`, `anon` holds zero table grants anywhere in `public` — this app requires authentication for all functionality, and that migration made "no anon access" the explicit, verified baseline (see `docs/schema/10-rls-policies.md`). The one exception is the `ping()` keep-alive function (`20260625000001`), which is a SECURITY DEFINER RPC, not a table grant, and returns no user data.
+
+The platform enforces the default-grant opt-out for all existing projects on October 30, 2026.
 
 **RLS org-scoping pattern:** Use `public.get_my_organization_id()` (SECURITY DEFINER) when a policy needs the caller's org, rather than an inline `user_profiles` subquery. This avoids recursion on `user_profiles` and is consistent with the established pattern. See `docs/schema/10-rls-policies.md`.
 

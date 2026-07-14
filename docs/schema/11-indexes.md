@@ -44,4 +44,11 @@ CREATE INDEX idx_enrollments_activity_active
 CREATE INDEX idx_activities_rotation
   ON activities(organization_id, rotation_day_type)
   WHERE rotation_day_type IS NOT NULL;
+
+-- Calendar-grouped activity lookup (admin calendar view)
+CREATE INDEX idx_activities_calendar
+  ON activities(calendar_id)
+  WHERE calendar_id IS NOT NULL;
 ```
+
+Verified against the live index set (`pg_indexes`) during the July 2026 docs-freshness pass — the above, plus each table's own primary-key and unique-constraint indexes documented alongside their table definitions, account for every index currently on `activities` and `enrollments`.

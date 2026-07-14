@@ -1,7 +1,7 @@
 # Here App — Architecture Documentation
 
-**Last updated**: April 2026
-**Status**: Reflects current implementation (session 34)
+**Last updated**: July 2026 (docs-freshness pass — see individual file headers for what changed)
+**Status**: Reflects current implementation
 
 ---
 

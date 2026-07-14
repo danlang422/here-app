@@ -67,7 +67,12 @@ CREATE TABLE activities (
   mentor_name TEXT,                                 -- Internship mentor (external, not in system)
 
   -- Scheduling
-  block INTEGER,                  -- 0-5; identifies which City View attendance block this activity occupies.
+  block INTEGER[],                -- e.g. {0} or {0,1}; identifies which City View attendance block(s) this
+                                  -- activity occupies. Converted from scalar INTEGER to INTEGER[] in
+                                  -- 20260421000000_multi_block_activities.sql to support activities spanning
+                                  -- multiple blocks; existing single-block data was migrated to single-element
+                                  -- arrays. Element upper bound (organization.settings.block_count) enforced
+                                  -- at the app layer, not by a DB constraint.
                                   -- Required for any activity that occupies a time slot in the daily schedule,
                                   -- including external activities (external_hs_course, internships, college courses)
                                   -- that overlap with a City View block's time.
@@ -106,6 +111,9 @@ CREATE TABLE activities (
   allows_presence_wave BOOLEAN DEFAULT false,
   -- true = student can send one "I'm here" wave per day with streak tracking
   -- Typically enabled for regular classes and advisory
+  -- Mutually exclusive with requires_checkin — see presence_wave_and_checkin_mutually_exclusive
+  -- constraint below. A check-in is a formalized version of a presence wave; enabling both on
+  -- the same activity would be logically incoherent and disrupt the student agenda display.
 
   allows_freeform BOOLEAN DEFAULT false,
   -- true = at check-in, student tags which activities they worked on from their full list
@@ -129,6 +137,14 @@ CREATE TABLE activities (
   calendar_id UUID REFERENCES calendars(id) ON DELETE SET NULL,
   -- FK to calendars table. NULL = unassigned. Deleting a calendar sets this to NULL.
 
+  visible_to_all_staff BOOLEAN NOT NULL DEFAULT false,
+  -- Added 20260514000001_add_visible_to_all_staff.sql. When true, this activity surfaces
+  -- in every teacher's agenda sidebar for situational awareness regardless of activity_staff
+  -- assignment, and (per 20260520000001) extends teacher read access on enrollments/
+  -- activity_instances and read+write access on attendance_records to any teacher in the
+  -- org, not just staff assigned via activity_staff. Used for open/independent study blocks
+  -- where students are dispersed across the building. See docs/schema/10-rls-policies.md.
+
   -- Recurrence (for every-other-week or less-frequent activities)
   recurrence_interval INTEGER DEFAULT 1 CHECK (recurrence_interval >= 1),
   -- Weeks between occurrences. 1 = every week (default). 2 = every other week, etc.
@@ -140,8 +156,9 @@ CREATE TABLE activities (
   -- For activities with default_start_time and default_end_time, the UI computes duration from
   -- the time range directly — this field is not kept in sync with times.
 
-  CONSTRAINT valid_block CHECK (block IS NULL OR block >= 0),
-  -- Upper bound enforced at app layer against organization.settings.block_count
+  CONSTRAINT valid_block CHECK (block IS NULL OR array_length(block, 1) > 0),
+  -- Non-empty array if present. Element values and upper bound enforced at app layer
+  -- against organization.settings.block_count.
   CONSTRAINT valid_days_of_week CHECK (
     days_of_week IS NULL OR (
       array_length(days_of_week, 1) > 0
@@ -152,7 +169,11 @@ CREATE TABLE activities (
     (default_start_time IS NULL AND default_end_time IS NULL) OR
     (default_start_time IS NOT NULL AND default_end_time IS NOT NULL
       AND default_end_time > default_start_time)
+  ),
+  CONSTRAINT presence_wave_and_checkin_mutually_exclusive CHECK (
+    NOT (allows_presence_wave = true AND requires_checkin = true)
   )
+  -- Added 20260331000001_presence_wave_checkin_constraint.sql
 );
 
 CREATE INDEX idx_activities_org ON activities(organization_id);
@@ -188,7 +209,7 @@ See `docs/business-logic/01-schedule-and-calendar.md` for the full `activityMeet
 
 **Teacher view query logic:**
 
-A teacher's view for a given block shows all activities where they appear in `activity_staff` AND `block = X` AND the activity is scheduled for today. The `is_teacher_or_monitor_of(activity_id)` DEFINER function handles this check via the junction table. Additionally, activities with `visible_to_all_staff = true` are surfaced to all staff regardless of junction membership — this is handled separately via `activity_is_visible_to_all(activity_id)`.
+A teacher's view for a given block shows all activities where they appear in `activity_staff` AND `X = ANY(block)` (block is `INTEGER[]`, so membership rather than equality) AND the activity is scheduled for today. The `is_teacher_or_monitor_of(activity_id)` DEFINER function handles this check via the junction table. Additionally, activities with `visible_to_all_staff = true` are surfaced to all staff regardless of junction membership — this is handled separately via `activity_is_visible_to_all(activity_id)`.
 
 ---
 
@@ -230,11 +251,13 @@ CREATE TABLE enrollments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-  block INTEGER,
-  -- Denormalized from activities.block at enrollment time.
+  block INTEGER[],
+  -- Denormalized from activities.block at enrollment time. Converted from scalar INTEGER
+  -- to INTEGER[] alongside activities.block in 20260421000000_multi_block_activities.sql.
   -- Used for efficient schedule queries ("what does this student have in Block 3?").
   -- NULL when the parent activity has no block (is_not_scheduled activities, etc.).
-  -- Kept in sync by the trg_activity_block_cascade trigger on the activities table.
+  -- Kept in sync by the trg_activity_block_cascade trigger (function sync_enrollment_block())
+  -- on the activities table.
   notes TEXT, -- "Enrolled mid-semester", "Kirkwood campus on Tue/Thu"
   is_active BOOLEAN DEFAULT true,
   enrolled_at TIMESTAMPTZ DEFAULT NOW(),
@@ -257,9 +280,17 @@ CREATE TABLE enrollments (
   -- Anchor week for this student's recurrence. Required when enrollment recurrence_interval > 1.
   -- NULL = follow the activity's recurrence_anchor_date.
 
+  start_time_override TIME,
+  -- Added 20260514000002_add_enrollment_time_overrides.sql. Optional per-enrollment override
+  -- of the activity's default_start_time. When set, the teacher agenda displays this student
+  -- as scheduled to arrive at this time. Informational only — does not gate attendance.
+  end_time_override TIME,
+  -- Symmetric counterpart to start_time_override. Used less often but cheap to maintain.
+
   CONSTRAINT unique_student_activity UNIQUE (student_id, activity_id),
-  CONSTRAINT valid_block CHECK (block IS NULL OR block >= 0),
-  -- Upper bound enforced at app layer against organization.settings.block_count
+  CONSTRAINT valid_block CHECK (block IS NULL OR array_length(block, 1) > 0),
+  -- Non-empty array if present. Element values and upper bound enforced at app layer
+  -- against organization.settings.block_count.
   CONSTRAINT valid_enrollment_days_of_week CHECK (
     days_of_week IS NULL OR (
       array_length(days_of_week, 1) > 0

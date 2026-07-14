@@ -1,14 +1,16 @@
 # Realtime & Notifications
 
-**Last updated:** April 2026 (session 35)
+**Last updated:** July 2026 (docs-freshness pass — both sections below were stale: realtime shipped in session 42 and this file still said "not yet implemented"; the `notifications` table has existed in the schema since the original comprehensive-RLS migration but this file said it didn't exist)
 
 ## Supabase Realtime
 
-Realtime subscriptions are **not yet implemented**. The plan (tracked in [#80](https://github.com/danlang422/here-app/issues/80)) is to use Supabase's `postgres_changes` WebSocket channels to push live updates to teacher roster views. There is no `useRealtimeTable` hook and no realtime channel setup in the current codebase. All data is fetched via TanStack Query with manual refetch or query invalidation on mutations.
+**Implemented, narrowly scoped** — not a general realtime framework, one targeted subscription. `useAttendanceSubscription(instanceIds, onUpdate)` (`src/hooks/useAttendanceSubscription.js`) opens a Supabase `postgres_changes` channel filtered to `attendance_records` rows for a given set of `activity_instance_id`s, and is wired into `useRoster` so a teacher's roster reflects attendance changes made elsewhere (e.g. another staff member, or the same teacher in another tab) without a manual refetch. Closes [#80](https://github.com/danlang422/here-app/issues/80); built session 42; see `docs/design-and-specs/realtime-attendance-subscription-build-spec.md`.
+
+This required `ALTER PUBLICATION supabase_realtime ADD TABLE attendance_records` (`20260521000001_enable_realtime_attendance.sql`) — a table isn't eligible for `postgres_changes` events until explicitly added to the publication, regardless of subscription code. No other table is in the realtime publication and no other hook subscribes to Postgres changes; all other data is still fetched via TanStack Query with manual refetch or query invalidation on mutations.
 
 ## Notification System
 
-A notification system is **not implemented**. There is no `notifications` table in the schema and no in-app notification UI. User feedback is handled via the Help page (`HelpPage.jsx`), which submits reports directly to GitHub Issues through a Supabase Edge Function.
+**Schema exists; not wired up at the application layer.** The `notifications` table has existed since the original comprehensive-RLS migration (`20260313000000`) — full column set, CHECK-constrained `type` enum, RLS policies (own-row SELECT/UPDATE, org-scoped INSERT), and grants (see `docs/schema/07-notifications.md` and `docs/schema/10-rls-policies.md`). But no application code anywhere in `src/` reads or writes it (verified via grep during the July 2026 docs-freshness pass), and there is no in-app notification UI. Same situation as `audit_log` (`docs/schema/08-audit-log.md`) — the table, RLS, and grants are ready, but nothing produces or consumes rows yet. User feedback is handled via the Help page (`HelpPage.jsx`), which submits reports directly to GitHub Issues through a Supabase Edge Function — unrelated to the `notifications` table.
 
 ---
 

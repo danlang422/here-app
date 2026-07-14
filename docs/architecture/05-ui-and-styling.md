@@ -1,6 +1,6 @@
 # UI & Styling
 
-**Last updated:** April 2026 (session 35)
+**Last updated:** July 2026 (docs-freshness pass — removed a stale `regular_class` badge example; activities have had no `type` column since `20260309000000_remove_activity_type.sql`. Rest of file unchanged since session 35.)
 
 ## Tailwind + DaisyUI Configuration
 
@@ -123,8 +123,8 @@ DaisyUI provides semantic CSS classes that layer on top of Tailwind. The app use
   </div>
 </div>
 
-// Badges for activity types and attendance status
-<div className="badge badge-primary">regular_class</div>
+// Badges for attendance status (activities have no type system — see CLAUDE.md
+// "Key Architectural Decisions" — so badges reflect behavior flags/state, not a type field)
 <div className="badge badge-success">present</div>
 <div className="badge badge-error">absent</div>
 <div className="badge badge-warning">tardy</div>

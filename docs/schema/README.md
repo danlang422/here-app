@@ -1,7 +1,7 @@
 # Here App — Database Schema Documentation
 
 **Database**: PostgreSQL (via Supabase)
-**Last updated**: March 2026
+**Last updated**: July 2026 (docs-freshness pass — see individual file headers for what changed; verified against live DB state, not just migration files)
 **Status**: Implemented and deployed.
 
 ---

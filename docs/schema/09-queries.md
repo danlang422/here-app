@@ -1,5 +1,7 @@
 # Key Queries
 
+*Last updated: July 2026 — reference queries below rewritten to match the current schema (`activity_staff` junction table replaced `activities.teacher_id`/`monitor_id` in `20260526000001`; `block` is `INTEGER[]` as of `20260421000000`). These are illustrative reference queries showing the join shape, not verbatim application code — see `src/api/` for the actual query-building functions.*
+
 ## Teacher roster for a block on a given date
 
 ```sql
@@ -13,17 +15,17 @@ WITH today AS (
   WHERE sd.organization_id = $org_id AND sd.date = $date
 ),
 
--- Step 2: Find all activities this teacher owns or monitors for this block
+-- Step 2: Find all activities this teacher is staffed on (any role) for this block
 teacher_activities AS (
   SELECT a.id AS activity_id, a.block, a.requires_attendance, a.name
   FROM activities a
+  JOIN activity_staff ast ON ast.activity_id = a.id AND ast.user_id = $teacher_id
   JOIN today t ON (
     (a.days_of_week IS NULL OR t.day_number = ANY(a.days_of_week))
     AND (a.rotation_day_type IS NULL OR a.rotation_day_type = t.rotation_day)
   )
   WHERE a.organization_id = $org_id
-    AND (a.teacher_id = $teacher_id OR a.monitor_id = $teacher_id)
-    AND a.block = $block
+    AND $block = ANY(a.block)
     AND a.is_active = true
     AND a.is_release = false
 ),

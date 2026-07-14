@@ -1,6 +1,6 @@
 # Data Flow & State Management
 
-**Last updated:** April 2026 (session 34)
+**Last updated:** July 2026 (docs-freshness pass — `useTeacherAgenda` corrected for the #70 `activity_staff` junction-table migration, which had already landed; added hooks/API files introduced since session 34: `useSidebarActivities`, `useAttendanceSubscription`, `useHistory`, `history.js`, `profiles.js`)
 
 ## High-Level Data Flow
 
@@ -74,9 +74,10 @@ Fetches full detail for a single student on a single instance: check-in record, 
 ### Teacher hooks
 
 **`useTeacherAgenda(teacherId, date, orgId)`**
-Fetches all active activities where `teacher_id = me OR monitor_id = me` (via `getTeacherActivitiesForDate`), along with active enrollment rows for those activities. Filters activities client-side with `activityMeetsToday()`. Computes enrollment counts per activity filtered by `enrollmentMeetsToday()`. Returns `activities` (filtered), `enrollmentCounts` (Map), `schoolDay`.
+Fetches all active activities the teacher is staffed on via the `activity_staff` junction table (`getTeacherActivitiesForDate` — queries `activity_staff` for the teacher's `activity_id`s, then fetches those activities with a full `activity_staff` embed), along with active enrollment rows for those activities. Filters activities client-side with `activityMeetsToday()`. Computes enrollment counts per activity filtered by `enrollmentMeetsToday()`. Returns `activities` (filtered), `enrollmentCounts` (Map), `schoolDay`.
 
-> **Note:** The `teacher_id / monitor_id` two-column model is being replaced by an `activity_staff` junction table (#70). This hook will need significant changes when that migration lands.
+**`useSidebarActivities(teacherId, orgId)`**
+Fetches activities flagged `visible_to_all_staff = true` in the org (via `getVisibleToAllActivitiesForDate`), regardless of `activity_staff` assignment, and splits them into "yours" / "others" sections using `getViewerRole()` against the embedded `activity_staff` rows. Drives the teacher agenda sidebar's visible-to-all sections (#86.5).
 
 **`useTeacherActionSummary(activityIds, date, orgId)`**
 For a set of activity IDs on a date: resolves instance IDs, then fetches waves, check-ins, status updates, and attendance records for those instances in parallel. Returns aggregated Maps for rendering action icons on agenda cards and tracking whether attendance has been started. Used alongside `useTeacherAgenda` on the teacher dashboard.
@@ -104,6 +105,10 @@ Two variants: org-wide (all enrollments) and per-activity. Used by the admin enr
 **`useUsers(orgId)`** / **`useStaffUsers(orgId)`** / **`useStudents(orgId)`** — User profile queries. Query keys: `['users', orgId]`, `['staff-users', orgId]`, `['students', orgId]`.
 
 **`useAuth()`** — Convenience hook that returns the Zustand auth store directly (`user`, `profile`, `session`, `loading`, `currentRole`, `availableRoles`). Not a TanStack Query hook — auth state lives in Zustand, initialized by `useAuthListener()` in `AuthProvider`.
+
+**`useAttendanceSubscription(instanceIds, onUpdate)`** — Not a TanStack Query hook. Opens a Supabase Realtime `postgres_changes` channel filtered to `attendance_records` rows for the given instance IDs and invokes `onUpdate` on insert/update/delete. Wired into `useRoster` so teacher rosters reflect attendance changes made elsewhere (e.g. another staff member marking attendance) without a manual refetch. See `docs/architecture/04-realtime-and-notifications.md`.
+
+**`useHistory(...)`** — Action history feed queries (`src/api/history.js`) backing the `/history` route's student and teacher views.
 
 ---
 
@@ -190,9 +195,11 @@ src/api/
 ├── calendars.js         — calendar CRUD
 ├── enrollments.js       — getOrgEnrollments, getActivityEnrollments, bulkEnrollStudents,
 │                          bulkUnenrollStudents, updateEnrollment
+├── history.js           — action history feed queries (student + teacher /history views)
 ├── instances.js         — upsertActivityInstance (via ensure_activity_instance RPC),
 │                          getInstancesForDate, cancelInstance
 ├── organizations.js     — getOrgSettings
+├── profiles.js          — batchGetProfileDisplayInfo and other shared profile-name helpers
 ├── schoolDays.js        — getSchoolDays, getSchoolDay
 ├── scheduleTemplates.js — schedule template queries
 ├── terms.js             — academic term queries

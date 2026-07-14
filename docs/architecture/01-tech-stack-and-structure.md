@@ -1,6 +1,6 @@
 # Tech Stack & Project Structure
 
-**Last updated:** April 2026 (session 35)
+**Last updated:** July 2026 (docs-freshness pass — project structure spot-checked against filesystem and updated for files added since session 35: history feature, attendance-rollup subscription, sidebar activities hook)
 
 ## Technology Stack
 
@@ -68,8 +68,10 @@ here-app/
 │   │   ├── calendars.js          # School calendar queries
 │   │   ├── enrollments.js        # Enrollment queries
 │   │   ├── feedback.js           # User feedback submissions
+│   │   ├── history.js            # Action history feed queries
 │   │   ├── instances.js          # Activity instance upsert/queries
 │   │   ├── organizations.js      # Org settings queries
+│   │   ├── profiles.js           # Shared profile display-name helpers
 │   │   ├── scheduleTemplates.js  # Schedule template queries
 │   │   ├── schoolDays.js         # School day calendar queries
 │   │   ├── terms.js              # Term queries
@@ -85,6 +87,7 @@ here-app/
 │   │   ├── enrollment/           # EnrollmentPanel
 │   │   ├── feedback/             # FeedbackModal, FeedbackForm, BugReportForm,
 │   │   │                         #   ScheduleIssueForm, ScreenshotPicker
+│   │   ├── history/              # FeedEntryCard, StudentActionFeed, RecentActivityWidget
 │   │   ├── layout/               # AppLayout, AdminLayout, AuthProvider, ProtectedRoute,
 │   │   │                         #   PublicLayout, RootRedirect
 │   │   ├── panels/               # FloatingPanel
@@ -102,13 +105,16 @@ here-app/
 │   │   ├── useActivities.js
 │   │   ├── useActivityTerms.js
 │   │   ├── useAttendanceRollup.js
+│   │   ├── useAttendanceSubscription.js
 │   │   ├── useBulkEditActivities.js
 │   │   ├── useCalendars.js
 │   │   ├── useEnrollments.js
+│   │   ├── useHistory.js
 │   │   ├── useOrgSettings.js
 │   │   ├── useRoster.js
 │   │   ├── useScheduleTemplate.js
 │   │   ├── useSchoolDays.js
+│   │   ├── useSidebarActivities.js
 │   │   ├── useStreakData.js
 │   │   ├── useStudentActions.js
 │   │   ├── useStudentAgenda.js
@@ -139,11 +145,12 @@ here-app/
 │   │   │                          #   UserManagement, OrgSettings, Reports
 │   │   ├── auth/                  # Login, ForgotPassword, ResetPassword
 │   │   ├── public/                # LandingPage, AboutPage, TrustPage
-│   │   ├── student/               # TodayView
-│   │   ├── teacher/               # Dashboard
+│   │   ├── student/               # TodayView, HistoryView
+│   │   ├── teacher/               # Dashboard, HistoryView
 │   │   ├── Account.jsx
 │   │   ├── DashboardRedirect.jsx
-│   │   └── HelpPage.jsx
+│   │   ├── HelpPage.jsx
+│   │   └── HistoryView.jsx        # Role-dispatch wrapper for /history
 │   │
 │   ├── store/
 │   │   ├── authStore.js           # Auth state (current user, active role)
