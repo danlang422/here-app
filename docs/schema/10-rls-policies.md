@@ -26,7 +26,9 @@ Policies on `user_profiles` cannot safely query `user_profiles` — Postgres eva
 
 - **`activity_is_visible_to_all(activity_id_param UUID)`** — Added May 20, 2026 (`20260520000001_visible_to_all_rls_extension.sql`). Returns `true` if the given activity has `visible_to_all_staff = true` and belongs to the caller's org. Used to extend teacher read (and, on `attendance_records`, write) access to activities a teacher isn't directly staffed on. See the `visible-to-all` rows below.
 
-All five functions are `SECURITY DEFINER`, set `search_path = public`, and are granted `EXECUTE` to `authenticated` only (revoked from `PUBLIC` and `anon`). They expose only the minimum data needed. (The Supabase security advisor still flags `get_my_organization_id()`, `activity_is_visible_to_all()`, and the unrelated `ping()` keep-alive function as callable by `anon`/`authenticated` — this is a lint on *any* client-callable `SECURITY DEFINER` function via PostgREST RPC, not a real gap: each function only returns data scoped to the caller's own `auth.uid()`, and `ping()` returns no user data by design.)
+All five functions are `SECURITY DEFINER`, set `search_path = public`, and are granted `EXECUTE` to `authenticated` only (revoked from `PUBLIC` and `anon`). They expose only the minimum data needed.
+
+**Fixed 2026-07-14 (`20260714171604_revoke_anon_execute_org_and_visibility_functions.sql`):** `get_my_organization_id()` and `activity_is_visible_to_all()` were each created with `REVOKE ALL ... FROM PUBLIC` but never got the explicit `REVOKE EXECUTE ... FROM anon` that the other three functions received in `20260513132120` — Supabase's platform default grants `EXECUTE` to `anon` directly at function-creation time, and revoking from `PUBLIC` alone doesn't touch that direct grant. Verified live via `has_function_privilege('anon', ...)` before and after. No functional impact either way: both functions filter on `auth.uid()`, which is `NULL` for an unauthenticated caller, so they always returned `NULL`/`false` to `anon` — this closes the grant-layer gap for consistency, not a data exposure fix. (The Supabase security advisor's lint about these being client-callable via PostgREST RPC is now resolved for these two; `ping()` remains intentionally callable by `anon` for the keep-alive workflow and returns no user data by design.)
 
 ### 3. Every policy must be safe independently
 Since policies are OR'd by Postgres, a policy intended for admins still gets evaluated when a student queries the table. Every policy's USING clause must resolve without triggering a recursion chain for any authenticated user.
@@ -82,6 +84,8 @@ public.activity_is_visible_to_all(activity_id_param uuid) RETURNS boolean
 | UPDATE | Admin (org) | `organization_id = my_org AND is_role('admin')` |
 
 **Note:** For cross-role name lookups (e.g., student reading teacher name), use `get_profile_display_info()` RPC instead of joining `user_profiles` directly. Direct joins can trigger recursion depending on the outer query's RLS context. See `src/api/agenda.js` for the batch pattern.
+
+**Privileged-column protection (`20260714173806_prevent_privileged_self_edit.sql`):** RLS restricts *which row* `UPDATE` applies to, never *which columns* — "Users update own profile" (`USING (id = auth.uid())`, `WITH CHECK (id = auth.uid())`) had no column restriction, so any authenticated user could change their own `roles`, `organization_id`, or `is_active` via a direct REST call (not reachable through the app UI, but reachable via PostgREST directly). Fixed with a `BEFORE UPDATE` trigger (`prevent_privileged_self_edit()`) that blocks changes to those three columns unless the acting user (`auth.uid()`) already has `'admin'` in their own `roles`. Applies regardless of which policy let the `UPDATE` through, so admin-edits-another-user still works. Verified live against real rows (transactions rolled back, no persisted changes): non-admin self-elevation blocked, admin editing another user's role succeeds, non-admin editing their own non-privileged field succeeds.
 
 ### academic_terms / schedule_templates / school_days / internship_opportunities
 | Operation | Who | Condition |
@@ -195,11 +199,11 @@ public.activity_is_visible_to_all(activity_id_param uuid) RETURNS boolean
 ### activity_terms
 | Operation | Who | Condition |
 |-----------|-----|-----------|
-| SELECT | Staff (org) | `EXISTS` — caller has `'staff'` role and shares `organization_id` with the parent `activity` |
+| SELECT | Teacher (org) | `EXISTS` — caller has `'teacher'` role and shares `organization_id` with the parent `activity` |
 | SELECT | Student (enrolled) | `EXISTS` active `enrollments` row for the caller on `activity_id` |
 | ALL | Admin (org) | `EXISTS` — caller has `'admin'` role and shares `organization_id` with the parent `activity` |
 
-*Note: the staff-read policy checks for `'staff'` in `roles`, not `'teacher'` — worth confirming against actual role values used in `user_profiles.roles` if teachers are expected to read this table directly (they may instead rely on joined activity queries).*
+**Fixed 2026-07-14 (`fix_activity_terms_staff_role_typo` migration):** the teacher-read policy previously checked for a `'staff'` role value, which has never existed in `user_profiles.roles` (real values: `student`/`teacher`/`admin`) — found while tracing the migration's own comment (`-- Staff (teachers): read access...`) during the ASVS V8 audit. The policy was dead code, fail-closed (no teacher could read this table directly via this branch, not a leak). Corrected to `'teacher'`, verified live via `pg_policies`.
 
 ### feedback_reports
 | Operation | Who | Condition |
@@ -253,3 +257,6 @@ For org-scoping on new tables, use `public.get_my_organization_id()` rather than
 - `visible_to_all_staff` RLS extension (enrollments/activity_instances/attendance_records): `supabase/migrations/20260520000001_visible_to_all_rls_extension.sql`
 - INSERT policy org-scoping fix (check_ins, presence_waves, status_updates, post_responses, comments, notifications): `supabase/migrations/20260702000002_fix_insert_policy_org_scoping.sql`
 - Anon inherited table-grant revocation: `supabase/migrations/20260702000003_revoke_anon_inherited_table_grants.sql`
+- Anon execute revocation on `get_my_organization_id()`/`activity_is_visible_to_all()`: `supabase/migrations/20260714171604_revoke_anon_execute_org_and_visibility_functions.sql`
+- Privileged-column self-edit protection on `user_profiles` (`roles`/`organization_id`/`is_active`): `supabase/migrations/20260714173806_prevent_privileged_self_edit.sql`
+- `activity_terms` staff-role typo fix (`'staff'` → `'teacher'`): `supabase/migrations/20260714175823_fix_activity_terms_staff_role_typo.sql`
