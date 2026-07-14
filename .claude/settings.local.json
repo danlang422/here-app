@@ -64,7 +64,10 @@
       "mcp__playwright__browser_close",
       "Skill(run)",
       "PowerShell(Start-Process -NoNewWindow -FilePath \"npm\" -ArgumentList \"run\",\"dev\" -WorkingDirectory \"C:\\\\Users\\\\dansl\\\\Files\\\\DevProjects\\\\here-app\")",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "mcp__claude_ai_Supabase__list_migrations"
     ]
   }
 }
