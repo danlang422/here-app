@@ -12,16 +12,16 @@ function Account() {
   const displayName = getDisplayName(profile)
 
   const { register, handleSubmit, control, reset, formState: { isSubmitting, errors } } = useForm({
-    defaultValues: { password: '', confirmPassword: '' },
+    defaultValues: { currentPassword: '', password: '', confirmPassword: '' },
   })
 
   const password = useWatch({ name: 'password', control })
 
-  async function onPasswordSubmit({ password: newPassword }) {
+  async function onPasswordSubmit({ currentPassword, password: newPassword }) {
     setPasswordError(null)
     setPasswordSuccess(false)
     try {
-      await updatePassword(newPassword)
+      await updatePassword(newPassword, currentPassword)
       setPasswordSuccess(true)
       reset()
     } catch (err) {
@@ -86,6 +86,26 @@ function Account() {
           <form onSubmit={handleSubmit(onPasswordSubmit)} className="space-y-4 mt-2">
             <div className="form-control">
               <label className="label">
+                <span className="label-text">Current password</span>
+              </label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                className={`input input-bordered ${errors.currentPassword ? 'input-error' : ''}`}
+                {...register('currentPassword', {
+                  required: 'Current password is required',
+                })}
+                autoComplete="current-password"
+              />
+              {errors.currentPassword && (
+                <label className="label">
+                  <span className="label-text-alt text-error">{errors.currentPassword.message}</span>
+                </label>
+              )}
+            </div>
+
+            <div className="form-control">
+              <label className="label">
                 <span className="label-text">New password</span>
               </label>
               <input
@@ -94,7 +114,7 @@ function Account() {
                 className={`input input-bordered ${errors.password ? 'input-error' : ''}`}
                 {...register('password', {
                   required: 'Password is required',
-                  minLength: { value: 14, message: 'Password must be at least 14 characters' },
+                  minLength: { value: 15, message: 'Password must be at least 15 characters' },
                 })}
                 autoComplete="new-password"
               />

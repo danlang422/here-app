@@ -54,9 +54,15 @@ export async function requestPasswordReset(email) {
   if (error) throw error
 }
 
-// Update the current user's password
-export async function updatePassword(newPassword) {
-  const { error } = await supabase.auth.updateUser({ password: newPassword })
+// Update the current user's password. currentPassword is required by the
+// in-app "change password" flow (Account.jsx) once Supabase's "Require
+// current password when changing password" setting is enabled — omitted by
+// the post-invite/reset flow (ResetPassword.jsx), which runs on a recovery
+// session that has no prior password to prove.
+export async function updatePassword(newPassword, currentPassword) {
+  const payload = { password: newPassword }
+  if (currentPassword) payload.current_password = currentPassword
+  const { error } = await supabase.auth.updateUser(payload)
   if (error) throw error
 }
 

@@ -120,7 +120,7 @@ function ResetPassword() {
                   className={`input input-bordered ${errors.password ? 'input-error' : ''}`}
                   {...register('password', {
                     required: 'Password is required',
-                    minLength: { value: 14, message: 'Password must be at least 14 characters' },
+                    minLength: { value: 15, message: 'Password must be at least 15 characters' },
                   })}
                   autoComplete="new-password"
                 />
