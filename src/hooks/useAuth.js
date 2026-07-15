@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/api/supabase'
 import useAuthStore from '@/store/authStore'
 import { queryClient } from '@/main'
@@ -35,6 +36,7 @@ async function fetchProfile(userId, accessToken) {
 // Called once at the app root level via AuthProvider.
 export function useAuthListener() {
   const { setSession, setProfile, setLoading, clearAuth } = useAuthStore()
+  const navigate = useNavigate()
 
   useEffect(() => {
     let mounted = true
@@ -65,6 +67,16 @@ export function useAuthListener() {
       async (event, session) => {
         if (!mounted) return
         if (event === 'INITIAL_SESSION') return
+
+        // A recovery link can land anywhere (e.g. the bare Site URL root,
+        // if triggered outside our own redirectTo-aware create-user/
+        // reset-passwords functions — see the Supabase dashboard's own
+        // "Send Password Recovery" action). Force the password-set step
+        // rather than letting normal auth-aware routing (RootRedirect)
+        // silently treat this as an ordinary login.
+        if (event === 'PASSWORD_RECOVERY') {
+          navigate('/reset-password', { replace: true })
+        }
 
         setSession(session)
 
