@@ -14,7 +14,6 @@ const EMPTY_FORM = {
   last_name: '',
   preferred_name: '',
   email: '',
-  password: '',
   roles: [],
   grade_level: '',
 }
@@ -85,7 +84,6 @@ export default function UserForm({ user = null, onSave, onCancel, saving = false
 
     if (!isEdit) {
       data.email = formValues.email.trim()
-      data.password = formValues.password
     }
 
     onSave(data)
@@ -123,24 +121,16 @@ export default function UserForm({ user = null, onSave, onCancel, saving = false
       </Field>
 
       {!isEdit && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Email *">
-            <input
-              type="email"
-              className="input input-bordered w-full"
-              {...register('email', { required: !isEdit })}
-            />
-          </Field>
-
-          <Field label="Password *">
-            <input
-              type="text"
-              className="input input-bordered w-full"
-              {...register('password', { required: !isEdit })}
-              placeholder="Initial password"
-            />
-          </Field>
-        </div>
+        <Field label="Email *">
+          <input
+            type="email"
+            className="input input-bordered w-full"
+            {...register('email', { required: !isEdit })}
+          />
+          <p className="text-xs text-base-content/50 mt-1">
+            The user will get an email invite to set their own password.
+          </p>
+        </Field>
       )}
 
       <Field label="Roles *">

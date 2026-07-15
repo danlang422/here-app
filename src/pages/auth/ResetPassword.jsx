@@ -15,10 +15,13 @@ function ResetPassword() {
   })
 
   useEffect(() => {
-    // Listen for the PASSWORD_RECOVERY event that Supabase fires
-    // when the user lands with a valid reset token in the URL hash
+    // Listen for the auth event Supabase fires when the user lands with a
+    // valid token in the URL hash. Password recovery links fire
+    // PASSWORD_RECOVERY; invite links (used for initial account setup, see
+    // create-user edge function) land the user in an authenticated session
+    // via SIGNED_IN instead — this page serves both flows.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setReady(true)
       }
     })
@@ -117,7 +120,7 @@ function ResetPassword() {
                   className={`input input-bordered ${errors.password ? 'input-error' : ''}`}
                   {...register('password', {
                     required: 'Password is required',
-                    minLength: { value: 6, message: 'Password must be at least 6 characters' },
+                    minLength: { value: 14, message: 'Password must be at least 14 characters' },
                   })}
                   autoComplete="new-password"
                 />

@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -56,7 +61,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const {
       email,
-      password,
       first_name,
       last_name,
       preferred_name,
@@ -66,10 +70,18 @@ Deno.serve(async (req) => {
     } = body;
 
     // Validate required fields
-    if (!email || !password || !first_name || !last_name || !roles?.length || !organization_id) {
+    if (!email || !first_name || !last_name || !roles?.length || !organization_id) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: email, password, first_name, last_name, roles, organization_id" }),
+        JSON.stringify({ error: "Missing required fields: email, first_name, last_name, roles, organization_id" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const siteUrl = Deno.env.get("SITE_URL");
+    if (!siteUrl) {
+      return new Response(
+        JSON.stringify({ error: "Server configuration error: SITE_URL not set" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -86,20 +98,23 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Create auth user — pass metadata so the on_auth_user_created trigger
-    // can automatically create the user_profiles row.
-    const { data: authData, error: createError } = await adminClient.auth.admin.createUser({
+    // Invite the user by email — pass metadata so the on_auth_user_created
+    // trigger can automatically create the user_profiles row. The user sets
+    // their own password via the invite link (ASVS 6.4.1: no admin-chosen
+    // initial password that could become the long-term one).
+    const { data: authData, error: createError } = await adminClient.auth.admin.inviteUserByEmail(
       email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        organization_id,
-        first_name,
-        last_name,
-        preferred_name: preferred_name || null,
-        roles,
-      },
-    });
+      {
+        redirectTo: `${siteUrl}/reset-password`,
+        data: {
+          organization_id,
+          first_name,
+          last_name,
+          preferred_name: preferred_name || null,
+          roles,
+        },
+      }
+    );
 
     if (createError) {
       return new Response(

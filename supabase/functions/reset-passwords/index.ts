@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -68,15 +73,14 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { password, exclude_user_ids = [] } = body;
+    const { exclude_user_ids = [] } = body;
 
-    if (!password || password.length < 8) {
+    const siteUrl = Deno.env.get("SITE_URL");
+    if (!siteUrl) {
       return new Response(
-        JSON.stringify({
-          error: "Password is required and must be at least 8 characters",
-        }),
+        JSON.stringify({ error: "Server configuration error: SITE_URL not set" }),
         {
-          status: 400,
+          status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -108,25 +112,25 @@ Deno.serve(async (req) => {
     const excludeSet = new Set([caller.id, ...exclude_user_ids]);
     const targetUsers = users.filter((u) => !excludeSet.has(u.id));
 
-    const results = { reset: [] as string[], failed: [] as { id: string; email: string; error: string }[] };
+    // Send each targeted user a password-reset email rather than setting any
+    // password ourselves — nothing here ever knows or chooses a user's
+    // password (ASVS 6.4.1).
+    const results = { sent: [] as string[], failed: [] as { id: string; email: string; error: string }[] };
 
     for (const user of targetUsers) {
-      const { error: updateError } = await adminClient.auth.admin.updateUserById(
-        user.id,
-        {
-          password,
-          user_metadata: { must_change_password: true },
-        }
+      const { error: sendError } = await adminClient.auth.resetPasswordForEmail(
+        user.email,
+        { redirectTo: `${siteUrl}/reset-password` }
       );
 
-      if (updateError) {
+      if (sendError) {
         results.failed.push({
           id: user.id,
           email: user.email,
-          error: updateError.message,
+          error: sendError.message,
         });
       } else {
-        results.reset.push(user.email);
+        results.sent.push(user.email);
       }
     }
 
@@ -134,9 +138,9 @@ Deno.serve(async (req) => {
       JSON.stringify({
         total_in_org: users.length,
         excluded: excludeSet.size,
-        reset_count: results.reset.length,
+        sent_count: results.sent.length,
         failed_count: results.failed.length,
-        reset: results.reset,
+        sent: results.sent,
         failed: results.failed,
       }),
       {

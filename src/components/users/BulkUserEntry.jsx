@@ -6,7 +6,6 @@ const COLUMNS = [
   { key: 'first_name', label: 'First Name', required: true },
   { key: 'last_name', label: 'Last Name', required: true },
   { key: 'email', label: 'Email', required: true },
-  { key: 'password', label: 'Password', required: true },
   { key: 'role', label: 'Role', required: true },
   { key: 'grade_level', label: 'Grade', required: false },
 ]
@@ -17,7 +16,6 @@ const HEADER_ALIASES = {
   first_name: ['first_name', 'first name', 'firstname', 'first'],
   last_name: ['last_name', 'last name', 'lastname', 'last'],
   email: ['email', 'e-mail', 'email address'],
-  password: ['password', 'temp password', 'temporary password', 'pass'],
   role: ['role', 'roles', 'type'],
   grade_level: ['grade_level', 'grade level', 'grade', 'gradelevel'],
 }
@@ -41,7 +39,6 @@ function validateRow(row, existingEmails, batchEmails) {
   if (!row.first_name?.trim()) errors.push({ field: 'first_name', message: 'First name is required' })
   if (!row.last_name?.trim()) errors.push({ field: 'last_name', message: 'Last name is required' })
   if (!row.email?.trim()) errors.push({ field: 'email', message: 'Email is required' })
-  if (!row.password?.trim()) errors.push({ field: 'password', message: 'Password is required' })
 
   if (!row.role?.trim()) {
     errors.push({ field: 'role', message: 'Role is required' })
@@ -86,9 +83,8 @@ function parseInput(text) {
     first_name: cells[0] || '',
     last_name: cells[1] || '',
     email: cells[2] || '',
-    password: cells[3] || '',
-    role: cells[4] || '',
-    grade_level: cells[5] || '',
+    role: cells[3] || '',
+    grade_level: cells[4] || '',
     _status: 'pending', // pending | creating | created | failed
     _error: null,
   }))
@@ -125,7 +121,7 @@ function PasteZone({ onParse }) {
         ref={textareaRef}
         className="textarea textarea-bordered w-full font-mono text-sm"
         rows={10}
-        placeholder="Paste from spreadsheet: first_name, last_name, email, password, role, grade_level"
+        placeholder="Paste from spreadsheet: first_name, last_name, email, role, grade_level"
         value={text}
         onChange={(e) => setText(e.target.value)}
         onPaste={handlePaste}
@@ -220,7 +216,7 @@ function PreviewTable({ rows, existingEmails, onUpdateRow, onRemoveRow }) {
                     <td key={col.key} className="p-1">
                       <div className="tooltip tooltip-bottom w-full" data-tip={getFieldTooltip(row, col.key)}>
                         <input
-                          type={col.key === 'password' ? 'text' : 'text'}
+                          type="text"
                           className={getFieldClass(row, col.key)}
                           value={row[col.key]}
                           onChange={(e) => onUpdateRow(row._id, col.key, e.target.value)}
@@ -328,7 +324,6 @@ export default function BulkUserEntry({ orgId, existingUsers = [], onDone }) {
           first_name: row.first_name.trim(),
           last_name: row.last_name.trim(),
           email: row.email.trim(),
-          password: row.password.trim(),
           roles: [row.role.trim().toLowerCase()],
           grade_level: row.grade_level.trim() || null,
         })
