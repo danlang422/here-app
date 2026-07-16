@@ -11,7 +11,28 @@ Sections below are stubs, filled in as we work each chapter. Each should referen
 ## Input Validation Policy
 *Satisfies: v5.0.0-2.1.1*
 
-*(Not yet written — fill in when we work V2.)*
+For each data item below, "valid" means matching the structure listed, and enforcement is noted as DB (Postgres `CHECK`/`NOT NULL`/column type/FK — a trusted layer no client can bypass) or form-level (React Hook Form `register()` rules — UX only, not a security control; see `v5.0.0-2.2.2` below).
+
+**DB-enforced (trusted layer):**
+- `academic_terms`: `end_date > start_date`
+- `school_days.override_reason`: allow-list (`weather`/`planned_holiday`/`emergency`)
+- `activities`: `days_of_week` ⊆ `{0..6}`, non-empty; `default_end_time > default_start_time` (or both null); `block` non-empty integer array; `duration_minutes > 0`; `recurrence_interval >= 1`; `is_not_scheduled`/`is_release` mutually exclusive; `allows_presence_wave`/`requires_checkin` mutually exclusive
+- `enrollments`: same `days_of_week`/`block` shape checks as `activities`; `recurrence_interval >= 1`
+- `check_ins`: `checked_out_at > checked_in_at`
+- `attendance_records.status`: Postgres ENUM (`present`/`absent`/`excused`/`tardy`)
+- `comments`/`notifications`: "exactly one parent" / "at most one related" `num_nonnulls` checks
+- `feedback_reports.report_type`/`status`: allow-list
+- `user_profiles.roles`: subset of `{student, teacher, admin}` — added this session (`20260716120000_user_profiles_roles_check.sql`); previously had no DB constraint at all, see `v5.0.0-2.2.2` evidence below
+
+**Form-level only (UX, not a security boundary):**
+- `geofence_radius`, `duration_minutes` (when start/end times aren't set yet): `min: 1`
+- Email format: native `type="email"`, no explicit pattern (password-adjacent fields already covered under V6)
+
+**UI-construction-constrained, not DB-validated (accepted, low severity — not a business/security decision per 2.2.1's L1 scope):**
+- `rotation_day_type` (`TEXT`, no `CHECK`): the UI only offers valid values (buttons generated from `org.settings.rotation_day_names`), so a direct API write could set an arbitrary string, but it's a label used for filtering/display, not an authorization or business-logic input.
+- `block` upper bound: dynamic per-org (`block_count`); the DB only requires a non-empty array of non-negative integers, the `<select>` UI constrains to the org's actual range. Deliberately loosened when block count became org-configurable (`20260301000001`) — an intentional design choice, not an oversight.
+
+**Client-computed, intentionally trusted — not a gap.** `geofence_validated` (check-in pass/fail) is computed client-side from the device's GPS reading and stored as-is; nothing recomputes it server-side. Confirmed with Daniel (session 58): this is deliberate, not a missed server-side check. A failed geofence check still lets the student check in — the check-in timestamp matters more than location precision for internship monitoring — and a "not validated" badge is shown to staff afterward for follow-up. Since it's not gating a business or security decision, it's out of scope for `v5.0.0-2.2.1`/`2.2.2`.
 
 ## Authentication & Anti-Automation Policy
 *Satisfies: v5.0.0-6.1.1, 6.2.1, 6.2.5, 6.4.1*
@@ -42,7 +63,18 @@ These are **per-IP sliding windows, not per-account lockouts.** That's the answe
 - Custom SMTP (Resend) is configured project-wide, which is what keeps invite/reset email delivery reliable and off Supabase's default low-volume sending path.
 - Test/dev accounts (used by the sole developer for testing student/teacher roles) go through this same invite flow — no separate, less-secure creation path exists for them. Gmail's `+` address aliasing (e.g. `you+student1@gmail.com`) gives the developer as many distinct, individually-invitable test addresses as needed, all delivered to one real inbox, without weakening the account-creation code path itself.
 
-**Recovery links landing outside `/reset-password` (found during live testing).** Both `create-user` and `reset-passwords` explicitly pass `redirectTo` pointing at `/reset-password`, but Supabase's own dashboard "Send Password Recovery" action has no way to set a custom redirect — it falls back to the bare Site URL. Before the fix below, that meant `useAuthListener` (`src/hooks/useAuth.js`) treated the resulting session like any other login and `RootRedirect` silently routed the user straight into their dashboard, skipping the password-set step entirely — found via live testing against a real recovery link, not by inspection alone. Fixed by special-casing the `PASSWORD_RECOVERY` auth event in `useAuthListener` to force navigation to `/reset-password` regardless of what route the link actually landed on. **Known residual limitation:** this only covers the recovery event specifically — it can't be applied to `SIGNED_IN` (invite links may fire either event) without also hijacking normal logins, which also fire `SIGNED_IN`. Practical mitigation: don't use Supabase's dashboard "invite user"/"send recovery" actions directly for real accounts — always go through `create-user`/`reset-passwords`, which set the correct redirect and are unaffected by this gap regardless of which event fires, since the user already lands on the right page.
+**Recovery links landing outside `/reset-password` (found during live testing, session 56).** Both `create-user` and `reset-passwords` explicitly pass `redirectTo` pointing at `/reset-password`, but Supabase's own dashboard "Send Password Recovery" action has no way to set a custom redirect — it falls back to the bare Site URL. Before the fix, that meant `useAuthListener` (`src/hooks/useAuth.js`) treated the resulting session like any other login and `RootRedirect` silently routed the user straight into their dashboard, skipping the password-set step entirely. Fixed by special-casing the `PASSWORD_RECOVERY` auth event in `useAuthListener` to force navigation to `/reset-password` regardless of what route the link actually landed on.
+
+**Recovery/invite step-skipping — the deeper gap behind the fix above, closed under `v5.0.0-2.3.1` (session 58).** The session-56 fix was a one-time redirect tied to the initiating auth event — it didn't stop the user from navigating away from `/reset-password` before submitting a new password and landing fully authenticated in their dashboard anyway, since nothing marked the session as "still owes a password change." Manually reproduced (Daniel, live): deleting `/reset-password` from the URL bar after a recovery-link click landed cleanly in the dashboard. Fixed with a durable, session-derived gate instead of an event-triggered one:
+
+- `src/lib/authUtils.js`'s `needsPasswordSetup()` decodes the session's JWT `amr` (Authentication Methods Reference) claim and checks whether the most recent entry is an OTP-verification-based method. **Live-tested finding:** Supabase's actual GoTrue server stamps both recovery *and* invite links with `amr` method `'otp'` — its `/verify` endpoint is a shared OTP-verification path for signup, recovery, invite, magic-link, and email-change — not the type-specific `'recovery'`/`'invite'` values the public JWT claims docs describe. `'otp'` is the real signal checked; `'recovery'`/`'invite'` are kept as a defensive fallback. Confirmed safe to gate broadly on `'otp'` for this app specifically: Here has no magic-link sign-in, no self-serve signup, and no email-change flow, so recovery/invite links are the only way a session is ever established via OTP verification.
+- `authStore.js`'s `setSession()` — the single choke point hit on both page-load `getSession()` and every `onAuthStateChange` event, including token refresh — derives `passwordSetupPending` fresh from the session every time, not from a one-time flag.
+- `ProtectedRoute.jsx` forces a redirect to `/reset-password` whenever `passwordSetupPending` is true, ahead of the existing role checks, on every render of every protected route.
+- `ResetPassword.jsx` now signs out immediately after a successful password update (previously just navigated to `/login` while leaving the recovery session live) — necessary because changing a password isn't itself a new authentication event, so without ending the session, `amr` would still read `'otp'` afterward and the gate would loop forever. A fresh `signInWithPassword()` establishes a clean session with `amr: ['password']`.
+
+Verified live end-to-end against a real, previously-unused recovery link for a real test account: navigating to bare `/` and directly to a role route (`/student`) both correctly bounced to `/reset-password`; a normal `password`-method session was confirmed *not* falsely gated; completing the password-set flow terminated the session (confirmed via cleared client storage) and required a fresh login, which then landed cleanly with no gating loop.
+
+This closes the residual limitation noted in the session-56 fix above (which only handled the initiating `PASSWORD_RECOVERY` event, not `SIGNED_IN`/invite links or later navigation) — the new gate is derived from the session itself, not from which event fired or where the link first landed. **Known limit, accepted deliberately:** this is a client-side routing gate, not an RLS-level one — it stops the ordinary UI-navigation bypass, but doesn't stop a still-valid recovery-session token from being used directly against the Supabase REST API. Closing that would require the same category of change as `v5.0.0-7.4.2`'s deferred RLS sweep (touching every policy across the schema, since Postgres RLS has no single global-gate primitive) — not proportionate for a solo-maintainer, pre-district-approval app at this scale.
 
 ## Session Management Policy
 *Satisfies: v5.0.0-7.2.1, 7.2.2, 7.2.3, 7.2.4, 7.4.1, 7.4.2*

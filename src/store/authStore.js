@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { needsPasswordSetup } from '@/lib/authUtils'
 
 // Auth store manages two concerns:
 // 1. Session state (user, profile, session) — ephemeral, cleared on logout
@@ -14,6 +15,12 @@ const useAuthStore = create(
       profile: null,     // user_profiles row
       session: null,     // Supabase session object
       loading: true,     // true until initial session check completes
+      // True when the session's most recent auth method was a recovery or
+      // invite link, meaning the user hasn't yet set a real password.
+      // Re-derived from the session itself on every load/refresh (see
+      // needsPasswordSetup) so it survives navigating away from
+      // /reset-password, not just a one-time redirect on the initiating event.
+      passwordSetupPending: false,
 
       // Role state
       currentRole: null,     // 'student' | 'teacher' | 'admin'
@@ -22,6 +29,7 @@ const useAuthStore = create(
       setSession: (session) => set({
         session,
         user: session?.user ?? null,
+        passwordSetupPending: needsPasswordSetup(session),
       }),
 
       setProfile: (profile) => {
@@ -56,6 +64,7 @@ const useAuthStore = create(
         profile: null,
         session: null,
         loading: false,
+        passwordSetupPending: false,
         currentRole: null,
         availableRoles: [],
       }),

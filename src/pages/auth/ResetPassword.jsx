@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { supabase } from '@/api/supabase'
-import { updatePassword } from '@/api/auth'
+import { updatePassword, signOut } from '@/api/auth'
 
 function ResetPassword() {
   const navigate = useNavigate()
@@ -47,6 +47,13 @@ function ResetPassword() {
   async function onFormSubmit({ password }) {
     try {
       await updatePassword(password)
+      // End the recovery/invite session now that a real password is set.
+      // The amr claim only accumulates auth *events* — changing a password
+      // isn't itself one — so without signing out, this session would keep
+      // reading as recovery/invite and ProtectedRoute would loop it back
+      // here forever. Signing out and requiring a fresh signInWithPassword()
+      // establishes a clean session with amr: ['password'].
+      await signOut()
       setSuccess(true)
       setTimeout(() => navigate('/login'), 2000)
     } catch (err) {
@@ -66,7 +73,7 @@ function ResetPassword() {
           <div className="card-body">
             <h2 className="card-title text-2xl font-bold mb-4">Password updated</h2>
             <p className="text-sm text-base-content/80">
-              Your password has been updated. Signing you in...
+              Your password has been updated. Redirecting you to sign in...
             </p>
           </div>
         </div>
