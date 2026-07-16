@@ -64,9 +64,13 @@ Daniel understands it and agrees.**
 
 ## The loop, per chapter
 
-Pick up the chapter named in the invocation (e.g. `/asvs-audit V6`), or ask which
-chapter if none was given — check the checklist for chapters still `not started`
-or `in progress` first.
+Pick up the chapter named in the invocation (e.g. `/asvs-audit V6`). If none was
+given, check `STATUS.md`'s Next Steps section first — the end of a prior chapter
+session often already names the next chapter and *why* (e.g. a gap found in one
+chapter deliberately scoped to a specific requirement in another, as happened
+with the V7→V2 `v5.0.0-2.3.1` handoff). Only fall back to scanning the checklist
+for `not started`/`in progress` chapters and asking Daniel if STATUS.md doesn't
+already answer it — don't ask a question STATUS.md already settled.
 
 1. **Setup.** Read that chapter's rows from the checklist and the full chapter
    text from Reference.
